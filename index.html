@@ -1777,7 +1777,7 @@ function onPdfDropped(e) {
 async function parsePdfAnswers(file) {
   const b64 = await new Promise((res,rej)=>{
     const r=new FileReader();
-    r.onload=e=>res(e.result.split(',')[1]);
+    r.onload=e=>res(e.target.result.split(',')[1]);
     r.onerror=rej;
     r.readAsDataURL(file);
   });
