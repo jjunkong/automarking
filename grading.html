@@ -614,6 +614,11 @@ function stepProc(step) {
   return new Promise(r=>setTimeout(r,600));
 }
 
+// ── API 키 ────────────────────────────────────────────────
+function getApiKey() {
+  return localStorage.getItem('kkj_api_key') || '';
+}
+
 // ── Claude Vision API 호출 ────────────────────────────────
 async function extractAnswers() {
   const total    = state.keyData?.total || 60;
@@ -630,9 +635,17 @@ async function extractAnswers() {
 반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
 {"answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}`;
 
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error('API 키가 없어요. index.html에서 먼저 설정해 주세요.');
+
   const res = await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
     body:JSON.stringify({
       model:'claude-sonnet-4-20250514',
       max_tokens:4000,
