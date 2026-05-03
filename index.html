@@ -320,14 +320,52 @@ select option{background:#282828}
 
     <!-- 정답 입력 탭 -->
     <div id="tab-key" class="screen">
+
+      <!-- 저장된 정답 불러오기 -->
       <div class="card">
-        <div class="ch"><div><div class="ct">5지선다 정답 입력</div><div class="cd">각 문항의 정답 번호를 선택하세요</div></div></div>
-        <div class="cb">
-          <div id="answerKeyGrid" style="display:flex;flex-direction:column;gap:8px">
-            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">OMR 생성 탭에서 5지선다 구간을 먼저 설정해 주세요</div>
+        <div class="ch">
+          <div><div class="ct">저장된 정답표</div><div class="cd">이전에 저장한 정답을 불러오거나 새로 저장합니다</div></div>
+        </div>
+        <div class="cb" style="padding:16px 22px">
+          <div id="savedKeyList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+            <div style="font-size:12px;color:var(--t2);text-align:center;padding:10px">저장된 정답이 없습니다</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="saveKeyName" placeholder="정답 이름 (예: 2026년 3월 모의고사)" style="flex:1;height:38px">
+            <button onclick="saveAnswerKey()" style="height:38px;padding:0 16px;background:var(--g);border:none;border-radius:var(--r);color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--g)'">💾 저장</button>
           </div>
         </div>
       </div>
+
+      <!-- 빠른 입력 -->
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct">5지선다 정답 입력</div><div class="cd">버튼 클릭 또는 키보드 1~5로 빠르게 입력</div></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div id="progressBadge" style="font-family:var(--m);font-size:11px;color:var(--t2);background:var(--b2);padding:3px 10px;border-radius:20px;border:1px solid var(--bo)">0 / 0</div>
+            <button onclick="clearAllAnswers()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">전체 초기화</button>
+          </div>
+        </div>
+        <div class="cb" style="padding:16px 22px">
+
+          <!-- 빠른 붙여넣기 -->
+          <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px 14px;margin-bottom:16px">
+            <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">빠른 붙여넣기</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="bulkInput" placeholder="예: 13245135241... 또는 1,3,2,4,5,1,3,5..." style="flex:1;height:36px;font-family:var(--m);font-size:13px">
+              <button onclick="parseBulk()" style="height:36px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'">적용</button>
+            </div>
+            <div style="font-size:11px;color:var(--t2);margin-top:6px">숫자만 연속 입력하거나 쉼표로 구분해서 붙여넣으면 순서대로 자동 적용됩니다</div>
+          </div>
+
+          <!-- 클릭 그리드 -->
+          <div id="answerKeyGrid">
+            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">OMR 생성 탭에서 5지선다 구간을 먼저 설정해 주세요</div>
+          </div>
+
+        </div>
+      </div>
+
       <button class="btn secondary" onclick="switchTab('omr')">← OMR 생성으로 돌아가기</button>
     </div>
 
@@ -497,34 +535,171 @@ function renderSections() {
 
 function renderAnswerKey() {
   const grid = document.getElementById('answerKeyGrid');
+  if (!grid) return;
   const fives = sections.filter(s=>s.active&&s.type==='five');
   if (!fives.length) {
-    grid.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">5지선다 구간을 먼저 설정해 주세요</div>';
-    return;
+    grid.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">OMR 생성 탭에서 5지선다 구간을 먼저 설정해 주세요</div>';
+    updateProgress(); return;
   }
-  let html = '';
+
+  let html='';
   for (const sec of fives) {
     const n = Math.max(0, sec.to - sec.from + 1);
-    html += `<div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;color:var(--g);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">
-        Q${sec.from} – Q${sec.to} (5지선다)
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;color:var(--g);letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bo)">
+        Q${sec.from} – Q${sec.to}　5지선다 (${n}문항)
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">`;
-    for (let i = 0; i < n; i++) {
-      const qn = sec.from + i;
-      const cur = answerKey[qn] || '';
-      html += `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-        <span style="font-size:10px;font-weight:700;color:var(--t2)">Q${qn}</span>
-        <select class="akey-sel" onchange="answerKey[${qn}]=+this.value">
-          <option value="">-</option>
-          ${[1,2,3,4,5].map(n=>`<option value="${n}" ${cur==n?'selected':''}>${n}</option>`).join('')}
-        </select>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px">`;
+    for (let i=0; i<n; i++) {
+      const qn = sec.from+i;
+      const cur = answerKey[qn]||0;
+      html += `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--b2);border-radius:var(--r);border:1px solid ${cur?'rgba(29,185,84,.3)':'var(--bo)'};" id="row-${qn}">
+        <span style="font-size:11px;font-weight:700;color:${cur?'var(--g)':'var(--t2)'};min-width:26px;font-family:var(--m)">Q${qn}</span>
+        ${[1,2,3,4,5].map(n=>`
+          <button onclick="setAnswer(${qn},${n})" tabindex="0"
+            style="width:26px;height:26px;border-radius:50%;border:1.5px solid ${cur===n?'var(--g)':'var(--bm)'};
+            background:${cur===n?'var(--g)':'transparent'};
+            color:${cur===n?'#000':'var(--t2)'};
+            font-family:var(--f);font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;flex-shrink:0;"
+            onmouseover="if(${cur!==n})this.style.borderColor='var(--g)';if(${cur!==n})this.style.color='var(--g)'"
+            onmouseout="if(${cur!==n})this.style.borderColor='var(--bm)';if(${cur!==n})this.style.color='var(--t2)'"
+            >${n}</button>`).join('')}
       </div>`;
     }
     html += `</div></div>`;
   }
   grid.innerHTML = html;
+  updateProgress();
 }
+
+function setAnswer(qn, ans) {
+  answerKey[qn] = ans;
+  // 해당 행만 업데이트 (전체 재렌더 없이)
+  const row = document.getElementById(`row-${qn}`);
+  if (row) {
+    row.style.borderColor = 'rgba(29,185,84,.3)';
+    const qLabel = row.querySelector('span');
+    if (qLabel) qLabel.style.color = 'var(--g)';
+    const btns = row.querySelectorAll('button');
+    btns.forEach((btn, i) => {
+      const n = i+1;
+      const active = n === ans;
+      btn.style.background    = active ? 'var(--g)' : 'transparent';
+      btn.style.borderColor   = active ? 'var(--g)' : 'var(--bm)';
+      btn.style.color         = active ? '#000'      : 'var(--t2)';
+    });
+  }
+  // 키보드 입력 시 다음 문항으로 포커스
+  const fives = sections.filter(s=>s.active&&s.type==='five');
+  const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+  const idx = allQns.indexOf(qn);
+  if (idx >= 0 && idx < allQns.length-1) {
+    const nextRow = document.getElementById(`row-${allQns[idx+1]}`);
+    if (nextRow) nextRow.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  updateProgress();
+}
+
+function updateProgress() {
+  const fives = sections.filter(s=>s.active&&s.type==='five');
+  const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+  const filled = allQns.filter(q=>answerKey[q]>0).length;
+  const el = document.getElementById('progressBadge');
+  if (el) {
+    el.textContent = `${filled} / ${allQns.length}`;
+    el.style.color = filled===allQns.length&&allQns.length>0 ? 'var(--g)' : 'var(--t2)';
+    el.style.borderColor = filled===allQns.length&&allQns.length>0 ? 'rgba(29,185,84,.3)' : 'var(--bo)';
+  }
+}
+
+function clearAllAnswers() {
+  if (!confirm('모든 정답을 초기화할까요?')) return;
+  answerKey = {};
+  renderAnswerKey();
+}
+
+// ── 빠른 붙여넣기 ────────────────────────────────────────
+function parseBulk() {
+  const raw = document.getElementById('bulkInput').value.trim();
+  if (!raw) return;
+  // 숫자만 추출 (1~5)
+  const nums = raw.replace(/[^1-5]/g,'').split('').map(Number);
+  if (!nums.length) { showToast('1~5 사이 숫자를 입력해 주세요','err'); return; }
+
+  const fives = sections.filter(s=>s.active&&s.type==='five');
+  const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+
+  nums.forEach((n,i) => { if(i<allQns.length) answerKey[allQns[i]]=n; });
+  document.getElementById('bulkInput').value = '';
+  renderAnswerKey();
+  showToast(`✓  ${Math.min(nums.length,allQns.length)}문항 정답 입력 완료`,'ok');
+}
+
+// ── 저장 / 불러오기 ──────────────────────────────────────
+function getSavedKeys() {
+  try { return JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}'); }
+  catch(e) { return {}; }
+}
+
+function saveAnswerKey() {
+  const name = document.getElementById('saveKeyName').value.trim();
+  if (!name) { showToast('정답 이름을 입력해 주세요','err'); return; }
+  const fives = sections.filter(s=>s.active&&s.type==='five');
+  const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+  const filled = allQns.filter(q=>answerKey[q]>0).length;
+  if (!filled) { showToast('입력된 정답이 없습니다','err'); return; }
+
+  const saved = getSavedKeys();
+  saved[name] = { key:JSON.parse(JSON.stringify(answerKey)), count:filled, date:new Date().toLocaleDateString('ko-KR'), total:allQns.length };
+  localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
+  document.getElementById('saveKeyName').value = '';
+  renderSavedKeys();
+  showToast(`✓  "${name}" 저장 완료`,'ok');
+}
+
+function loadAnswerKey(name) {
+  const saved = getSavedKeys();
+  if (!saved[name]) return;
+  answerKey = JSON.parse(JSON.stringify(saved[name].key));
+  renderAnswerKey();
+  showToast(`✓  "${name}" 불러오기 완료`,'ok');
+}
+
+function deleteAnswerKey(name) {
+  if (!confirm(`"${name}" 정답을 삭제할까요?`)) return;
+  const saved = getSavedKeys();
+  delete saved[name];
+  localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
+  renderSavedKeys();
+  showToast(`"${name}" 삭제됨`);
+}
+
+function renderSavedKeys() {
+  const saved = getSavedKeys();
+  const el = document.getElementById('savedKeyList');
+  if (!el) return;
+  const keys = Object.keys(saved);
+  if (!keys.length) {
+    el.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:10px">저장된 정답이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = keys.map(name => {
+    const d = saved[name];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);transition:border-color .2s" onmouseover="this.style.borderColor='var(--bm)'" onmouseout="this.style.borderColor='var(--bo)'">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--t0);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+        <div style="font-size:11px;color:var(--t2)">${d.count}/${d.total}문항 · ${d.date}</div>
+      </div>
+      <button onclick="loadAnswerKey('${name.replace(/'/g,"\\\'")}')"
+        style="height:30px;padding:0 12px;background:var(--gl);border:1px solid rgba(29,185,84,.3);border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s"
+        onmouseover="this.style.background='var(--gg)'" onmouseout="this.style.background='var(--gl)'">불러오기</button>
+      <button onclick="deleteAnswerKey('${name.replace(/'/g,"\\\'")}')"
+        style="height:30px;width:30px;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-family:var(--f);font-size:14px;cursor:pointer;transition:all .2s;flex-shrink:0"
+        onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
+    </div>`;
+  }).join('');
+}
+
 
 function updateStats() {
   const active = sections.filter(s=>s.active);
@@ -694,6 +869,7 @@ function showToast(msg,type=''){
 document.getElementById('bubbleSize').addEventListener('change',updateStats);
 document.getElementById('pageMargin').addEventListener('change',updateStats);
 init();
+renderSavedKeys();
 </script>
 </body>
 </html>
