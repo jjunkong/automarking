@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>KKJ 채점 앱</title>
+<title>KKJ 채점 프로그램</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap');
 
@@ -196,7 +196,7 @@ body{padding-bottom:52px}
 <header class="hdr">
   <div class="hdr-logo">KKJ</div>
   <div>
-    <div class="hdr-title" id="hdrTitle">채점 앱</div>
+    <div class="hdr-title" id="hdrTitle">채점 프로그램</div>
     <div class="hdr-sub" id="hdrSub">김기준영어학원</div>
   </div>
   <button class="hdr-back" id="backBtn" onclick="goBack()" style="display:none">← 뒤로</button>
@@ -465,7 +465,7 @@ body{padding-bottom:52px}
 <div class="np">
   <span class="npt" style="color:var(--g)">KKJ</span>
   <div class="npd"></div>
-  <span class="npt">채점 앱</span>
+  <span class="npt">채점 프로그램</span>
   <div class="npd"></div>
   <span class="npt" id="npStatus">홈</span>
 </div>
@@ -639,14 +639,14 @@ function loadAnswerKeys() {
 function showScreen(id, title, sub) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('s-'+id).classList.add('active');
-  document.getElementById('hdrTitle').textContent = title||'채점 앱';
+  document.getElementById('hdrTitle').textContent = title||'채점 프로그램';
   document.getElementById('hdrSub').textContent   = sub||'김기준영어학원';
   document.getElementById('npStatus').textContent  = title||'홈';
   document.getElementById('backBtn').style.display = id==='home'?'none':'block';
   window.scrollTo(0,0);
 }
 
-function goHome()    { state.type=null; showScreen('home','채점 앱'); updateHome(); }
+function goHome()    { state.type=null; showScreen('home','채점 프로그램'); updateHome(); }
 async function goToSetup() {
   if (!state.type) { showToast('채점 유형을 선택해 주세요','err'); return; }
   // 클라우드에서 최신 시험 목록 받아오기 (실패해도 캐시로 동작)
