@@ -202,8 +202,52 @@ body{padding-bottom:52px}
   <button class="hdr-back" id="backBtn" onclick="goBack()" style="display:none">← 뒤로</button>
 </header>
 
+<!-- ══ SCREEN: ACADEMY CODE SETUP ══ -->
+<div id="s-academy" class="screen">
+  <div style="text-align:center;margin-top:30px;margin-bottom:8px">
+    <div style="font-size:48px;margin-bottom:8px">🏫</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:6px">학원 코드 입력</div>
+    <div style="font-size:13px;color:var(--t1);line-height:1.6" id="academyMessage">
+      학원 원장님께 받은 코드를<br>아래에 입력해주세요
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <div class="cb">
+      <label>학원 코드</label>
+      <input type="text" id="academyInput" placeholder="KKJ-XXXXXX"
+        autocapitalize="characters" autocorrect="off" spellcheck="false"
+        style="font-family:var(--m);font-size:16px;letter-spacing:1px;text-transform:uppercase">
+      <button onclick="submitAcademyCode()" id="academySubmitBtn"
+        style="width:100%;height:48px;margin-top:14px;background:var(--g);border:none;border-radius:24px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">
+        ✓ 입력 완료
+      </button>
+    </div>
+  </div>
+
+  <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:14px;margin-top:14px">
+    <div style="font-size:11px;color:var(--t2);line-height:1.7">
+      💡 코드는 한 번만 입력하면 자동 저장돼요.<br>
+      💡 코드는 학원 원장님이 PC에서 발급한 후 카톡으로 알려주세요.<br>
+      💡 새로운 시험은 자동으로 추가됩니다.
+    </div>
+  </div>
+</div>
+
 <!-- ══ SCREEN: HOME ══ -->
-<div id="s-home" class="screen active">
+<div id="s-home" class="screen">
+
+  <!-- 학원 코드 + 새로고침 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--b2);border:1px solid rgba(206,147,216,.25);border-radius:var(--r);padding:10px 14px;margin-bottom:4px">
+    <div>
+      <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase">학원 코드</div>
+      <div id="academyCodeBadge" style="font-family:var(--m);font-size:13px;font-weight:600;color:#CE93D8;margin-top:1px">—</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button onclick="refreshFromCloud()" style="height:32px;padding:0 12px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer">🔄 새로고침</button>
+      <button onclick="changeAcademyCode()" style="height:32px;width:32px;padding:0;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:12px;cursor:pointer">⚙</button>
+    </div>
+  </div>
 
   <!-- 최근 채점 -->
   <div>
@@ -437,6 +481,99 @@ let state = {
   history: [],
 };
 
+// ══ 학원 코드 + 클라우드 동기화 ═════════════════════════════
+const ACADEMY_LS_KEY = 'kkj_academy_code';
+
+function getAcademyCode() {
+  return (localStorage.getItem(ACADEMY_LS_KEY) || '').toUpperCase();
+}
+function setAcademyCode(code) {
+  if (code) localStorage.setItem(ACADEMY_LS_KEY, code.toUpperCase());
+  else localStorage.removeItem(ACADEMY_LS_KEY);
+}
+
+async function cloudSync(action, payload = {}) {
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) return { ok:false, error: data.error || `HTTP ${res.status}` };
+    return data;
+  } catch (err) {
+    return { ok:false, error: err.message || 'network error' };
+  }
+}
+
+// 클라우드에서 최신 데이터를 받아 localStorage 업데이트
+async function refreshFromCloud(opts = {}) {
+  const { silent = false } = opts;
+  const code = getAcademyCode();
+  if (!code) return { ok:false, error:'no code' };
+
+  if (!silent) showToast('☁ 클라우드에서 시험 목록 가져오는 중...', '');
+  const r = await cloudSync('getAll', { code });
+  if (!r.ok) {
+    if (!silent) showToast('⚠ 동기화 실패: ' + (r.error || '서버 오류'), 'err');
+    return r;
+  }
+  // 클라우드 데이터를 localStorage에 반영 (클라우드가 source of truth)
+  localStorage.setItem('kkj_vocab', JSON.stringify(r.vocab || {}));
+  localStorage.setItem('kkj_answer_keys', JSON.stringify(r.akeys || {}));
+  const total = Object.keys(r.vocab||{}).length + Object.keys(r.akeys||{}).length;
+  if (!silent) showToast(`✓ ${total}개 시험 동기화됨`, 'ok');
+  return { ...r, total };
+}
+
+// ── 학원 코드 입력 화면 ─────────────────────────────────
+function showAcademySetup(message) {
+  const el = document.getElementById('s-academy');
+  el.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>{
+    if (s.id !== 's-academy') s.classList.remove('active');
+  });
+  document.getElementById('hdrTitle').textContent = '학원 코드 입력';
+  document.getElementById('hdrSub').textContent = '최초 1회만 입력하면 돼요';
+  document.getElementById('backBtn').style.display = 'none';
+  if (message) {
+    const m = document.getElementById('academyMessage');
+    if (m) m.textContent = message;
+  }
+}
+
+async function submitAcademyCode() {
+  const input = document.getElementById('academyInput');
+  const code = (input.value || '').trim().toUpperCase();
+  const btn = document.getElementById('academySubmitBtn');
+  if (!/^KKJ-[A-Z0-9]{6,8}$/.test(code)) {
+    showToast('형식이 올바르지 않아요 (예: KKJ-7K9X3M)', 'err');
+    input.focus();
+    return;
+  }
+  btn.disabled = true; btn.textContent = '확인 중...';
+  const r = await cloudSync('ping', { code });
+  btn.disabled = false; btn.textContent = '✓ 입력 완료';
+  if (!r.ok) {
+    showToast('코드를 찾을 수 없어요. 학원 원장님께 다시 확인해주세요.', 'err');
+    return;
+  }
+  setAcademyCode(code);
+  showToast('✓ 학원 코드 확인 완료', 'ok');
+  // 데이터 받아오기
+  await refreshFromCloud({ silent: true });
+  // 홈으로 이동
+  goHome();
+}
+
+function changeAcademyCode() {
+  if (!confirm('학원 코드를 변경하시겠어요?\n현재 시험 목록은 새 코드의 데이터로 교체됩니다.')) return;
+  setAcademyCode('');
+  // 캐시는 남겨두되, 새 코드로 덮어쓸 예정
+  showAcademySetup();
+}
+
 // ── localStorage 키 공유 (index.html과 동일) ──────────────
 function loadAnswerKeys() {
   // TYPE C: kkj_vocab
@@ -486,8 +623,12 @@ function showScreen(id, title, sub) {
 }
 
 function goHome()    { state.type=null; showScreen('home','채점 앱'); updateHome(); }
-function goToSetup() {
+async function goToSetup() {
   if (!state.type) { showToast('채점 유형을 선택해 주세요','err'); return; }
+  // 클라우드에서 최신 시험 목록 받아오기 (실패해도 캐시로 동작)
+  if (getAcademyCode()) {
+    await refreshFromCloud({ silent: true }).catch(()=>{});
+  }
   loadAnswerKeys();
   document.getElementById('studentName').value = '';
   document.getElementById('toPhotoBtn').disabled = true;
@@ -906,6 +1047,13 @@ function gradeNext() {
 
 // ── 홈 업데이트 ───────────────────────────────────────────
 function updateHome() {
+  // 학원 코드 배지
+  const codeBadge = document.getElementById('academyCodeBadge');
+  if (codeBadge) {
+    const code = getAcademyCode();
+    codeBadge.textContent = code || '— 코드 없음';
+  }
+
   const hist  = getHistory();
   const today = new Date().toLocaleDateString('ko-KR');
   const todays = hist.filter(h=>h.date===today);
@@ -945,13 +1093,23 @@ function clearHistory() {
 
 // ── 토스트 ────────────────────────────────────────────────
 function showToast(msg,type='') {
-  const t=document.getElementById('toast');
+  let t=document.getElementById('toast');
+  if (!t) { t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
   t.textContent=msg; t.className='toast '+(type==='err'?'err':type==='ok'?'ok':'');
   setTimeout(()=>t.classList.add('show'),10);
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 
-updateHome();
+// ── 페이지 시작 ────────────────────────────────────────────
+// 학원 코드가 없으면 코드 입력 화면, 있으면 홈으로 이동 + 자동 새로고침
+if (getAcademyCode()) {
+  document.getElementById('s-home').classList.add('active');
+  updateHome();
+  // 백그라운드에서 클라우드 새로고침 (실패해도 캐시로 동작)
+  setTimeout(()=>refreshFromCloud({ silent: true }), 300);
+} else {
+  showAcademySetup();
+}
 </script>
 </body>
 </html>
