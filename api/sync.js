@@ -51,10 +51,41 @@ export default async function handler(req, res) {
     }
     const key = `academy:${code.toUpperCase()}`;
 
+    // ── rotateCode: 보안 재발급 (옛 코드 무효, 데이터 보존) ─
+    if (action === 'rotateCode') {
+      const exists = await redis.exists(key);
+      if (!exists) return res.status(404).json({ ok:false, error:'code not found' });
+
+      // 새 코드 생성 (충돌 방지)
+      let newCode = null;
+      for (let i = 0; i < 5; i++) {
+        const candidate = generateCode();
+        const candidateKey = `academy:${candidate}`;
+        const cExists = await redis.exists(candidateKey);
+        if (!cExists) { newCode = candidate; break; }
+      }
+      if (!newCode) return res.status(500).json({ ok:false, error:'failed to generate code' });
+
+      const newKey = `academy:${newCode}`;
+      // 원자적 키 이름 변경 — 모든 데이터 보존됨
+      await redis.rename(key, newKey);
+
+      // meta에 재발급 시각 기록 + TTL 갱신
+      const meta = await redis.hget(newKey, 'meta');
+      const m = parseJson(meta) || {};
+      m.rotatedAt = new Date().toISOString();
+      m.lastUsed  = new Date().toISOString();
+      await redis.hset(newKey, { meta: JSON.stringify(m) });
+      await redis.expire(newKey, TTL_SECONDS);
+
+      return res.status(200).json({ ok:true, code:newCode, oldCode: code.toUpperCase() });
+    }
+
     // ── ping: 코드 유효성만 확인 ─────────────────────────
     if (action === 'ping') {
       const meta = await redis.hget(key, 'meta');
       if (!meta) return res.status(404).json({ ok:false, error:'code not found' });
+      // lastUsed 갱신 + TTL 연장
       const m = parseJson(meta);
       m.lastUsed = new Date().toISOString();
       await redis.hset(key, { meta: JSON.stringify(m) });
@@ -68,6 +99,7 @@ export default async function handler(req, res) {
       if (!['vocab', 'akeys'].includes(kind)) return res.status(400).json({ ok:false, error:'invalid kind' });
       if (typeof name !== 'string' || name.length > 100) return res.status(400).json({ ok:false, error:'invalid name' });
 
+      // meta 존재 확인 (코드가 발급된 적 없으면 거부)
       const meta = await redis.hget(key, 'meta');
       if (!meta) return res.status(404).json({ ok:false, error:'code not found' });
 
@@ -76,6 +108,7 @@ export default async function handler(req, res) {
       if (payload.length > 500_000) return res.status(413).json({ ok:false, error:'data too large' });
 
       await redis.hset(key, { [field]: payload });
+      // meta lastUsed 갱신
       const m = parseJson(meta);
       m.lastUsed = new Date().toISOString();
       await redis.hset(key, { meta: JSON.stringify(m) });
@@ -112,6 +145,7 @@ export default async function handler(req, res) {
           akeys[field.slice(6)] = v;
         }
       }
+      // lastUsed 갱신 + TTL 연장
       if (meta) {
         meta.lastUsed = new Date().toISOString();
         await redis.hset(key, { meta: JSON.stringify(meta) });
@@ -128,8 +162,9 @@ export default async function handler(req, res) {
   }
 }
 
+// ── 헬퍼: 보기 좋은 학원 코드 생성 (혼동 문자 제외) ─
 function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 0/O/1/I 제외
   let suffix = '';
   for (let i = 0; i < 6; i++) {
     suffix += chars[Math.floor(Math.random() * chars.length)];
@@ -137,6 +172,7 @@ function generateCode() {
   return `KKJ-${suffix}`;
 }
 
+// ── 헬퍼: Upstash 응답이 string/object 둘 다 올 수 있어 안전 처리 ─
 function parseJson(v) {
   if (v == null) return null;
   if (typeof v === 'string') {
