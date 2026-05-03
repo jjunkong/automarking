@@ -371,8 +371,14 @@ select option{background:#282828}
           <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
             <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">빠른 붙여넣기</div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input type="text" id="bulkInput" placeholder="예: 13245135241... 또는 1,3,2,4,5..." style="flex:1;height:36px;font-family:var(--m);font-size:13px">
+              <input type="text" id="bulkInput" placeholder="예: 1 3 (24) 5 1 (13) 2  또는  1,3,(24),5,(135)" style="flex:1;height:36px;font-family:var(--m);font-size:13px">
               <button onclick="parseBulk()" style="height:36px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer" onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'">적용</button>
+            </div>
+            <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.6">
+              단일 정답 → 숫자만 &nbsp;|&nbsp;
+              <span style="color:var(--g);font-weight:600">이중 정답 → (13)</span> &nbsp;|&nbsp;
+              <span style="color:var(--amb);font-weight:600">삼중 정답 → (135)</span>
+              &nbsp;&nbsp;예) <span style="font-family:var(--m);color:var(--t1)">1 3 (24) 5 (135) 2</span>
             </div>
           </div>
           <div id="answerKeyGrid">
