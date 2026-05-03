@@ -989,11 +989,12 @@ function showToast(msg,type=''){
 }
 
 // ── TYPE B 워크북 ────────────────────────────────────────
-let sentences = []; // [{id, brackets}]
+let sentences = []; // [{id, brackets:[2,3,2,...]}]
 let sentId = 0;
 
-function addSentence(brackets=3) {
-  sentences.push({ id:++sentId, brackets });
+function addSentence(bracketsArr) {
+  const arr = Array.isArray(bracketsArr) ? bracketsArr : [2,2,2];
+  sentences.push({ id:++sentId, brackets:[...arr] });
   renderSentences();
 }
 
@@ -1002,9 +1003,19 @@ function removeSentence(id) {
   renderSentences();
 }
 
-function updateBrackets(id, val) {
+function addBracket(id) {
   const s = sentences.find(s=>s.id===id);
-  if (s) s.brackets = Math.max(1, Math.min(10, parseInt(val)||1));
+  if (s && s.brackets.length < 12) { s.brackets.push(2); renderSentences(); }
+}
+
+function removeBracket(id) {
+  const s = sentences.find(s=>s.id===id);
+  if (s && s.brackets.length > 1) { s.brackets.pop(); renderSentences(); }
+}
+
+function toggleBracketChoices(id, bidx) {
+  const s = sentences.find(s=>s.id===id);
+  if (s) { s.brackets[bidx] = s.brackets[bidx]===2 ? 3 : 2; renderSentences(); }
 }
 
 function renderSentences() {
@@ -1014,30 +1025,52 @@ function renderSentences() {
     el.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:12px">문장을 추가해 주세요</div>';
     return;
   }
-  el.innerHTML = sentences.map((s,i)=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
-      <span style="font-size:12px;font-weight:700;color:var(--g);min-width:36px;font-family:var(--m)">S${String(i+1).padStart(2,'0')}</span>
-      <div style="flex:1">
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-          ${Array.from({length:s.brackets},(_,j)=>`
-            <div style="display:flex;gap:2px;align-items:center;background:var(--b3);border-radius:4px;padding:3px 6px;border:1px solid var(--bm)">
-              <span style="font-size:10px;color:var(--t2);font-weight:700">B${j+1}</span>
-              <div style="width:14px;height:14px;border-radius:50%;border:1px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#8898aa;background:#fff">L</div>
-              <div style="width:14px;height:14px;border-radius:50%;border:1px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#8898aa;background:#fff">R</div>
-            </div>`).join('')}
+  el.innerHTML = sentences.map((s,i)=>{
+    const bubPreviews = s.brackets.map((cnt, j)=>`
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer"
+           onclick="toggleBracketChoices(${s.id},${j})" title="클릭하여 2개/3개 전환">
+        <div style="display:flex;gap:2px">
+          ${Array.from({length:cnt},(_,k)=>`
+            <div style="width:16px;height:16px;border-radius:50%;
+              border:1.5px solid ${cnt===3?'#FFB74D':'#29B6F6'};
+              background:transparent;
+              display:flex;align-items:center;justify-content:center;
+              font-size:8px;font-weight:800;
+              color:${cnt===3?'#FFB74D':'#29B6F6'}">${k+1}</div>
+          `).join('')}
         </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <label style="font-size:10px;color:var(--t2);letter-spacing:.5px;text-transform:uppercase;margin:0">Bracket 수</label>
-        <input type="number" min="1" max="10" value="${s.brackets}"
-          onchange="updateBrackets(${s.id},+this.value);renderSentences()"
-          style="width:52px;height:30px;text-align:center;font-size:13px;font-weight:700;font-family:var(--m)">
-      </div>
-      <button onclick="removeSentence(${s.id})"
-        style="width:28px;height:28px;border:1px solid var(--bm);background:transparent;border-radius:6px;color:var(--t2);cursor:pointer;font-size:14px;transition:all .2s"
-        onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
-        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
-    </div>`).join('');
+        <span style="font-size:8px;font-weight:700;
+          color:${cnt===3?'#FFB74D':'#29B6F6'};
+          background:${cnt===3?'rgba(255,183,77,.12)':'rgba(41,182,246,.1)'};
+          padding:0 4px;border-radius:3px">${cnt}개</span>
+      </div>`).join('');
+
+    return `
+      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:700;color:var(--g);min-width:36px;font-family:var(--m)">S${String(i+1).padStart(2,'0')}</span>
+          <span style="font-size:11px;color:var(--t2)">bracket ${s.brackets.length}개
+            <span style="color:#29B6F6;font-weight:600">${s.brackets.filter(b=>b===2).length}×2개</span>
+            ${s.brackets.filter(b=>b===3).length>0?`<span style="color:#FFB74D;font-weight:600"> + ${s.brackets.filter(b=>b===3).length}×3개</span>`:''}
+          </span>
+          <div style="flex:1"></div>
+          <button onclick="addBracket(${s.id})"
+            style="height:24px;padding:0 8px;background:var(--gl);border:1px solid rgba(29,185,84,.3);border-radius:12px;color:var(--g);font-family:var(--f);font-size:10px;font-weight:700;cursor:pointer">+ bracket</button>
+          <button onclick="removeBracket(${s.id})"
+            style="height:24px;padding:0 8px;background:transparent;border:1px solid var(--bm);border-radius:12px;color:var(--t2);font-family:var(--f);font-size:10px;font-weight:700;cursor:pointer"
+            onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+            onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">- bracket</button>
+          <button onclick="removeSentence(${s.id})"
+            style="width:24px;height:24px;border:1px solid var(--bm);background:transparent;border-radius:6px;color:var(--t2);cursor:pointer;font-size:12px;transition:all .2s"
+            onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+            onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
+          ${bubPreviews}
+          <span style="font-size:10px;color:var(--t2);margin-left:4px;align-self:center">← 클릭하면 2개 ↔ 3개 전환</span>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ── TYPE B 저장/불러오기 ──────────────────────────────────
@@ -1056,7 +1089,7 @@ function savePassage() {
     passageNum: document.getElementById('tbPassageNum').value,
     grade: document.getElementById('tbGrade').value,
     date: document.getElementById('tbDate').value,
-    sentences: sentences.map(s=>({brackets:s.brackets})),
+    sentences: sentences.map(s=>({brackets:[...s.brackets]})),
     qCount: parseInt(document.getElementById('tbQCount').value)||8,
     lineH: document.getElementById('tbLineH').value,
     savedAt: new Date().toLocaleDateString('ko-KR'),
@@ -1076,7 +1109,7 @@ function loadPassage(name) {
   document.getElementById('tbDate').value       = d.date||'';
   document.getElementById('tbQCount').value     = d.qCount||8;
   document.getElementById('tbLineH').value      = d.lineH||'normal';
-  sentences = (d.sentences||[]).map(s=>({id:++sentId, brackets:s.brackets}));
+  sentences = (d.sentences||[]).map(s=>({id:++sentId, brackets:Array.isArray(s.brackets)?[...s.brackets]:[2,2,2]}));
   renderSentences();
   showToast(`✓  "${name}" 불러오기 완료`,'ok');
 }
@@ -1131,13 +1164,18 @@ function showTypeBPreview() {
 
   // ── BLANK PART HTML ──────────────────────────────────
   const blankRows = sentences.map((s,i)=>{
-    const pairs = Array.from({length:s.brackets},(_,j)=>`
-      <div style="display:flex;flex-direction:column;align-items:center;gap:1px;margin-right:6px">
-        <div style="font-size:8px;color:#aaa;font-weight:600;letter-spacing:.3px">B${j+1}</div>
+    const pairs = s.brackets.map((cnt, j)=>`
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-right:7px">
         <div style="display:flex;gap:3px">
-          <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#8898aa;background:#fff">L</div>
-          <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#8898aa;background:#fff">R</div>
+          ${Array.from({length:cnt},(_,k)=>`
+            <div style="width:20px;height:20px;border-radius:50%;
+              border:1.5px solid ${cnt===3?'#FFB74D':'#c8d4e0'};
+              display:flex;align-items:center;justify-content:center;
+              font-size:8px;font-weight:800;
+              color:${cnt===3?'#FFB74D':'#8898aa'};background:#fff">${k+1}</div>
+          `).join('')}
         </div>
+        <span style="font-size:8px;color:#bbb;font-weight:600">B${j+1}</span>
       </div>`).join('');
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;
@@ -1270,8 +1308,10 @@ document.getElementById('pageMargin').addEventListener('change',updateStats);
 init();
 renderSavedKeys();
 renderSavedPassages();
-// 기본 문장 3개 추가
-addSentence(3); addSentence(4); addSentence(2);
+// 기본 샘플 문장 (29번 기준)
+addSentence([2,2,2,2,2,2]);  // S01 - bracket 6개 (모두 2개 선택)
+addSentence([2,2,2]);         // S02
+addSentence([2,3,2,3,2,2,2]); // S03 - 3개 선택 포함 예시
 </script>
 </body>
 </html>
