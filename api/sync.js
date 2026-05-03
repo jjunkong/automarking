@@ -67,18 +67,38 @@ export default async function handler(req, res) {
       if (!newCode) return res.status(500).json({ ok:false, error:'failed to generate code' });
 
       const newKey = `academy:${newCode}`;
-      // 원자적 키 이름 변경 — 모든 데이터 보존됨
-      await redis.rename(key, newKey);
 
-      // meta에 재발급 시각 기록 + TTL 갱신
-      const meta = await redis.hget(newKey, 'meta');
-      const m = parseJson(meta) || {};
-      m.rotatedAt = new Date().toISOString();
-      m.lastUsed  = new Date().toISOString();
-      await redis.hset(newKey, { meta: JSON.stringify(m) });
-      await redis.expire(newKey, TTL_SECONDS);
+      // 명시적 복사 + 삭제 (rename 의존하지 않음 — 더 견고)
+      const allData = await redis.hgetall(key);
+      if (allData && Object.keys(allData).length > 0) {
+        // 모든 필드를 새 키에 복사
+        const fieldsToSet = {};
+        for (const [field, value] of Object.entries(allData)) {
+          // value가 이미 직렬화된 문자열이면 그대로, 객체면 직렬화
+          fieldsToSet[field] = typeof value === 'string' ? value : JSON.stringify(value);
+        }
+        // meta 갱신
+        const m = parseJson(allData.meta) || {};
+        m.rotatedAt = new Date().toISOString();
+        m.lastUsed  = new Date().toISOString();
+        fieldsToSet.meta = JSON.stringify(m);
+
+        await redis.hset(newKey, fieldsToSet);
+        await redis.expire(newKey, TTL_SECONDS);
+      }
+
+      // 옛 키 명시적 삭제 — CRITICAL
+      await redis.del(key);
 
       return res.status(200).json({ ok:true, code:newCode, oldCode: code.toUpperCase() });
+    }
+
+    // ── invalidate: 특정 코드를 영구 삭제 (다른 옛 코드 정리용) ─
+    if (action === 'invalidate') {
+      const exists = await redis.exists(key);
+      if (!exists) return res.status(404).json({ ok:false, error:'code not found' });
+      await redis.del(key);
+      return res.status(200).json({ ok:true, deleted: code.toUpperCase() });
     }
 
     // ── ping: 코드 유효성만 확인 ─────────────────────────
