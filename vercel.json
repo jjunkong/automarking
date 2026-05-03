@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/grading", "destination": "/grading.html" },
+    { "source": "/",        "destination": "/index.html"   }
+  ]
+}
