@@ -847,6 +847,11 @@ function switchTab(t) {
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','typec','key'][i]===t));
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
+  // 사이드바는 TYPE A에서만 표시
+  const sidebar = document.querySelector('.sidebar');
+  const mainEl  = document.querySelector('main');
+  if (sidebar) sidebar.style.display = t==='omr' ? '' : 'none';
+  if (mainEl)  mainEl.style.gridTemplateColumns = t==='omr' ? '1fr 320px' : '1fr';
   if (t==='key')   { renderAnswerKey(); renderBracketKey(); renderEssayKey(); }
   if (t==='typeb') { renderSentences(); renderSavedPassages(); }
   if (t==='typec') { renderVcTypes(); renderSavedVocab(); }
