@@ -845,6 +845,21 @@ select option{background:#282828}
       <div style="font-size:10px;color:var(--t2);margin-top:8px;line-height:1.5;border-top:1px solid var(--bo);padding-top:10px">
         💡 <strong style="color:#ff6b6b">보안 재발급</strong>: 조교가 그만뒀을 때 사용하세요. 옛 코드는 즉시 무효화되고, 모든 조교 폰에서 자동 로그아웃돼요. 데이터는 그대로 유지됩니다.
       </div>
+
+      <!-- ★ 옛 코드 정리 (긴급/수동 정리용) ★ -->
+      <div style="margin-top:14px;padding:12px;background:rgba(255,107,107,.05);border:1px solid rgba(255,107,107,.2);border-radius:var(--r)">
+        <div style="font-size:11px;font-weight:700;color:#ff6b6b;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">🗑 다른 옛 코드 정리</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">
+          이전에 발급된 옛 코드 중 살아있는 것을 찾아서 영구 삭제해요.<br>
+          그 코드를 가진 폰들은 다음 사용 시 자동 로그아웃됩니다.
+        </div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="invalidateCodeInput" placeholder="KKJ-XXXXXX (정리할 옛 코드)"
+            autocapitalize="characters" autocorrect="off" spellcheck="false"
+            style="flex:1;height:36px;padding:0 12px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--m);font-size:12px;color:var(--t0);outline:none;text-transform:uppercase">
+          <button onclick="invalidateOtherCode()" style="height:36px;padding:0 14px;background:transparent;border:1px solid rgba(255,107,107,.4);border-radius:18px;color:#ff6b6b;font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">🗑 정리</button>
+        </div>
+      </div>
     </div>
 
     <!-- 코드가 없을 때: 발급 / 직접 입력 -->
@@ -1054,6 +1069,42 @@ async function rotateAcademyCode() {
       copyAcademyShareMessage();
     }
   }, 800);
+}
+
+// 다른 옛 코드 정리 (Redis에 살아있는 고아 코드를 영구 삭제)
+async function invalidateOtherCode() {
+  const input = document.getElementById('invalidateCodeInput');
+  const code = (input.value || '').trim().toUpperCase();
+  const currentCode = getAcademyCode();
+
+  if (!/^KKJ-[A-Z0-9]{6,8}$/.test(code)) {
+    showToast('형식이 올바르지 않아요 (예: KKJ-7K9X3M)', 'err');
+    input.focus();
+    return;
+  }
+  if (code === currentCode) {
+    showToast('현재 사용 중인 코드는 "보안 재발급"으로 처리해주세요', 'err');
+    return;
+  }
+  if (!confirm(
+    `🗑 코드 ${code} 를 영구 삭제할까요?\n\n` +
+    `이 코드와 관련된 모든 데이터(시험·정답)가 즉시 삭제되고,\n` +
+    `이 코드를 가진 모든 폰은 자동 로그아웃돼요.\n\n` +
+    `※ 되돌릴 수 없어요.\n\n` +
+    `계속하시겠어요?`
+  )) return;
+
+  const r = await cloudSync('invalidate', { code });
+  if (!r.ok) {
+    if (r.status === 404) {
+      showToast(`이 코드(${code})는 이미 존재하지 않거나 무효화됐어요`, 'err');
+    } else {
+      showToast('삭제 실패: ' + (r.error || '서버 오류'), 'err');
+    }
+    return;
+  }
+  input.value = '';
+  showToast(`✓ ${code} 영구 삭제됨. 이 코드를 가진 폰들이 곧 자동 로그아웃돼요.`, 'ok');
 }
 
 // 기존 localStorage 데이터를 모두 클라우드에 업로드
