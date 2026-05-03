@@ -768,10 +768,37 @@ function showPreview() {
   for (const sec of active) {
     const n   = Math.max(0, sec.to - sec.from + 1);
     if (!n) continue;
-    const c   = sec.type==='five' ? c5 : 2;
-    const col = Math.ceil(n/c);
     const clr = CLR[sec.type];
 
+    // ── 서술형: 한 줄씩 전체 너비 ──────────────────────
+    if (sec.type === 'essay') {
+      let rows = '';
+      for (let i=0; i<n; i++) {
+        const qn = sec.from+i;
+        const bg = i%2===0?'#f8fafc':'#fff';
+        rows += `
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 12px;
+            min-height:${esH}px;background:${bg};border-bottom:1px solid #edf2f7;">
+            <span style="font-size:${fs}px;font-weight:800;color:${clr};min-width:36px;flex-shrink:0">Q${qn}</span>
+            <div style="flex:1;position:relative;">
+              <div style="border-bottom:1.5px solid #c8d4e0;height:${esH*0.55}px;"></div>
+              <div style="border-bottom:1px solid #e8eef5;height:${esH*0.35}px;margin-top:2px;"></div>
+            </div>
+          </div>`;
+      }
+      secHTML += `
+        <div style="margin-bottom:14px">
+          <div style="background:${clr};padding:7px 14px">
+            <span style="font-size:12px;font-weight:800;color:#fff">${LBL[sec.type](sec)}</span>
+          </div>
+          <div style="border:1px solid #e0e8f0;border-top:none">${rows}</div>
+        </div>`;
+      continue;
+    }
+
+    // ── 5지선다: 다단 컬럼 ─────────────────────────────
+    const c   = c5;
+    const col = Math.ceil(n/c);
     let cols = '';
     for (let ci=0; ci<c; ci++) {
       let rows='';
@@ -780,26 +807,18 @@ function showPreview() {
         if (idx>=n) break;
         const qn = sec.from+idx;
         const bg = idx%2===0?'#f8fafc':'#fff';
-        let bubs='';
-        if (sec.type==='five') {
-          bubs = ['①','②','③','④','⑤'].map(x=>
-            `<div style="width:${bub}px;height:${bub}px;border-radius:50%;border:1.5px solid #c8d4e0;display:inline-flex;align-items:center;justify-content:center;font-size:${fs-3}px;font-weight:700;color:#8898aa;background:#fff;margin-right:4px;flex-shrink:0">${x}</div>`
-          ).join('');
-          bubs = `<div style="display:flex;align-items:center">${bubs}</div>`;
-        } else {
-          bubs = `<div style="flex:1;border-bottom:1.5px solid #c8d4e0;min-width:40px;height:${bub}px;margin-left:4px"></div>`;
-        }
+        const bubs = ['①','②','③','④','⑤'].map(x=>
+          `<div style="width:${bub}px;height:${bub}px;border-radius:50%;border:1.5px solid #c8d4e0;display:inline-flex;align-items:center;justify-content:center;font-size:${fs-3}px;font-weight:700;color:#8898aa;background:#fff;margin-right:4px;flex-shrink:0">${x}</div>`
+        ).join('');
         rows += `
           <div style="display:flex;align-items:center;gap:4px;padding:3px 8px;
-            min-height:${sec.type==='five'?rowH:esH}px;
-            background:${bg};border-bottom:1px solid #edf2f7;border-right:1px solid #e8eef5">
+            min-height:${rowH}px;background:${bg};border-bottom:1px solid #edf2f7;border-right:1px solid #e8eef5">
             <span style="font-size:${fs-1}px;font-weight:800;color:${clr};min-width:${sec.from+n>99?34:28}px;flex-shrink:0">Q${qn}</span>
-            ${bubs}
+            <div style="display:flex;align-items:center">${bubs}</div>
           </div>`;
       }
       cols += `<div style="flex:1;overflow:hidden">${rows}</div>`;
     }
-
     secHTML += `
       <div style="margin-bottom:14px">
         <div style="background:${clr};padding:7px 14px">
