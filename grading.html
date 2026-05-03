@@ -508,11 +508,21 @@ async function cloudSync(action, payload = {}) {
       body: JSON.stringify({ action, ...payload })
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) return { ok:false, error: data.error || `HTTP ${res.status}` };
-    return data;
+    return { ...data, status: res.status, ok: res.ok && data.ok };
   } catch (err) {
-    return { ok:false, error: err.message || 'network error' };
+    return { ok:false, error: err.message || 'network error', status: 0 };
   }
+}
+
+// 코드가 무효화되었을 때 호출 — 강제 로그아웃 + 캐시 삭제 + 코드 입력 화면
+function handleCodeInvalidated(reason) {
+  setAcademyCode('');
+  // 보안: 옛 코드의 캐시 데이터도 즉시 삭제
+  localStorage.removeItem('kkj_vocab');
+  localStorage.removeItem('kkj_answer_keys');
+  // 코드 입력 화면으로 강제 이동 + 메시지 표시
+  showAcademySetup(reason || '학원 코드가 변경되었어요.\n원장님께 새 코드를 받아 다시 입력해주세요.');
+  showToast('🔒 학원 코드가 변경되었어요', 'err');
 }
 
 // 클라우드에서 최신 데이터를 받아 localStorage 업데이트
@@ -524,6 +534,11 @@ async function refreshFromCloud(opts = {}) {
   if (!silent) showToast('☁ 클라우드에서 시험 목록 가져오는 중...', '');
   const r = await cloudSync('getAll', { code });
   if (!r.ok) {
+    // 코드가 무효 (재발급되었거나 삭제됨) → 강제 로그아웃
+    if (r.status === 404) {
+      handleCodeInvalidated();
+      return r;
+    }
     if (!silent) showToast('⚠ 동기화 실패: ' + (r.error || '서버 오류'), 'err');
     return r;
   }
@@ -564,7 +579,11 @@ async function submitAcademyCode() {
   const r = await cloudSync('ping', { code });
   btn.disabled = false; btn.textContent = '✓ 입력 완료';
   if (!r.ok) {
-    showToast('코드를 찾을 수 없어요. 학원 원장님께 다시 확인해주세요.', 'err');
+    if (r.status === 404) {
+      showToast('이 코드는 존재하지 않거나 무효화된 코드예요. 원장님께 다시 확인해주세요.', 'err');
+    } else {
+      showToast('확인 실패: ' + (r.error || '서버 오류'), 'err');
+    }
     return;
   }
   setAcademyCode(code);
