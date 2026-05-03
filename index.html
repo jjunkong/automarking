@@ -345,23 +345,50 @@
   <div class="sidebar">
     <div class="card">
       <div class="card-header"><div class="card-title">예상 구성</div></div>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-val" id="statTotal">0</div>
-          <div class="stat-label">활성 문항</div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:7px;">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#EEF0FF;border-radius:8px;border:1px solid #C7D2FE;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#635BFF;flex-shrink:0"></div>
+            <span style="font-size:12px;font-weight:600;color:#4338CA;">Bracket형</span>
+          </div>
+          <span id="statBracket" style="font-size:20px;font-weight:700;color:#635BFF;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
         </div>
-        <div class="stat-item">
-          <div class="stat-val" id="statPages">—</div>
-          <div class="stat-label">예상 페이지</div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#10B981;flex-shrink:0"></div>
+            <span style="font-size:12px;font-weight:600;color:#065F46;">5지선다</span>
+          </div>
+          <span id="statFive" style="font-size:20px;font-weight:700;color:#10B981;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
         </div>
-        <div class="stat-item">
-          <div class="stat-val" id="statBracket" style="color:#0EA5E9">0</div>
-          <div class="stat-label">Bracket형</div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#FFFBEB;border-radius:8px;border:1px solid #FDE68A;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0"></div>
+            <span style="font-size:12px;font-weight:600;color:#92400E;">서술형</span>
+          </div>
+          <span id="statEssay" style="font-size:20px;font-weight:700;color:#F59E0B;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
         </div>
-        <div class="stat-item">
-          <div class="stat-val" id="statFive" style="color:#10B981">0</div>
-          <div class="stat-label">5지선다</div>
+
+        <div style="height:1px;background:#E3E8EF;margin:2px 0;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#F6F9FC;border-radius:8px;border:1px solid #E3E8EF;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#0A2540;flex-shrink:0"></div>
+            <span style="font-size:12px;font-weight:600;color:#425466;">활성 문항 수</span>
+          </div>
+          <span id="statTotal" style="font-size:20px;font-weight:700;color:#0A2540;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
         </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#F6F9FC;border-radius:8px;border:1px solid #E3E8EF;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#8898AA;flex-shrink:0"></div>
+            <span style="font-size:12px;font-weight:600;color:#425466;">예상 페이지</span>
+          </div>
+          <span id="statPages" style="font-size:20px;font-weight:700;color:#0A2540;letter-spacing:-1px;font-family:var(--font-mono)">—</span>
+        </div>
+
       </div>
     </div>
 
@@ -492,18 +519,20 @@ function renderSections() {
 
 function updateStats() {
   const active = sections.filter(s => s.active);
-  let total=0, bracket=0, five=0;
+  let total=0, bracket=0, five=0, essay=0;
 
   active.forEach(s => {
     const n = Math.max(0, s.to - s.from + 1);
     total += n;
     if (s.type === 'bracket') bracket += n;
     else if (s.type === 'five') five += n;
+    else essay += n;
   });
 
   document.getElementById('statTotal').textContent   = total;
   document.getElementById('statBracket').textContent = bracket;
   document.getElementById('statFive').textContent    = five;
+  document.getElementById('statEssay').textContent   = essay;
   document.getElementById('totalBadge').textContent  = `활성 ${total}문항`;
 
   const size  = document.getElementById('bubbleSize').value;
