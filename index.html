@@ -4,334 +4,242 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KKJ OMR Generator</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --sp-green:      #1DB954;
-  --sp-green-dark: #169040;
-  --sp-green-glow: rgba(29,185,84,.18);
-  --sp-green-dim:  rgba(29,185,84,.10);
-
-  --bg-base:    #121212;
-  --bg-elevated:#181818;
-  --bg-card:    #242424;
-  --bg-hover:   #2a2a2a;
-  --bg-input:   #2a2a2a;
-
-  --border:    rgba(255,255,255,.08);
-  --border-mid:rgba(255,255,255,.14);
-  --border-hi: rgba(255,255,255,.22);
-
-  --text-base: #FFFFFF;
-  --text-sub:  #B3B3B3;
-  --text-muted:#6A6A6A;
-
-  --sky:   #29B6F6;
-  --amber: #FFB74D;
-
-  --radius:    6px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-
-  --font: 'DM Sans', system-ui, sans-serif;
-  --mono: 'DM Mono', monospace;
-  --shadow: 0 8px 24px rgba(0,0,0,.5);
-  --glow:   0 0 20px rgba(29,185,84,.25);
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1DB954;--gd:#169040;--gg:rgba(29,185,84,.15);--gl:rgba(29,185,84,.08);
+  --b0:#121212;--b1:#181818;--b2:#242424;--b3:#2a2a2a;
+  --bo:rgba(255,255,255,.08);--bm:rgba(255,255,255,.14);--bh:rgba(255,255,255,.22);
+  --t0:#fff;--t1:#B3B3B3;--t2:#6A6A6A;
+  --sky:#29B6F6;--amb:#FFB74D;
+  --r:8px;--rl:14px;
+  --f:'DM Sans',system-ui,sans-serif;--m:'DM Mono',monospace;
 }
-
-html { font-family: var(--font); background: var(--bg-base); color: var(--text-base); }
-body { min-height: 100vh; padding-bottom: 72px; }
-
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-
-.app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+html{font-family:var(--f);background:var(--b0);color:var(--t0)}
+body{min-height:100vh;padding-bottom:64px}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
 
 /* ── HEADER ── */
-header {
-  background: rgba(18,18,18,.96);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 28px; height: 64px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
+header{
+  background:rgba(18,18,18,.96);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--bo);
+  padding:0 28px;height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
 }
-.logo { display: flex; align-items: center; gap: 12px; }
-.logo-mark {
-  width: 36px; height: 36px;
-  background: var(--sp-green);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800; color: #000; letter-spacing: -.2px;
-  transition: box-shadow .3s;
+.logo{display:flex;align-items:center;gap:12px}
+.logo-mark{
+  width:36px;height:36px;background:var(--g);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:#000;
+  transition:box-shadow .3s;cursor:default;
 }
-.logo-mark:hover { box-shadow: 0 0 0 6px var(--sp-green-glow); }
-.logo-name { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
-.logo-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-.version-badge {
-  font-size: 11px; font-weight: 600; letter-spacing: .4px;
-  background: var(--sp-green-dim); color: var(--sp-green);
-  border: 1px solid rgba(29,185,84,.25);
-  padding: 4px 12px; border-radius: 20px;
+.logo-mark:hover{box-shadow:0 0 0 6px var(--gg)}
+.logo-name{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.logo-sub{font-size:11px;color:var(--t2);margin-top:1px}
+.vbadge{font-size:11px;font-weight:600;background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.25);padding:4px 12px;border-radius:20px}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;background:var(--b2);border-radius:10px;padding:4px}
+.tab{
+  padding:8px 20px;border-radius:7px;border:none;cursor:pointer;
+  font-family:var(--f);font-size:13px;font-weight:600;
+  color:var(--t2);background:transparent;transition:all .2s;
 }
+.tab.active{background:var(--b3);color:var(--t0);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tab:hover:not(.active){color:var(--t1)}
 
 /* ── MAIN ── */
-main {
-  display: grid; grid-template-columns: 1fr 340px;
-  max-width: 1160px; margin: 0 auto; width: 100%;
-  padding: 28px 20px; gap: 20px;
-}
-.left-col { display: flex; flex-direction: column; gap: 16px; }
+main{max-width:1160px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:1fr 320px;gap:20px}
+.left{display:flex;flex-direction:column;gap:16px}
+.screen{display:none}.screen.active{display:flex;flex-direction:column;gap:16px}
 
 /* ── CARD ── */
-.card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  overflow: hidden; transition: border-color .2s;
-}
-.card:hover { border-color: var(--border-mid); }
-.card-header {
-  padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.card-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
-.card-desc  { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-.card-body  { padding: 22px; }
+.card{background:var(--b1);border:1px solid var(--bo);border-radius:var(--rl);overflow:hidden;transition:border-color .2s}
+.card:hover{border-color:var(--bm)}
+.ch{padding:16px 22px 13px;border-bottom:1px solid var(--bo);display:flex;align-items:center;justify-content:space-between}
+.ct{font-size:14px;font-weight:700;letter-spacing:-.2px}
+.cd{font-size:12px;color:var(--t2);margin-top:3px}
+.cb{padding:20px 22px}
 
 /* ── FORM ── */
-.form-row { display: grid; gap: 14px; margin-bottom: 18px; }
-.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+.fr{display:grid;gap:12px;margin-bottom:16px}
+.fr.c3{grid-template-columns:1fr 1fr 1fr}
+.fr.c2{grid-template-columns:1fr 1fr}
+label{display:block;font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px;letter-spacing:.8px;text-transform:uppercase}
+input,select{
+  width:100%;height:40px;padding:0 12px;
+  background:var(--b3);border:1px solid var(--bm);
+  border-radius:var(--r);font-family:var(--f);font-size:13px;color:var(--t0);
+  outline:none;appearance:none;transition:border-color .15s,box-shadow .15s;
+}
+input::placeholder{color:var(--t2)}
+input:focus,select:focus{border-color:var(--g);box-shadow:0 0 0 3px var(--gg)}
+select{
+  cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6A6A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;
+}
+select option{background:#282828}
+.divider{border:none;border-top:1px solid var(--bo);margin:16px 0}
+.sl{font-size:10px;font-weight:700;color:var(--t2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
 
-label {
-  display: block; font-size: 10px; font-weight: 700;
-  color: var(--text-muted); margin-bottom: 7px;
-  letter-spacing: .8px; text-transform: uppercase;
+/* ── INFO BOX ── */
+.info-box{
+  background:var(--gl);border:1px solid rgba(29,185,84,.2);
+  border-radius:var(--r);padding:12px 14px;
+  display:flex;gap:10px;align-items:flex-start;
+  font-size:12px;color:var(--t1);line-height:1.6;
 }
-input[type=text], input[type=number], select {
-  width: 100%; height: 40px; padding: 0 13px;
-  background: var(--bg-input); border: 1px solid var(--border-mid);
-  border-radius: var(--radius); font-family: var(--font);
-  font-size: 13px; color: var(--text-base);
-  outline: none; appearance: none;
-  transition: border-color .15s, box-shadow .15s;
-}
-input::placeholder { color: var(--text-muted); }
-input:focus, select:focus {
-  border-color: var(--sp-green);
-  box-shadow: 0 0 0 3px var(--sp-green-glow);
-  background: #2e2e2e;
-}
-select {
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6A6A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px;
-}
-select option { background: #282828; color: var(--text-base); }
-
-.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
-.section-label {
-  font-size: 10px; font-weight: 700; color: var(--text-muted);
-  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
-}
+.info-icon{font-size:16px;flex-shrink:0;margin-top:1px}
 
 /* ── SECTION ITEMS ── */
-.sections-list { display: flex; flex-direction: column; gap: 8px; }
-.section-item {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 13px 14px;
-  display: grid; grid-template-columns: 26px 1fr 1fr 1fr 44px;
-  gap: 10px; align-items: center;
-  transition: all .2s; position: relative;
+.slist{display:flex;flex-direction:column;gap:8px}
+.sitem{
+  background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);
+  padding:12px 14px;
+  display:grid;grid-template-columns:24px 1fr 1fr 1fr 40px;
+  gap:10px;align-items:center;transition:all .2s;position:relative;
 }
-.section-item:hover { border-color: var(--border-mid); background: var(--bg-hover); }
-.section-item.inactive { opacity:.35; border-style:dashed; background:#1a1a1a; }
-.section-item.inactive:hover { opacity:.55; }
-
-.section-num {
-  width: 24px; height: 24px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800; color: #000; flex-shrink: 0;
+.sitem:hover{border-color:var(--bm);background:var(--b3)}
+.sitem.off{opacity:.35;border-style:dashed;background:#1a1a1a}
+.sitem.off:hover{opacity:.55}
+.snum{
+  width:24px;height:24px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:#000;flex-shrink:0;
 }
-.section-num.bracket { background: var(--sky); }
-.section-num.five    { background: var(--sp-green); }
-.section-num.essay   { background: var(--amber); }
-.section-item.inactive .section-num { background:#444!important; color:#888; }
-
-.section-type-badge {
-  position: absolute; top: -8px; right: 52px;
-  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
-  letter-spacing: .5px; text-transform: uppercase;
+.snum.five{background:var(--g)}
+.snum.essay{background:var(--amb)}
+.sitem.off .snum{background:#444!important;color:#888}
+.sbadge{
+  position:absolute;top:-8px;right:50px;
+  font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.5px;text-transform:uppercase;
 }
-.badge-bracket { background:rgba(41,182,246,.15); color:var(--sky);   border:1px solid rgba(41,182,246,.3); }
-.badge-five    { background:var(--sp-green-dim);  color:var(--sp-green); border:1px solid rgba(29,185,84,.3); }
-.badge-essay   { background:rgba(255,183,77,.12); color:var(--amber); border:1px solid rgba(255,183,77,.3); }
-.section-item.inactive .section-type-badge { background:#222; color:#555; border-color:#333; }
+.b5{background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.3)}
+.be{background:rgba(255,183,77,.12);color:var(--amb);border:1px solid rgba(255,183,77,.3)}
+.sitem.off .sbadge{background:#222;color:#555;border-color:#333}
 
 /* ── TOGGLE ── */
-.toggle-btn {
-  width: 40px; height: 40px; border-radius: var(--radius);
-  border: 1px solid; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 1px;
-  font-size: 10px; font-weight: 700;
-  transition: all .2s; flex-shrink: 0;
+.tog{
+  width:38px;height:38px;border-radius:var(--r);border:1px solid;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;
+  font-size:10px;font-weight:700;transition:all .2s;flex-shrink:0;
 }
-.toggle-btn.active { background:var(--sp-green-dim); border-color:rgba(29,185,84,.4); color:var(--sp-green); }
-.toggle-btn.active:hover { background:rgba(29,185,84,.2); box-shadow:var(--glow); }
-.toggle-btn.inactive-state { background:transparent; border-color:var(--border-mid); color:#555; }
-.toggle-btn.inactive-state:hover { background:var(--sp-green-dim); border-color:rgba(29,185,84,.4); color:var(--sp-green); }
-.toggle-icon  { font-size: 13px; }
-.toggle-label { font-size: 8px; font-weight: 700; letter-spacing: .4px; }
+.tog.on{background:var(--gl);border-color:rgba(29,185,84,.4);color:var(--g)}
+.tog.on:hover{background:var(--gg);box-shadow:0 0 16px var(--gg)}
+.tog.off-s{background:transparent;border-color:var(--bm);color:#555}
+.tog.off-s:hover{background:var(--gl);border-color:rgba(29,185,84,.4);color:var(--g)}
 
 /* ── ADD BTN ── */
-.add-section-btn {
-  width: 100%; height: 40px; background: transparent;
-  border: 1.5px dashed var(--border-mid); border-radius: var(--radius);
-  cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 600;
-  color: var(--text-muted);
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  transition: all .2s; margin-top: 8px;
+.addbtn{
+  width:100%;height:38px;background:transparent;
+  border:1.5px dashed var(--bm);border-radius:var(--r);cursor:pointer;
+  font-family:var(--f);font-size:13px;font-weight:600;color:var(--t2);
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .2s;margin-top:8px;
 }
-.add-section-btn:hover { border-color:var(--sp-green); color:var(--sp-green); background:var(--sp-green-dim); }
+.addbtn:hover{border-color:var(--g);color:var(--g);background:var(--gl)}
 
 /* ── PRIMARY BTN ── */
-.btn-primary {
-  height: 48px; padding: 0 24px; width: 100%;
-  background: var(--sp-green); border: none; border-radius: 24px;
-  color: #000; font-family: var(--font); font-size: 14px; font-weight: 800;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all .2s; letter-spacing: .2px;
+.btn{
+  height:48px;padding:0 24px;width:100%;
+  background:var(--g);border:none;border-radius:24px;
+  color:#000;font-family:var(--f);font-size:14px;font-weight:800;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .2s;
 }
-.btn-primary:hover { background:#1ed760; transform:scale(1.02); box-shadow:var(--glow); }
-.btn-primary:active { transform:scale(.99); }
-.btn-primary:disabled { opacity:.4; cursor:default; transform:none; box-shadow:none; }
+.btn:hover{background:#1ed760;transform:scale(1.02);box-shadow:0 0 20px var(--gg)}
+.btn:active{transform:scale(.99)}
+.btn:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+.btn.secondary{background:transparent;border:1.5px solid var(--bm);color:var(--t1)}
+.btn.secondary:hover{border-color:var(--g);color:var(--g);background:var(--gl);transform:none;box-shadow:none}
+
+/* ── ANSWER KEY ── */
+.akey-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.akey-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+.akey-label{font-size:10px;font-weight:700;color:var(--t2)}
+.akey-sel{
+  width:100%;height:34px;background:var(--b3);border:1px solid var(--bm);
+  border-radius:var(--r);font-family:var(--f);font-size:12px;color:var(--t0);
+  outline:none;appearance:none;cursor:pointer;text-align:center;
+  transition:border-color .15s;
+}
+.akey-sel:focus{border-color:var(--g)}
+.akey-sel option{background:#282828}
 
 /* ── SIDEBAR ── */
-.sidebar { display: flex; flex-direction: column; gap: 14px; }
-
-.stat-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 13px; border-radius: var(--radius);
-  border: 1px solid var(--border); transition: border-color .2s;
+.sidebar{display:flex;flex-direction:column;gap:14px}
+.srow{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 12px;border-radius:var(--r);border:1px solid var(--bo);transition:border-color .2s;
 }
-.stat-row:hover { border-color: var(--border-mid); }
-.stat-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-.stat-name { font-size:12px; font-weight:600; }
-.stat-val  { font-size:20px; font-weight:800; letter-spacing:-1px; font-family:var(--mono); }
-
-.stat-bracket { background:rgba(41,182,246,.08); }
-.stat-bracket .stat-dot  { background:var(--sky); }
-.stat-bracket .stat-name { color:#7dd3fc; }
-.stat-bracket .stat-val  { color:var(--sky); }
-
-.stat-five { background:var(--sp-green-dim); }
-.stat-five .stat-dot  { background:var(--sp-green); }
-.stat-five .stat-name { color:#6ee7b7; }
-.stat-five .stat-val  { color:var(--sp-green); }
-
-.stat-essay { background:rgba(255,183,77,.08); }
-.stat-essay .stat-dot  { background:var(--amber); }
-.stat-essay .stat-name { color:#fcd34d; }
-.stat-essay .stat-val  { color:var(--amber); }
-
-.stat-total { background:var(--bg-card); }
-.stat-total .stat-dot  { background:#fff; }
-.stat-total .stat-name { color:var(--text-sub); }
-.stat-total .stat-val  { color:var(--text-base); }
-
-.stat-pages { background:var(--bg-card); }
-.stat-pages .stat-dot  { background:var(--text-muted); }
-.stat-pages .stat-name { color:var(--text-muted); }
-.stat-pages .stat-val  { color:var(--text-sub); }
-
-.preview-pages { display:flex; flex-direction:column; gap:6px; padding:14px; }
-.page-bar {
-  display:flex; align-items:center; gap:10px; padding:9px 12px;
-  background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--radius); transition:border-color .2s;
-}
-.page-bar:hover { border-color:var(--border-mid); }
-.page-icon {
-  width:26px; background:#1a1a1a; border:1px solid var(--border-mid);
-  border-radius:4px; display:flex; align-items:center; justify-content:center;
-  font-size:8.5px; color:var(--text-muted); padding:4px 1px;
-  text-align:center; flex-shrink:0; line-height:1.4;
-}
-.page-info { flex:1; }
-.page-label  { font-size:12px; font-weight:600; color:var(--text-base); }
-.page-detail { font-size:10px; color:var(--text-muted); margin-top:1px; }
-
-.tip-list { padding:14px; display:flex; flex-direction:column; gap:9px; }
-.tip { display:flex; gap:10px; font-size:12px; color:var(--text-sub); line-height:1.5; }
-.tip-icon {
-  width:18px; height:18px; border-radius:50%; flex-shrink:0;
-  background:var(--sp-green-dim); color:var(--sp-green);
-  display:flex; align-items:center; justify-content:center;
-  font-size:9px; font-weight:800; margin-top:1px;
-}
-
-.total-badge {
-  font-family:var(--mono); font-size:12px; font-weight:600;
-  color:var(--sp-green); background:var(--sp-green-dim);
-  border:1px solid rgba(29,185,84,.25); padding:4px 12px; border-radius:20px;
-}
+.srow:hover{border-color:var(--bm)}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sname{font-size:12px;font-weight:600}
+.sval{font-size:20px;font-weight:800;letter-spacing:-1px;font-family:var(--m)}
+.row5{background:var(--gl)}.row5 .sdot{background:var(--g)}.row5 .sname{color:#6ee7b7}.row5 .sval{color:var(--g)}
+.rowe{background:rgba(255,183,77,.08)}.rowe .sdot{background:var(--amb)}.rowe .sname{color:#fcd34d}.rowe .sval{color:var(--amb)}
+.rowt{background:var(--b2)}.rowt .sdot{background:#fff}.rowt .sname{color:var(--t1)}.rowt .sval{color:var(--t0)}
+.rowp{background:var(--b2)}.rowp .sdot{background:var(--t2)}.rowp .sname{color:var(--t2)}.rowp .sval{color:var(--t1)}
+.pbar{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);transition:border-color .2s}
+.pbar:hover{border-color:var(--bm)}
+.picon{width:26px;background:#1a1a1a;border:1px solid var(--bm);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8.5px;color:var(--t2);padding:4px 1px;text-align:center;flex-shrink:0;line-height:1.4}
+.tip{display:flex;gap:10px;font-size:12px;color:var(--t1);line-height:1.5}
+.tipicon{width:18px;height:18px;border-radius:50%;flex-shrink:0;background:var(--gl);color:var(--g);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px}
+.tbadge{font-family:var(--m);font-size:12px;font-weight:600;color:var(--g);background:var(--gl);border:1px solid rgba(29,185,84,.25);padding:4px 12px;border-radius:20px}
 
 /* ── TOAST ── */
-.toast {
-  position:fixed; bottom:90px; right:24px;
-  background:var(--bg-card); color:var(--text-base);
-  border:1px solid var(--border-mid);
-  padding:12px 18px; border-radius:var(--radius);
-  font-size:13px; font-weight:600; box-shadow:var(--shadow); z-index:1000;
-  transform:translateY(80px); opacity:0;
+.toast{
+  position:fixed;bottom:80px;right:24px;
+  background:var(--b2);color:var(--t0);border:1px solid var(--bm);
+  padding:12px 18px;border-radius:var(--r);font-size:13px;font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:1000;
+  transform:translateY(80px);opacity:0;
   transition:all .35s cubic-bezier(.34,1.56,.64,1);
 }
-.toast.show { transform:translateY(0); opacity:1; }
-.toast.success { border-color:rgba(29,185,84,.5); color:var(--sp-green); }
-.toast.error   { border-color:rgba(255,77,77,.4);  color:#ff6b6b; }
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(29,185,84,.5);color:var(--g)}
+.toast.err{border-color:rgba(255,77,77,.4);color:#ff6b6b}
 
-.spinner {
-  width:16px; height:16px;
-  border:2.5px solid rgba(0,0,0,.25); border-top-color:#000;
-  border-radius:50%; animation:spin .7s linear infinite;
+/* ── NOW PLAYING ── */
+.np{
+  position:fixed;bottom:0;left:0;right:0;height:60px;
+  background:var(--b1);border-top:1px solid var(--bo);
+  display:flex;align-items:center;justify-content:center;gap:10px;z-index:50;
 }
-@keyframes spin { to { transform:rotate(360deg); } }
+.npt{font-size:11px;font-weight:600;color:var(--t2);letter-spacing:.6px;text-transform:uppercase}
+.npd{width:3px;height:3px;border-radius:50%;background:var(--t2)}
+.npg{color:var(--g)}
 
-/* ── NOW PLAYING BAR ── */
-.now-playing {
-  position:fixed; bottom:0; left:0; right:0; height:64px;
-  background:#181818; border-top:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  gap:10px; z-index:50; padding:0 24px;
+/* ── MODAL ── */
+.modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);overflow:auto}
+.modal-wrap{max-width:900px;margin:20px auto;padding:0 16px 40px}
+.modal-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0 12px}
+.modal-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}
+.modal-dot{width:9px;height:9px;border-radius:50%;background:var(--g)}
+.modal-hint{font-size:11px;color:var(--t2)}
+.modal-btns{display:flex;gap:8px}
+.mbtn{
+  height:38px;padding:0 18px;border-radius:20px;
+  font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;border:none;
 }
-.np-text { font-size:11px; font-weight:600; color:var(--text-muted); letter-spacing:.6px; text-transform:uppercase; }
-.np-dot  { width:3px; height:3px; border-radius:50%; background:var(--text-muted); }
-.np-green { color:var(--sp-green); }
+.mbtn.print{background:var(--g);color:#000}
+.mbtn.print:hover{background:#1ed760}
+.mbtn.close{background:transparent;border:1px solid var(--bm);color:var(--t1)}
+.mbtn.close:hover{border-color:var(--g);color:var(--g)}
+.omr-paper{background:#fff;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7);overflow:hidden}
 
-@media (max-width:800px) {
-  main { grid-template-columns:1fr; }
-  .sidebar { display:none; }
-  .form-row.cols-3 { grid-template-columns:1fr; }
-}
-
-/* bubble base */
-.bub {
-  border-radius:50%; border:1.5px solid #c0ccd8;
-  display:inline-flex; align-items:center; justify-content:center;
-  font-weight:700; color:#8898aa; background:#fff;
-  flex-shrink:0; line-height:1;
+@media(max-width:800px){
+  main{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .fr.c3{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
-<div class="app">
 
 <header>
   <div class="logo">
@@ -341,208 +249,212 @@ select option { background: #282828; color: var(--text-base); }
       <div class="logo-sub">OMR 자동 생성기</div>
     </div>
   </div>
-  <div class="version-badge">채점 자동화 v1.2</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('omr')">📄 OMR 생성</button>
+      <button class="tab" onclick="switchTab('key')">✏️ 정답 입력</button>
+    </div>
+    <div class="vbadge">v2.0</div>
+  </div>
 </header>
 
 <main>
-  <div class="left-col">
+  <div class="left">
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">시험 기본 정보</div>
-          <div class="card-desc">답안지 상단에 인쇄될 정보를 입력하세요</div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="form-row">
-          <div>
-            <label>시험명 (Exam Title)</label>
-            <input type="text" id="examTitle" placeholder="예: 2026 March Mock Exam — Grade 1" />
-          </div>
-        </div>
-        <div class="form-row cols-3">
-          <div>
-            <label>학교 / 학년</label>
-            <input type="text" id="examGrade" placeholder="예: Migang High G1" />
-          </div>
-          <div>
-            <label>출제자</label>
-            <input type="text" id="examAuthor" placeholder="예: Kim Kijun" />
-          </div>
-          <div>
-            <label>시험 일자</label>
-            <input type="text" id="examDate" placeholder="예: 2026.05" />
+    <!-- OMR 생성 탭 -->
+    <div id="tab-omr" class="screen active">
+
+      <div class="card">
+        <div class="ch"><div><div class="ct">시험 기본 정보</div><div class="cd">답안지 상단에 인쇄될 내용</div></div></div>
+        <div class="cb">
+          <div class="fr"><div><label>시험명</label><input type="text" id="examTitle" placeholder="예: 2026년 3월 모의고사 변형문제 — 고1"></div></div>
+          <div class="fr c3" style="margin-bottom:0">
+            <div><label>학교 / 학년</label><input type="text" id="examGrade" placeholder="예: 미강고 1학년"></div>
+            <div><label>출제자</label><input type="text" id="examAuthor" placeholder="예: 김기준"></div>
+            <div><label>시험 일자</label><input type="text" id="examDate" placeholder="예: 2026.05"></div>
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct">문항 구성 설정</div><div class="cd">5지선다와 서술형만 OMR에 포함됩니다</div></div>
+          <div class="tbadge" id="totalBadge">0문항</div>
+        </div>
+        <div class="cb">
+
+          <div class="info-box" style="margin-bottom:16px">
+            <span class="info-icon">💡</span>
+            <span><strong style="color:var(--g)">Bracket형 (어법/어휘 선택)</strong>은 OMR 없이 <strong>문제지에 직접 동그라미</strong>를 치고 사진을 찍어 채점합니다. OMR은 5지선다와 서술형만 포함해요.</span>
+          </div>
+
+          <div class="sl">문항 구간</div>
+          <div class="slist" id="sectionsList"></div>
+          <button class="addbtn" onclick="addSection()"><span style="font-size:18px;line-height:1">+</span> 구간 추가</button>
+
+          <hr class="divider">
+
+          <div class="fr c2" style="margin-bottom:0">
+            <div><label>버블 크기</label>
+              <select id="bubbleSize">
+                <option value="large">크게 — AI 인식율 최우선</option>
+                <option value="medium" selected>보통 — 균형</option>
+                <option value="small">작게 — 문항 수 최우선</option>
+              </select>
+            </div>
+            <div><label>페이지 여백</label>
+              <select id="pageMargin">
+                <option value="normal" selected>보통 (15mm)</option>
+                <option value="narrow">좁게 (10mm)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="showPreview()">
+        <span style="font-size:16px">⊞</span> 미리보기 &amp; 인쇄
+      </button>
+
     </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">문항 구성 설정</div>
-          <div class="card-desc">토글로 구간을 켜고 끌 수 있습니다. 비활성 구간은 PDF에서 제외됩니다.</div>
-        </div>
-        <div class="total-badge" id="totalBadge">활성 0문항</div>
-      </div>
-      <div class="card-body">
-        <div class="section-label">문항 구간</div>
-        <div class="sections-list" id="sectionsList"></div>
-        <button class="add-section-btn" onclick="addSection()">
-          <span style="font-size:18px;line-height:1">+</span> 구간 추가
-        </button>
-        <hr class="divider">
-        <div class="form-row cols-2" style="margin-bottom:0">
-          <div>
-            <label>버블 크기</label>
-            <select id="bubbleSize">
-              <option value="large">크게 — 인식율 최우선</option>
-              <option value="medium" selected>보통 — 균형</option>
-              <option value="small">작게 — 문항 수 최우선</option>
-            </select>
-          </div>
-          <div>
-            <label>페이지 여백</label>
-            <select id="pageMargin">
-              <option value="normal" selected>보통 (15mm)</option>
-              <option value="narrow">좁게 (10mm)</option>
-            </select>
+    <!-- 정답 입력 탭 -->
+    <div id="tab-key" class="screen">
+      <div class="card">
+        <div class="ch"><div><div class="ct">5지선다 정답 입력</div><div class="cd">각 문항의 정답 번호를 선택하세요</div></div></div>
+        <div class="cb">
+          <div id="answerKeyGrid" style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">OMR 생성 탭에서 5지선다 구간을 먼저 설정해 주세요</div>
           </div>
         </div>
       </div>
+      <button class="btn secondary" onclick="switchTab('omr')">← OMR 생성으로 돌아가기</button>
     </div>
-
-    <button class="btn-primary" id="generateBtn" onclick="showPreview()">
-      <span id="btnIcon" style="font-size:16px">⊞</span>
-      <span id="btnText">미리보기 &amp; 인쇄</span>
-    </button>
 
   </div>
 
+  <!-- SIDEBAR -->
   <div class="sidebar">
-
     <div class="card">
-      <div class="card-header"><div class="card-title">예상 구성</div></div>
-      <div style="padding:14px;display:flex;flex-direction:column;gap:6px;">
-        <div class="stat-row stat-bracket">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="stat-dot"></div><span class="stat-name">Bracket형</span>
-          </div>
-          <span class="stat-val" id="statBracket">0</span>
+      <div class="ch"><div class="ct">예상 구성</div></div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:6px">
+        <div class="srow row5">
+          <div style="display:flex;align-items:center;gap:8px"><div class="sdot"></div><span class="sname">5지선다</span></div>
+          <span class="sval" id="statFive">0</span>
         </div>
-        <div class="stat-row stat-five">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="stat-dot"></div><span class="stat-name">5지선다</span>
-          </div>
-          <span class="stat-val" id="statFive">0</span>
+        <div class="srow rowe">
+          <div style="display:flex;align-items:center;gap:8px"><div class="sdot"></div><span class="sname">서술형</span></div>
+          <span class="sval" id="statEssay">0</span>
         </div>
-        <div class="stat-row stat-essay">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="stat-dot"></div><span class="stat-name">서술형</span>
-          </div>
-          <span class="stat-val" id="statEssay">0</span>
+        <div style="height:1px;background:var(--bo);margin:2px 0"></div>
+        <div class="srow rowt">
+          <div style="display:flex;align-items:center;gap:8px"><div class="sdot"></div><span class="sname">총 문항</span></div>
+          <span class="sval" id="statTotal">0</span>
         </div>
-        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
-        <div class="stat-row stat-total">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="stat-dot"></div><span class="stat-name">활성 문항 수</span>
-          </div>
-          <span class="stat-val" id="statTotal">0</span>
-        </div>
-        <div class="stat-row stat-pages">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="stat-dot"></div><span class="stat-name">예상 페이지</span>
-          </div>
-          <span class="stat-val" id="statPages">—</span>
+        <div class="srow rowp">
+          <div style="display:flex;align-items:center;gap:8px"><div class="sdot"></div><span class="sname">예상 페이지</span></div>
+          <span class="sval" id="statPages">—</span>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">페이지 분배 예상</div></div>
-      <div class="preview-pages" id="previewPages">
-        <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">구간을 추가하면 표시됩니다</div>
+      <div class="ch"><div class="ct">채점 방법 안내</div></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="tip">
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--gl);border:1px solid rgba(29,185,84,.3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--g);flex-shrink:0">1</div>
+          <span><strong style="color:var(--t0)">Bracket형</strong> — 문제지에 직접 동그라미 → 문제지 사진 촬영 → AI 자동 채점</span>
+        </div>
+        <div class="tip">
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--gl);border:1px solid rgba(29,185,84,.3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--g);flex-shrink:0">2</div>
+          <span><strong style="color:var(--t0)">5지선다</strong> — 이 OMR 작성 → 사진 촬영 → AI 자동 채점</span>
+        </div>
+        <div class="tip">
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--gl);border:1px solid rgba(29,185,84,.3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--g);flex-shrink:0">3</div>
+          <span><strong style="color:var(--t0)">서술형</strong> — OMR 칸에 작성 → 사진 촬영 → AI 채점 + 조교 확인</span>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">AI 인식율 높이는 팁</div></div>
-      <div class="tip-list">
-        <div class="tip"><span class="tip-icon">✓</span><span>버블 안을 꽉 채워서 진하게 동그라미</span></div>
-        <div class="tip"><span class="tip-icon">✓</span><span>답안지 전체가 나오도록 수직 촬영</span></div>
-        <div class="tip"><span class="tip-icon">✓</span><span>그림자 없이 밝은 조명에서 촬영</span></div>
-        <div class="tip"><span class="tip-icon">✓</span><span>서술형은 칸 안에 또렷하게, 오류는 X로</span></div>
-        <div class="tip"><span class="tip-icon">✓</span><span>버블 크기 "크게" 설정 시 인식율 95%+</span></div>
+      <div class="ch"><div class="ct">페이지 분배 예상</div></div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:6px" id="previewPages">
+        <div style="font-size:12px;color:var(--t2);text-align:center;padding:8px">구간을 추가하면 표시됩니다</div>
       </div>
     </div>
 
+    <div class="card">
+      <div class="ch"><div class="ct">AI 인식율 높이는 팁</div></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
+        <div class="tip"><span class="tipicon">✓</span><span>버블 안을 꽉 채워서 진하게 동그라미</span></div>
+        <div class="tip"><span class="tipicon">✓</span><span>답안지 전체가 나오도록 수직 촬영</span></div>
+        <div class="tip"><span class="tipicon">✓</span><span>그림자 없이 밝은 조명에서 촬영</span></div>
+        <div class="tip"><span class="tipicon">✓</span><span>서술형은 칸 안에 또렷하게, 수정은 X</span></div>
+      </div>
+    </div>
   </div>
 </main>
-</div>
 
-<div class="now-playing">
-  <span class="np-text np-green">KKJ</span>
-  <div class="np-dot"></div>
-  <span class="np-text">English Academy</span>
-  <div class="np-dot"></div>
-  <span class="np-text">채점 자동화 프로젝트</span>
-  <div class="np-dot"></div>
-  <span class="np-text">OMR Generator v1.2</span>
+<!-- NOW PLAYING -->
+<div class="np">
+  <span class="npt npg">KKJ</span>
+  <div class="npd"></div>
+  <span class="npt">김기준영어학원</span>
+  <div class="npd"></div>
+  <span class="npt">채점 자동화 프로젝트</span>
+  <div class="npd"></div>
+  <span class="npt">OMR Generator v2.0</span>
 </div>
 
 <!-- PREVIEW MODAL -->
-<div id="previewModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);overflow:auto;">
-  <div style="max-width:860px;margin:24px auto;padding:0 16px 40px;">
-
-    <!-- Modal Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0 14px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:10px;height:10px;border-radius:50%;background:var(--sp-green);"></div>
-        <span style="font-size:14px;font-weight:700;color:var(--text-base);">미리보기</span>
-        <span style="font-size:12px;color:var(--text-muted);">— 인쇄하면 PDF로 저장도 가능합니다</span>
+<div class="modal" id="previewModal">
+  <div class="modal-wrap">
+    <div class="modal-bar">
+      <div>
+        <div class="modal-title"><div class="modal-dot"></div>답안지 미리보기</div>
+        <div class="modal-hint" style="margin-top:3px">인쇄 후 PDF로 저장하거나 바로 인쇄할 수 있습니다</div>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="printOMR()" style="height:40px;padding:0 22px;background:var(--sp-green);border:none;border-radius:20px;color:#000;font-family:var(--font);font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--sp-green)'">
-          🖨 인쇄 / PDF 저장
-        </button>
-        <button onclick="closePreview()" style="height:40px;padding:0 18px;background:transparent;border:1px solid var(--border-mid);border-radius:20px;color:var(--text-sub);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--border-hi)'" onmouseout="this.style.borderColor='var(--border-mid)'">
-          닫기
-        </button>
+      <div class="modal-btns">
+        <button class="mbtn print" onclick="printOMR()">🖨 인쇄 / PDF 저장</button>
+        <button class="mbtn close" onclick="closeModal()">닫기</button>
       </div>
     </div>
-
-    <!-- OMR Paper -->
-    <div id="omrPaper" style="background:#fff;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden;"></div>
-
+    <div class="omr-paper" id="omrPaper"></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let sections = [], sectionId = 0;
+let sections = [], sid = 0;
+let answerKey = {}; // {qn: answer}
 
 function init() {
-  addSection('bracket', 1,   46, 8, true);
-  addSection('five',    47,  181, 6, true);
-  addSection('essay',   182, 246, 6, true);
+  addSection('five',  1,  20, true);
+  addSection('essay', 21, 25, true);
 }
 
-function addSection(type='five', from=null, to=null, maxBracket=6, active=true) {
-  const lastEnd = sections.filter(s=>s.active).reduce((m,s)=>Math.max(m,s.to), 0);
-  sections.push({ id:++sectionId, type, active, from:from??lastEnd+1, to:to??lastEnd+10, maxBracket });
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active', ['omr','key'][i]===t));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if (t === 'key') renderAnswerKey();
+}
+
+function addSection(type='five', from=null, to=null, active=true) {
+  const last = sections.filter(s=>s.active).reduce((m,s)=>Math.max(m,s.to), 0);
+  sections.push({ id:++sid, type, active, from:from??last+1, to:to??last+10 });
   renderSections();
 }
 
-function toggleActive(id) {
+function toggleSec(id) {
   const s = sections.find(s=>s.id===id);
-  if(s){ s.active=!s.active; renderSections(); }
+  if (s) { s.active=!s.active; renderSections(); }
 }
 
-function updateSection(id, key, val) {
+function updateSec(id, key, val) {
   const s = sections.find(s=>s.id===id);
-  if(s){ s[key]=val; updateStats(); }
+  if (s) { s[key]=val; updateStats(); renderAnswerKey(); }
 }
 
 function renderSections() {
@@ -550,309 +462,233 @@ function renderSections() {
   list.innerHTML = '';
   sections.forEach((sec, idx) => {
     const info = {
-      bracket:{ numClass:'bracket', label:'Bracket L/R',  badge:'badge-bracket' },
-      five:   { numClass:'five',    label:'5-Choice ①~⑤',badge:'badge-five'    },
-      essay:  { numClass:'essay',   label:'Short Answer', badge:'badge-essay'   },
+      five:  { nc:'five',  badge:'b5', label:'5지선다 ①~⑤' },
+      essay: { nc:'essay', badge:'be', label:'서술형' },
     }[sec.type];
-    const isActive = sec.active;
+    const on = sec.active;
     const el = document.createElement('div');
-    el.className = `section-item ${isActive?'':'inactive'}`;
+    el.className = `sitem ${on?'':'off'}`;
     el.innerHTML = `
-      <div class="section-num ${info.numClass}">${idx+1}</div>
-      <div>
-        <label style="margin-bottom:5px">시작</label>
+      <div class="snum ${info.nc}">${idx+1}</div>
+      <div><label style="margin-bottom:5px">시작</label>
         <input type="number" min="1" value="${sec.from}"
-          onchange="updateSection(${sec.id},'from',+this.value)"
-          style="height:36px;font-size:13px" ${isActive?'':'disabled'}>
-      </div>
-      <div>
-        <label style="margin-bottom:5px">끝</label>
+          onchange="updateSec(${sec.id},'from',+this.value)"
+          style="height:34px;font-size:13px" ${on?'':'disabled'}></div>
+      <div><label style="margin-bottom:5px">끝</label>
         <input type="number" min="1" value="${sec.to}"
-          onchange="updateSection(${sec.id},'to',+this.value)"
-          style="height:36px;font-size:13px" ${isActive?'':'disabled'}>
-      </div>
-      <div>
-        <label style="margin-bottom:5px">유형</label>
-        <select onchange="updateSection(${sec.id},'type',this.value)"
-          style="height:36px;font-size:13px" ${isActive?'':'disabled'}>
-          <option value="bracket" ${sec.type==='bracket'?'selected':''}>Bracket형</option>
-          <option value="five"    ${sec.type==='five'   ?'selected':''}>5지선다</option>
-          <option value="essay"   ${sec.type==='essay'  ?'selected':''}>서술형</option>
-        </select>
-      </div>
-      <button class="toggle-btn ${isActive?'active':'inactive-state'}"
-        onclick="toggleActive(${sec.id})" title="${isActive?'비활성화':'활성화'}">
-        <span class="toggle-icon">${isActive?'✓':'—'}</span>
-        <span class="toggle-label">${isActive?'ON':'OFF'}</span>
+          onchange="updateSec(${sec.id},'to',+this.value)"
+          style="height:34px;font-size:13px" ${on?'':'disabled'}></div>
+      <div><label style="margin-bottom:5px">유형</label>
+        <select onchange="updateSec(${sec.id},'type',this.value)"
+          style="height:34px;font-size:13px" ${on?'':'disabled'}>
+          <option value="five"  ${sec.type==='five' ?'selected':''}>5지선다</option>
+          <option value="essay" ${sec.type==='essay'?'selected':''}>서술형</option>
+        </select></div>
+      <button class="tog ${on?'on':'off-s'}" onclick="toggleSec(${sec.id})">
+        <span style="font-size:13px">${on?'✓':'—'}</span>
+        <span style="font-size:8px;font-weight:700">${on?'ON':'OFF'}</span>
       </button>
-      ${sec.type==='bracket'&&isActive?`
-        <div style="grid-column:2/-1;margin-top:2px">
-          <label style="margin-bottom:5px">Bracket 최대 개수</label>
-          <select onchange="updateSection(${sec.id},'maxBracket',+this.value)"
-            style="height:34px;font-size:12px;width:200px">
-            ${[2,3,4,5,6,7,8,9,10].map(n=>`
-              <option value="${n}" ${sec.maxBracket===n?'selected':''}>${n}개 (B1 ~ B${n})</option>
-            `).join('')}
-          </select>
-        </div>`:''}
-      <div class="section-type-badge ${info.badge}">${info.label}</div>
-    `;
+      <div class="sbadge ${info.badge}">${info.label}</div>`;
     list.appendChild(el);
   });
   updateStats();
+  renderAnswerKey();
+}
+
+function renderAnswerKey() {
+  const grid = document.getElementById('answerKeyGrid');
+  const fives = sections.filter(s=>s.active&&s.type==='five');
+  if (!fives.length) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">5지선다 구간을 먼저 설정해 주세요</div>';
+    return;
+  }
+  let html = '';
+  for (const sec of fives) {
+    const n = Math.max(0, sec.to - sec.from + 1);
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--g);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">
+        Q${sec.from} – Q${sec.to} (5지선다)
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">`;
+    for (let i = 0; i < n; i++) {
+      const qn = sec.from + i;
+      const cur = answerKey[qn] || '';
+      html += `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <span style="font-size:10px;font-weight:700;color:var(--t2)">Q${qn}</span>
+        <select class="akey-sel" onchange="answerKey[${qn}]=+this.value">
+          <option value="">-</option>
+          ${[1,2,3,4,5].map(n=>`<option value="${n}" ${cur==n?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+  grid.innerHTML = html;
 }
 
 function updateStats() {
   const active = sections.filter(s=>s.active);
-  let total=0, bracket=0, five=0, essay=0;
+  let total=0, five=0, essay=0;
   active.forEach(s=>{
     const n=Math.max(0,s.to-s.from+1); total+=n;
-    if(s.type==='bracket')bracket+=n;
-    else if(s.type==='five')five+=n;
-    else essay+=n;
+    if(s.type==='five') five+=n; else essay+=n;
   });
-  document.getElementById('statTotal').textContent   = total;
-  document.getElementById('statBracket').textContent = bracket;
-  document.getElementById('statFive').textContent    = five;
-  document.getElementById('statEssay').textContent   = essay;
-  document.getElementById('totalBadge').textContent  = `활성 ${total}문항`;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statFive').textContent  = five;
+  document.getElementById('statEssay').textContent = essay;
+  document.getElementById('totalBadge').textContent = total+'문항';
 
-  const size=document.getElementById('bubbleSize').value;
-  const rowH=size==='large'?9:size==='medium'?7.5:6.5;
-  const A4h=257, colsB=size==='large'?3:size==='medium'?4:5, cols5=size==='large'?5:size==='medium'?6:7;
+  const sz = document.getElementById('bubbleSize').value;
+  const rh = sz==='large'?11:sz==='medium'?9:7.5;
+  const c5 = sz==='large'?4:sz==='medium'?5:6;
+  const re = sz==='large'?16:sz==='medium'?14:12;
   let rows=0;
   active.forEach(s=>{
     const n=Math.max(0,s.to-s.from+1);
-    const c=s.type==='bracket'?colsB:s.type==='five'?cols5:2;
-    rows+=Math.ceil(n/c)*rowH+16;
+    rows += s.type==='five'? Math.ceil(n/c5)*rh+14 : Math.ceil(n/2)*re+14;
   });
-  const pages=Math.max(1,Math.ceil(rows/A4h));
-  document.getElementById('statPages').textContent=pages+'p';
+  const pages = Math.max(1,Math.ceil(rows/250));
+  document.getElementById('statPages').textContent = pages+'p';
 
-  const preview=document.getElementById('previewPages');
-  if(active.length===0){
-    preview.innerHTML='<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">활성 구간이 없습니다</div>';
-    return;
-  }
-  let html='';
-  for(let p=1;p<=pages;p++){
-    html+=`<div class="page-bar">
-      <div class="page-icon">p.${p}</div>
-      <div class="page-info">
-        <div class="page-label">Page ${p}</div>
-        <div class="page-detail">${p===1?'Header + Answer Grid':'Continued'}</div>
-      </div>
-      <div style="font-size:10px;font-weight:800;color:var(--sp-green)">A4</div>
+  const pp = document.getElementById('previewPages');
+  if(!active.length){pp.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:8px">구간을 추가하면 표시됩니다</div>';return;}
+  let ph='';
+  for(let p=1;p<=pages;p++) ph+=`
+    <div class="pbar">
+      <div class="picon">p.${p}</div>
+      <div style="flex:1"><div style="font-size:12px;font-weight:600">Page ${p}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:1px">${p===1?'Header + Answer Grid':'Continued'}</div></div>
+      <div style="font-size:10px;font-weight:800;color:var(--g)">A4</div>
     </div>`;
-  }
-  preview.innerHTML=html;
+  pp.innerHTML = ph;
 }
 
-// ── 미리보기 열기 ────────────────────────────────────────
+// ── 미리보기 ────────────────────────────────────────────
 function showPreview() {
-  const active = sections.filter(s => s.active);
-  if (active.length === 0) { showToast('활성화된 구간이 없습니다', 'error'); return; }
+  const active = sections.filter(s=>s.active);
+  if (!active.length) { showToast('구간을 먼저 추가해 주세요','err'); return; }
 
-  const examTitle  = document.getElementById('examTitle').value  || 'KKJ English Academy — Answer Sheet';
-  const examGrade  = document.getElementById('examGrade').value  || '';
-  const examAuthor = document.getElementById('examAuthor').value || '';
-  const examDate   = document.getElementById('examDate').value   || '';
-  const sizeKey    = document.getElementById('bubbleSize').value;
-  const marginKey  = document.getElementById('pageMargin').value;
+  const title  = document.getElementById('examTitle').value  || '김기준영어학원 답안지';
+  const grade  = document.getElementById('examGrade').value  || '';
+  const author = document.getElementById('examAuthor').value || '';
+  const date   = document.getElementById('examDate').value   || '';
+  const sz     = document.getElementById('bubbleSize').value;
 
-  const margin = marginKey === 'narrow' ? '10mm' : '15mm';
-  const bubSize = sizeKey === 'large' ? 22 : sizeKey === 'medium' ? 18 : 15; // px
-  const rowH    = sizeKey === 'large' ? 36 : sizeKey === 'medium' ? 30 : 26; // px
-  const cols5   = sizeKey === 'large' ? 3  : sizeKey === 'medium' ? 4  : 5;
-  const colsB   = sizeKey === 'large' ? 2  : sizeKey === 'medium' ? 3  : 4;
-  const fs      = sizeKey === 'large' ? 13 : sizeKey === 'medium' ? 12 : 11;
+  const bub  = sz==='large'?22:sz==='medium'?19:16;
+  const rowH = sz==='large'?38:sz==='medium'?32:28;
+  const esH  = sz==='large'?52:sz==='medium'?44:38;
+  const c5   = sz==='large'?4:sz==='medium'?5:6;
+  const fs   = sz==='large'?13:sz==='medium'?12:11;
 
-  const sub = [examGrade, examAuthor, examDate].filter(Boolean).join('  ·  ');
-
-  const secColors = { bracket:'#29B6F6', five:'#1DB954', essay:'#FFB74D' };
-  const secLabels = {
-    bracket: s => `Q${s.from} – Q${s.to}　　Bracket Choice　[ L = 왼쪽  /  R = 오른쪽 ]　(B1 ~ B${s.maxBracket||8})`,
-    five:    s => `Q${s.from} – Q${s.to}　　5지선다　[ ① ② ③ ④ ⑤ ]`,
-    essay:   s => `Q${s.from} – Q${s.to}　　서술형`,
+  const sub = [grade,author,date].filter(Boolean).join('  ·  ');
+  const CLR = { five:'#1DB954', essay:'#FFB74D' };
+  const LBL = {
+    five:  s=>`Q${s.from} – Q${s.to}　　5지선다　[ ① ② ③ ④ ⑤ ]`,
+    essay: s=>`Q${s.from} – Q${s.to}　　서술형 Short Answer`,
   };
 
-  let sectionsHTML = '';
-
+  let secHTML = '';
   for (const sec of active) {
-    const n = Math.max(0, sec.to - sec.from + 1);
-    if (n <= 0) continue;
-    const color = secColors[sec.type];
-    const cols  = sec.type === 'bracket' ? colsB : sec.type === 'five' ? cols5 : 2;
-    const colPct = (100 / cols).toFixed(2);
+    const n   = Math.max(0, sec.to - sec.from + 1);
+    if (!n) continue;
+    const c   = sec.type==='five' ? c5 : 2;
+    const col = Math.ceil(n/c);
+    const clr = CLR[sec.type];
 
-    // build rows
-    let rowsHTML = '';
-    for (let i = 0; i < n; i++) {
-      const qn = sec.from + i;
-      const isShaded = i % 2 === 0;
-      let bubblesHTML = '';
-
-      if (sec.type === 'bracket') {
-        const maxB = sec.maxBracket || 8;
-        let pairs = '';
-        for (let b = 0; b < maxB; b++) {
-          pairs += `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
-              <div style="display:flex;gap:2px;">
-                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-3}px;">L</div>
-                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-3}px;">R</div>
-              </div>
-              <span style="font-size:9px;color:#aaa;line-height:1">B${b+1}</span>
-            </div>`;
-        }
-        bubblesHTML = `<div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:nowrap;">${pairs}</div>`;
-      } else if (sec.type === 'five') {
-        const nums = ['①','②','③','④','⑤'];
-        bubblesHTML = `<div style="display:flex;gap:8px;align-items:center;">` +
-          nums.map(n => `<div class="bub" style="width:${bubSize+2}px;height:${bubSize+2}px;font-size:${fs-2}px;">${n}</div>`).join('') +
-          `</div>`;
-      } else {
-        bubblesHTML = `<div style="flex:1;border-bottom:1.5px solid #ddd;min-width:120px;height:${bubSize}px;"></div>`;
-      }
-
-      rowsHTML += `
-        <div style="display:flex;align-items:center;gap:10px;padding:4px 10px;
-          min-height:${rowH}px;background:${isShaded?'#f8fafc':'#fff'};
-          border-bottom:1px solid #eef2f7;">
-          <span style="font-size:${fs-1}px;font-weight:700;color:${color};min-width:30px;flex-shrink:0">Q${qn}</span>
-          ${bubblesHTML}
-        </div>`;
-    }
-
-    // wrap in columns
-    let colsHTML = '';
-    const perCol = Math.ceil(n / cols);
-    for (let c = 0; c < cols; c++) {
-      const start = c * perCol;
-      const end   = Math.min(start + perCol, n);
-      let colRows = '';
-      for (let i = start; i < end; i++) {
-        const qn = sec.from + i;
-        const isShaded = i % 2 === 0;
-        let bubs = '';
-        if (sec.type === 'bracket') {
-          const maxB = sec.maxBracket || 8;
-          let pairs = '';
-          for (let b = 0; b < maxB; b++) {
-            pairs += `<div style="display:flex;flex-direction:column;align-items:center;gap:0px;margin-right:3px">
-              <div style="display:flex;gap:2px;">
-                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-4}px;">L</div>
-                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-4}px;">R</div>
-              </div>
-              <span style="font-size:8px;color:#bbb;line-height:1.2">B${b+1}</span>
-            </div>`;
-          }
-          bubs = `<div style="display:flex;align-items:flex-end;flex-wrap:nowrap;">${pairs}</div>`;
-        } else if (sec.type === 'five') {
-          bubs = ['①','②','③','④','⑤'].map(num =>
-            `<div class="bub" style="width:${bubSize+2}px;height:${bubSize+2}px;font-size:${fs-2}px;margin-right:5px;">${num}</div>`
+    let cols = '';
+    for (let ci=0; ci<c; ci++) {
+      let rows='';
+      for (let ri=0; ri<col; ri++) {
+        const idx = ci*col+ri;
+        if (idx>=n) break;
+        const qn = sec.from+idx;
+        const bg = idx%2===0?'#f8fafc':'#fff';
+        let bubs='';
+        if (sec.type==='five') {
+          bubs = ['①','②','③','④','⑤'].map(x=>
+            `<div style="width:${bub}px;height:${bub}px;border-radius:50%;border:1.5px solid #c8d4e0;display:inline-flex;align-items:center;justify-content:center;font-size:${fs-3}px;font-weight:700;color:#8898aa;background:#fff;margin-right:4px;flex-shrink:0">${x}</div>`
           ).join('');
-          bubs = `<div style="display:flex;align-items:center;">${bubs}</div>`;
+          bubs = `<div style="display:flex;align-items:center">${bubs}</div>`;
         } else {
-          bubs = `<div style="flex:1;border-bottom:1.5px solid #d0d8e4;min-width:60px;"></div>`;
+          bubs = `<div style="flex:1;border-bottom:1.5px solid #c8d4e0;min-width:40px;height:${bub}px;margin-left:4px"></div>`;
         }
-        colRows += `
-          <div style="display:flex;align-items:center;gap:6px;padding:3px 8px;
-            min-height:${rowH}px;background:${i%2===0?'#f8fafc':'#fff'};
-            border-bottom:1px solid #eef2f7;border-right:1px solid #e8eef5;">
-            <span style="font-size:${fs-1}px;font-weight:700;color:${color};min-width:26px;flex-shrink:0">Q${qn}</span>
+        rows += `
+          <div style="display:flex;align-items:center;gap:4px;padding:3px 8px;
+            min-height:${sec.type==='five'?rowH:esH}px;
+            background:${bg};border-bottom:1px solid #edf2f7;border-right:1px solid #e8eef5">
+            <span style="font-size:${fs-1}px;font-weight:800;color:${clr};min-width:${sec.from+n>99?34:28}px;flex-shrink:0">Q${qn}</span>
             ${bubs}
           </div>`;
       }
-      colsHTML += `<div style="flex:1;overflow:hidden;">${colRows}</div>`;
+      cols += `<div style="flex:1;overflow:hidden">${rows}</div>`;
     }
 
-    sectionsHTML += `
-      <div style="margin-bottom:16px;">
-        <div style="background:${color};padding:8px 14px;display:flex;align-items:center;gap:8px;">
-          <span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:-.2px;">${secLabels[sec.type](sec)}</span>
+    secHTML += `
+      <div style="margin-bottom:14px">
+        <div style="background:${clr};padding:7px 14px">
+          <span style="font-size:12px;font-weight:800;color:#fff">${LBL[sec.type](sec)}</span>
         </div>
-        <div style="display:flex;border:1px solid #e8eef5;border-top:none;">${colsHTML}</div>
+        <div style="display:flex;border:1px solid #e0e8f0;border-top:none">${cols}</div>
       </div>`;
   }
 
-  const html = `
-    <div style="padding:20px 24px 28px;font-family:'Helvetica Neue',Arial,sans-serif;">
-
-      <!-- 헤더 -->
-      <div style="border-top:3px solid #1DB954;padding-top:12px;margin-bottom:16px;">
-        <h1 style="font-size:18px;font-weight:800;color:#0a2540;text-align:center;margin-bottom:${sub?'6px':'12px'}">${examTitle}</h1>
-        ${sub ? `<p style="font-size:11px;color:#8898aa;text-align:center;margin-bottom:12px;">${sub}</p>` : ''}
+  document.getElementById('omrPaper').innerHTML = `
+    <div style="padding:20px 24px 24px;font-family:'Helvetica Neue',Arial,sans-serif">
+      <div style="border-top:3px solid #1DB954;padding-top:12px;margin-bottom:14px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#0a2540;margin-bottom:${sub?'5px':'10px'}">${title}</div>
+        ${sub?`<div style="font-size:11px;color:#8898aa;margin-bottom:10px">${sub}</div>`:''}
       </div>
-
-      <!-- 정보칸 -->
-      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr 0.8fr;border:1px solid #d0d8e4;margin-bottom:8px;">
-        ${[['Name','이름'],['Class / No.','반·번호'],['Date','날짜'],['Score','점수']].map(([en,ko],i)=>`
-          <div style="padding:8px 10px;${i>0?'border-left:1px solid #d0d8e4;':''}">
-            <div style="font-size:9px;font-weight:700;color:#8898aa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">${en}</div>
-            <div style="height:18px;${i===3?'font-size:18px;font-weight:700;color:#0a2540;text-align:center;line-height:1.8':''}">
+      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr 0.8fr;border:1px solid #d0d8e4;margin-bottom:8px">
+        ${[['Name','이름'],['Class / No.','반·번호'],['Date','날짜'],['Score','점수']].map(([en],i)=>`
+          <div style="padding:7px 10px;${i>0?'border-left:1px solid #d0d8e4':''}">
+            <div style="font-size:9px;font-weight:700;color:#8898aa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">${en}</div>
+            <div style="height:18px;${i===3?'font-size:17px;font-weight:800;color:#0a2540;text-align:center;line-height:1.8':''}">
               ${i===3?'/':''}
             </div>
           </div>`).join('')}
       </div>
-
-      <!-- 주의사항 -->
-      <p style="font-size:9.5px;color:#8898aa;margin-bottom:16px;">
-        ※ 선택형 : 버블 안을 꽉 채워서 진하게 표시 &nbsp;|&nbsp; 서술형 : 칸 안에 또렷하게 작성 &nbsp;|&nbsp; 수정 시 X로 지우고 재작성
+      <p style="font-size:9px;color:#8898aa;margin-bottom:14px">
+        ※ 5지선다 : 버블 안을 진하게 채워서 표시 &nbsp;|&nbsp; 서술형 : 칸 안에 또렷하게 작성 &nbsp;|&nbsp; 수정 시 X로 지우고 재작성
       </p>
-
-      <!-- 섹션들 -->
-      ${sectionsHTML}
-
-      <!-- 푸터 -->
-      <div style="border-top:2px solid #1DB954;padding-top:8px;display:flex;justify-content:space-between;margin-top:8px;">
-        <span style="font-size:9px;color:#aaa;">KKJ ENGLISH · OMR Auto-Grading Answer Sheet</span>
-        <span style="font-size:9px;color:#aaa;">김기준영어학원</span>
+      ${secHTML}
+      <div style="border-top:2px solid #1DB954;padding-top:7px;display:flex;justify-content:space-between;margin-top:6px">
+        <span style="font-size:9px;color:#aaa">KKJ ENGLISH  ·  OMR Auto-Grading Answer Sheet</span>
+        <span style="font-size:9px;color:#aaa">김기준영어학원</span>
       </div>
     </div>`;
 
-  document.getElementById('omrPaper').innerHTML = html;
-  document.getElementById('previewModal').style.display = 'block';
-  document.body.style.overflow = 'hidden';
+  document.getElementById('previewModal').style.display='block';
+  document.body.style.overflow='hidden';
 }
 
-function closePreview() {
-  document.getElementById('previewModal').style.display = 'none';
-  document.body.style.overflow = '';
+function closeModal(){
+  document.getElementById('previewModal').style.display='none';
+  document.body.style.overflow='';
 }
 
-function printOMR() {
+function printOMR(){
   const content = document.getElementById('omrPaper').innerHTML;
-  const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(`<!DOCTYPE html><html><head>
-    <meta charset="UTF-8">
+  const win = window.open('','_blank','width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>KKJ OMR 답안지</title>
     <style>
-      * { box-sizing:border-box; margin:0; padding:0; }
-      body { font-family:'Helvetica Neue',Arial,sans-serif; background:#fff; }
-      .bub {
-        border-radius:50%; border:1.5px solid #c0ccd8;
-        display:inline-flex; align-items:center; justify-content:center;
-        font-weight:700; color:#8898aa; background:#fff;
-        flex-shrink:0;
-      }
-      @media print {
-        @page { margin:12mm; size:A4; }
-        body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff}
+      @media print{
+        @page{margin:10mm;size:A4}
+        body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
       }
     </style>
   </head><body>${content}</body></html>`);
   win.document.close();
-  setTimeout(() => { win.focus(); win.print(); }, 400);
+  setTimeout(()=>{win.focus();win.print();},400);
 }
-
-function generatePDF() { showPreview(); }
 
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast '+type;
   setTimeout(()=>t.classList.add('show'),10);
-  setTimeout(()=>t.classList.remove('show'),3200);
+  setTimeout(()=>t.classList.remove('show'),3000);
 }
 
 document.getElementById('bubbleSize').addEventListener('change',updateStats);
