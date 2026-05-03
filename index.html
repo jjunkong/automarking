@@ -549,21 +549,23 @@ function renderAnswerKey() {
       <div style="font-size:11px;font-weight:700;color:var(--g);letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bo)">
         Q${sec.from} – Q${sec.to}　5지선다 (${n}문항)
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px">`;
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">`;
     for (let i=0; i<n; i++) {
       const qn = sec.from+i;
       const cur = answerKey[qn]||0;
-      html += `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--b2);border-radius:var(--r);border:1px solid ${cur?'rgba(29,185,84,.3)':'var(--bo)'};" id="row-${qn}">
-        <span style="font-size:11px;font-weight:700;color:${cur?'var(--g)':'var(--t2)'};min-width:26px;font-family:var(--m)">Q${qn}</span>
+      html += `<div style="display:flex;align-items:center;gap:5px;padding:5px 8px;background:var(--b2);border-radius:var(--r);border:1px solid ${cur?'rgba(29,185,84,.3)':'var(--bo)'};" id="row-${qn}">
+        <span style="font-size:11px;font-weight:700;color:${cur?'var(--g)':'var(--t2)'};min-width:32px;font-family:var(--m);flex-shrink:0">Q${qn}</span>
+        <div style="display:flex;gap:4px;flex:1;justify-content:space-between">
         ${[1,2,3,4,5].map(n=>`
           <button onclick="setAnswer(${qn},${n})" tabindex="0"
-            style="width:26px;height:26px;border-radius:50%;border:1.5px solid ${cur===n?'var(--g)':'var(--bm)'};
+            style="flex:1;height:28px;min-width:0;border-radius:6px;border:1.5px solid ${cur===n?'var(--g)':'var(--bm)'};
             background:${cur===n?'var(--g)':'transparent'};
             color:${cur===n?'#000':'var(--t2)'};
-            font-family:var(--f);font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;flex-shrink:0;"
+            font-family:var(--f);font-size:12px;font-weight:800;cursor:pointer;transition:all .12s;"
             onmouseover="if(${cur!==n})this.style.borderColor='var(--g)';if(${cur!==n})this.style.color='var(--g)'"
             onmouseout="if(${cur!==n})this.style.borderColor='var(--bm)';if(${cur!==n})this.style.color='var(--t2)'"
             >${n}</button>`).join('')}
+        </div>
       </div>`;
     }
     html += `</div></div>`;
