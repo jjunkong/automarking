@@ -265,6 +265,12 @@ select option{background:#282828}
         cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
       onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
       onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">🔑 API 키</button>
+    <button onclick="openAcademyModal()" id="academyBtn"
+      style="height:32px;padding:0 12px;background:var(--b2);border:1px solid var(--bm);
+        border-radius:16px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;
+        cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
+      onmouseover="this.style.borderColor='#CE93D8';this.style.color='#CE93D8'"
+      onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">🏫 학원 코드</button>
     <div class="vbadge">v2.0</div>
   </div>
 </header>
@@ -397,6 +403,19 @@ select option{background:#282828}
             </div>
             <div id="pdfPreviewList" style="display:none;max-height:300px;overflow-y:auto;
               background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
+            </div>
+
+            <!-- ★ 인라인 이름 입력 + 빠른 저장 ★ -->
+            <div style="margin-top:14px;padding:14px;background:rgba(206,147,216,.05);border:1px solid rgba(206,147,216,.25);border-radius:var(--r)">
+              <div style="font-size:11px;font-weight:700;color:#CE93D8;letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">📌 이 정답 세트를 저장</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" id="pdfQuickName" placeholder="이름 입력 (예: 능률VOCA DAY44)" style="flex:1;height:40px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--f);font-size:13px;color:var(--t0);outline:none">
+                <button onclick="quickSavePdfResult()" style="height:40px;padding:0 18px;background:#CE93D8;border:none;border-radius:20px;color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#dba6e0'" onmouseout="this.style.background='#CE93D8'">💾 저장</button>
+              </div>
+              <div style="font-size:11px;color:var(--t2);margin-top:8px;line-height:1.5">
+                저장하면 아래 시험 설정과 함께 묶여서 보관돼요.<br>
+                학원 코드가 있으면 자동으로 채점 앱에도 연동됩니다.
+              </div>
             </div>
           </div>
 
@@ -804,11 +823,247 @@ select option{background:#282828}
   </div>
 </div>
 
+<!-- 학원 코드 모달 -->
+<div id="academyModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:480px;width:100%">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">🏫 학원 코드 관리</div>
+    <div style="font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.6">
+      이 코드 하나로 PC에서 저장한 정답을 조교들의 폰에서 불러올 수 있어요.<br>
+      <strong style="color:#CE93D8">최초 1회만 발급</strong>하고 조교들에게 카톡으로 공유하면 끝.
+    </div>
+
+    <!-- 현재 코드 표시 영역 -->
+    <div id="academyCurrentArea" style="display:none;background:var(--b2);border:1px solid rgba(206,147,216,.3);border-radius:var(--r);padding:18px;margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px">현재 학원 코드</div>
+      <div id="academyCurrentCode" style="font-family:var(--m);font-size:22px;font-weight:700;color:#CE93D8;letter-spacing:1.5px;margin-bottom:12px">KKJ-XXXXXX</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="copyAcademyCode()" style="height:34px;padding:0 14px;background:#CE93D8;border:none;border-radius:17px;color:#000;font-family:var(--f);font-size:12px;font-weight:700;cursor:pointer">📋 코드만 복사</button>
+        <button onclick="copyAcademyShareMessage()" style="height:34px;padding:0 14px;background:transparent;border:1px solid rgba(206,147,216,.5);border-radius:17px;color:#CE93D8;font-family:var(--f);font-size:12px;font-weight:700;cursor:pointer">💬 카톡 메시지 복사</button>
+        <button onclick="confirmAcademyReset()" style="height:34px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:17px;color:var(--t2);font-family:var(--f);font-size:12px;cursor:pointer">코드 변경</button>
+      </div>
+      <div id="academySyncStatus" style="font-size:11px;color:var(--t2);margin-top:10px"></div>
+    </div>
+
+    <!-- 코드가 없을 때: 발급 / 직접 입력 -->
+    <div id="academyEmptyArea">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="createAcademyCode()" id="createCodeBtn" style="height:48px;background:#CE93D8;border:none;border-radius:24px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">✨ 새 학원 코드 발급</button>
+        <div style="display:flex;align-items:center;gap:10px;color:var(--t2);font-size:11px">
+          <div style="flex:1;height:1px;background:var(--bo)"></div>
+          또는
+          <div style="flex:1;height:1px;background:var(--bo)"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="academyCodeInput" placeholder="KKJ-XXXXXX (이미 발급받은 코드 입력)" style="flex:1;height:44px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--m);font-size:13px;color:var(--t0);outline:none;text-transform:uppercase">
+          <button onclick="useExistingCode()" style="height:44px;padding:0 18px;background:transparent;border:1px solid var(--bm);border-radius:22px;color:var(--t1);font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer">불러오기</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:20px">
+      <button onclick="closeAcademyModal()" style="height:38px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:19px;color:var(--t1);font-family:var(--f);font-size:13px;cursor:pointer">닫기</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let sections = [], sid = 0;
 let answerKey = {};       // 5지선다: {qn: answer}
 let bracketAnswers = {};  // bracket: {"Q1_B1": [2], "Q1_B2": [1,2], ...}
 let essayAnswers = {};    // 서술형: {qn: {answer, keywords, score}}
+
+// ══ 학원 코드 + 클라우드 동기화 ═════════════════════════════
+const ACADEMY_LS_KEY = 'kkj_academy_code';
+
+function getAcademyCode() {
+  return (localStorage.getItem(ACADEMY_LS_KEY) || '').toUpperCase();
+}
+function setAcademyCode(code) {
+  if (code) localStorage.setItem(ACADEMY_LS_KEY, code.toUpperCase());
+  else localStorage.removeItem(ACADEMY_LS_KEY);
+  updateAcademyUI();
+}
+
+// 클라우드 호출 헬퍼
+async function cloudSync(action, payload = {}) {
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      return { ok:false, error: data.error || `HTTP ${res.status}` };
+    }
+    return data;
+  } catch (err) {
+    return { ok:false, error: err.message || 'network error' };
+  }
+}
+
+// 항목 저장: kind = 'vocab' | 'akeys'
+async function cloudPut(kind, name, data) {
+  const code = getAcademyCode();
+  if (!code) return { ok:false, error:'no academy code', skipped:true };
+  return cloudSync('put', { code, kind, name, data });
+}
+
+// 항목 삭제
+async function cloudDelete(kind, name) {
+  const code = getAcademyCode();
+  if (!code) return { ok:false, error:'no academy code', skipped:true };
+  return cloudSync('delete', { code, kind, name });
+}
+
+// ── 학원 코드 모달 ──────────────────────────────────────
+function openAcademyModal() {
+  updateAcademyUI();
+  document.getElementById('academyModal').style.display = 'flex';
+}
+function closeAcademyModal() {
+  document.getElementById('academyModal').style.display = 'none';
+}
+function updateAcademyUI() {
+  const code = getAcademyCode();
+  const cur = document.getElementById('academyCurrentArea');
+  const empty = document.getElementById('academyEmptyArea');
+  const btn = document.getElementById('academyBtn');
+  if (!cur) return;
+  if (code) {
+    cur.style.display = '';
+    empty.style.display = 'none';
+    document.getElementById('academyCurrentCode').textContent = code;
+    if (btn) {
+      btn.textContent = '🏫 ' + code;
+      btn.style.borderColor = 'rgba(206,147,216,.5)';
+      btn.style.color = '#CE93D8';
+    }
+  } else {
+    cur.style.display = 'none';
+    empty.style.display = '';
+    if (btn) {
+      btn.textContent = '🏫 학원 코드';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  }
+}
+
+async function createAcademyCode() {
+  const btn = document.getElementById('createCodeBtn');
+  btn.disabled = true; btn.textContent = '발급 중...';
+  const r = await cloudSync('createCode');
+  btn.disabled = false; btn.textContent = '✨ 새 학원 코드 발급';
+  if (!r.ok) {
+    showToast('코드 발급 실패: ' + (r.error || '서버 오류'), 'err');
+    return;
+  }
+  setAcademyCode(r.code);
+  showToast('✓ 학원 코드 발급 완료: ' + r.code, 'ok');
+  // 발급 직후 기존 로컬 데이터 자동 업로드
+  uploadAllLocalToCloud();
+}
+
+async function useExistingCode() {
+  const input = document.getElementById('academyCodeInput');
+  const code = (input.value || '').trim().toUpperCase();
+  if (!/^KKJ-[A-Z0-9]{6,8}$/.test(code)) {
+    showToast('형식이 올바르지 않아요 (예: KKJ-7K9X3M)', 'err');
+    return;
+  }
+  const r = await cloudSync('ping', { code });
+  if (!r.ok) {
+    showToast('코드를 찾을 수 없어요. 다시 확인해주세요.', 'err');
+    return;
+  }
+  setAcademyCode(code);
+  input.value = '';
+  showToast('✓ 코드 확인 완료', 'ok');
+  // 클라우드에서 데이터 받아오기
+  downloadAllFromCloud();
+}
+
+function copyAcademyCode() {
+  const code = getAcademyCode();
+  if (!code) return;
+  navigator.clipboard.writeText(code).then(()=>{
+    showToast('✓ 코드 복사됨', 'ok');
+  }).catch(()=>showToast('복사 실패', 'err'));
+}
+
+function copyAcademyShareMessage() {
+  const code = getAcademyCode();
+  if (!code) return;
+  const msg = `📚 김기준영어학원 채점 앱 안내\n\n아래 주소 접속 후 학원 코드를 입력해주세요.\n\n👉 ${location.origin}/grading\n🏫 학원 코드: ${code}\n\n코드는 한 번만 입력하면 자동 저장돼요.`;
+  navigator.clipboard.writeText(msg).then(()=>{
+    showToast('✓ 카톡 메시지 복사됨 — 조교에게 붙여넣기 하세요', 'ok');
+  }).catch(()=>showToast('복사 실패', 'err'));
+}
+
+function confirmAcademyReset() {
+  if (!confirm('코드를 변경하면 기존 코드의 데이터에 더 이상 접근할 수 없어요.\n그래도 변경하시겠어요?')) return;
+  setAcademyCode('');
+  showToast('코드가 초기화됐어요', '');
+}
+
+// 기존 localStorage 데이터를 모두 클라우드에 업로드
+async function uploadAllLocalToCloud() {
+  const code = getAcademyCode();
+  if (!code) return;
+  const status = document.getElementById('academySyncStatus');
+  if (status) status.textContent = '⏳ 기존 데이터 업로드 중...';
+
+  let count = 0, failed = 0;
+  // vocab
+  try {
+    const vocab = JSON.parse(localStorage.getItem('kkj_vocab') || '{}');
+    for (const [name, data] of Object.entries(vocab)) {
+      const r = await cloudPut('vocab', name, data);
+      if (r.ok) count++; else failed++;
+    }
+  } catch(e){}
+  // answer keys
+  try {
+    const keys = JSON.parse(localStorage.getItem('kkj_answer_keys') || '{}');
+    for (const [name, data] of Object.entries(keys)) {
+      const r = await cloudPut('akeys', name, data);
+      if (r.ok) count++; else failed++;
+    }
+  } catch(e){}
+  if (status) {
+    status.textContent = count > 0
+      ? `✓ ${count}개 항목 클라우드에 업로드됨${failed?` (${failed}개 실패)`:''}`
+      : '✓ 동기화 준비 완료 (업로드할 데이터 없음)';
+  }
+}
+
+// 클라우드에서 받아와 localStorage 채우기
+async function downloadAllFromCloud() {
+  const code = getAcademyCode();
+  if (!code) return;
+  const status = document.getElementById('academySyncStatus');
+  if (status) status.textContent = '⏳ 클라우드에서 불러오는 중...';
+  const r = await cloudSync('getAll', { code });
+  if (!r.ok) {
+    if (status) status.textContent = '⚠ 불러오기 실패: ' + (r.error||'');
+    return;
+  }
+  // 기존 로컬 데이터와 병합 (클라우드 우선)
+  const localVocab = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_vocab')||'{}'); } catch { return {}; } })();
+  const localKeys  = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}'); } catch { return {}; } })();
+  const mergedVocab = { ...localVocab, ...(r.vocab || {}) };
+  const mergedKeys  = { ...localKeys,  ...(r.akeys || {}) };
+  localStorage.setItem('kkj_vocab', JSON.stringify(mergedVocab));
+  localStorage.setItem('kkj_answer_keys', JSON.stringify(mergedKeys));
+  const vCount = Object.keys(r.vocab||{}).length;
+  const kCount = Object.keys(r.akeys||{}).length;
+  if (status) status.textContent = `✓ 클라우드 데이터 ${vCount + kCount}개 항목 불러옴`;
+  // 화면 갱신
+  if (typeof renderSavedVocab === 'function') renderSavedVocab();
+  if (typeof renderSavedKeys === 'function')  renderSavedKeys();
+  showToast(`✓ 클라우드에서 ${vCount + kCount}개 항목 불러옴`, 'ok');
+}
 
 function init() {
   addSection('bracket', 1,  23, true, [2,2,3,2,2,3]);
@@ -1296,11 +1551,22 @@ function saveAnswerKey() {
   if (!filled) { showToast('입력된 정답이 없습니다','err'); return; }
 
   const saved = getSavedKeys();
-  saved[name] = { key:JSON.parse(JSON.stringify(answerKey)), bracketKey:JSON.parse(JSON.stringify(bracketAnswers)), essayKey:JSON.parse(JSON.stringify(essayAnswers)), count:filled, date:new Date().toLocaleDateString('ko-KR'), total:allQns.length };
+  const config = { key:JSON.parse(JSON.stringify(answerKey)), bracketKey:JSON.parse(JSON.stringify(bracketAnswers)), essayKey:JSON.parse(JSON.stringify(essayAnswers)), count:filled, date:new Date().toLocaleDateString('ko-KR'), total:allQns.length };
+  saved[name] = config;
   localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
   document.getElementById('saveKeyName').value = '';
   renderSavedKeys();
-  showToast(`✓  "${name}" 저장 완료`,'ok');
+
+  // 클라우드 동기화
+  const code = getAcademyCode();
+  if (code) {
+    cloudPut('akeys', name, config).then(r=>{
+      if (r.ok)      showToast(`✓ "${name}" 저장 완료 (☁ 동기화됨)`, 'ok');
+      else           showToast(`✓ "${name}" 로컬 저장됨 (☁ 동기화 실패)`, '');
+    });
+  } else {
+    showToast(`✓ "${name}" 저장 완료\n💡 학원 코드를 발급하면 채점 앱과 연동돼요`, 'ok');
+  }
 }
 
 function loadAnswerKey(name) {
@@ -1319,6 +1585,8 @@ function deleteAnswerKey(name) {
   delete saved[name];
   localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
   renderSavedKeys();
+  // 클라우드에서도 삭제
+  if (getAcademyCode()) cloudDelete('akeys', name);
   showToast(`"${name}" 삭제됨`);
 }
 
@@ -1634,7 +1902,7 @@ function saveVocabConfig() {
   const name = document.getElementById('saveVocabName').value.trim();
   if (!name) { showToast('저장 이름을 입력해 주세요','err'); return; }
   const saved = getSavedVocab();
-  saved[name] = {
+  const config = {
     examTitle: document.getElementById('vcExamTitle').value,
     grade:     document.getElementById('vcGrade').value,
     author:    document.getElementById('vcAuthor').value,
@@ -1647,11 +1915,28 @@ function saveVocabConfig() {
     answerMap: JSON.parse(JSON.stringify(vcAnswerMap)),
     savedAt:   new Date().toLocaleDateString('ko-KR'),
   };
+  saved[name] = config;
   localStorage.setItem('kkj_vocab', JSON.stringify(saved));
   document.getElementById('saveVocabName').value='';
   renderSavedVocab();
   const ansCount = Object.keys(vcAnswerMap).length;
-  showToast(`✓  "${name}" 저장 완료${ansCount>0?' (정답 '+ansCount+'개 포함)':''}`, 'ok');
+
+  // 클라우드 동기화
+  const code = getAcademyCode();
+  if (code) {
+    showToast(`💾 "${name}" 저장 중...${ansCount>0?' (정답 '+ansCount+'개)':''}`, '');
+    cloudPut('vocab', name, config).then(r=>{
+      if (r.ok) {
+        showToast(`✓ "${name}" 저장 완료 (☁ 클라우드 동기화됨)`, 'ok');
+      } else if (r.skipped) {
+        showToast(`✓ "${name}" 로컬 저장됨 (학원 코드 없어 동기화 건너뜀)`, '');
+      } else {
+        showToast(`✓ "${name}" 로컬 저장됨 (☁ 동기화 실패: ${r.error})`, '');
+      }
+    });
+  } else {
+    showToast(`✓ "${name}" 저장 완료${ansCount>0?' (정답 '+ansCount+'개 포함)':''}\n💡 학원 코드를 발급하면 채점 앱과 연동돼요`, 'ok');
+  }
 }
 
 function loadVocabConfig(name) {
@@ -1697,6 +1982,8 @@ function deleteVocabConfig(name) {
   delete saved[name];
   localStorage.setItem('kkj_vocab', JSON.stringify(saved));
   renderSavedVocab();
+  // 클라우드에서도 삭제
+  if (getAcademyCode()) cloudDelete('vocab', name);
 }
 
 function renderSavedVocab() {
@@ -1847,6 +2134,15 @@ async function parsePdfAnswers(file) {
     document.getElementById('pdfResultTitle').textContent=`✓ ${parsed.answers.length}개 정답 파싱 완료`;
     document.getElementById('pdfStatusBadge').textContent=`${parsed.answers.length}개 완료`;
     document.getElementById('pdfStatusBadge').style.cssText='font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(29,185,84,.1);color:var(--g);border:1px solid rgba(29,185,84,.3)';
+    // 인라인 이름 입력란에 추천 이름 미리 채우기
+    const qn = document.getElementById('pdfQuickName');
+    if (qn && !qn.value.trim()) {
+      const today = new Date();
+      const mm = String(today.getMonth()+1).padStart(2,'0');
+      const dd = String(today.getDate()).padStart(2,'0');
+      qn.value = `단어시험_${mm}${dd}_${parsed.answers.length}문항`;
+      qn.select();
+    }
     renderPdfPreview(parsed.answers);
     showToast(`✓ ${parsed.answers.length}개 정답 자동 완성`,'ok');
 
@@ -1885,7 +2181,20 @@ function clearPdfResult() {
   document.getElementById('pdfStatusBadge').textContent='대기 중';
   document.getElementById('pdfStatusBadge').style.cssText='font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--b3);color:var(--t2);border:1px solid var(--bo)';
   document.getElementById('pdfFileInput').value='';
+  const qn = document.getElementById('pdfQuickName'); if (qn) qn.value = '';
   showToast('정답이 초기화됐습니다');
+}
+
+// PDF 파싱 결과를 빠르게 저장 (인라인 이름 사용)
+function quickSavePdfResult() {
+  const ansCount = Object.keys(vcAnswerMap).length;
+  if (ansCount === 0) { showToast('저장할 정답이 없어요','err'); return; }
+  const name = document.getElementById('pdfQuickName').value.trim();
+  if (!name) { showToast('정답 세트 이름을 입력해 주세요','err'); return; }
+  // saveVocabName 인풋에 동기화한 후 saveVocabConfig 호출
+  document.getElementById('saveVocabName').value = name;
+  saveVocabConfig();
+  document.getElementById('pdfQuickName').value = '';
 }
 
 // ── TYPE C 총 문항 수 ─────────────────────────────────────
@@ -2326,6 +2635,24 @@ addSentence([2,3,2,3,2,2,2]);
 document.getElementById('vcTotal').addEventListener('change', function() {
   document.getElementById('vcCustomRow').style.display = this.value==='custom' ? '' : 'none';
 });
+
+// ── 학원 코드 UI 초기화 + 페이지 로드 시 자동 동기화 ─
+updateAcademyUI();
+if (getAcademyCode()) {
+  // 코드가 이미 있으면 클라우드에서 최신 데이터 받아오기 (조용히)
+  setTimeout(()=>{
+    cloudSync('getAll', { code: getAcademyCode() }).then(r=>{
+      if (!r.ok) return;
+      const localVocab = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_vocab')||'{}'); } catch { return {}; } })();
+      const localKeys  = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}'); } catch { return {}; } })();
+      // 클라우드 데이터를 우선
+      localStorage.setItem('kkj_vocab', JSON.stringify({ ...localVocab, ...(r.vocab||{}) }));
+      localStorage.setItem('kkj_answer_keys', JSON.stringify({ ...localKeys, ...(r.akeys||{}) }));
+      renderSavedVocab();
+      renderSavedKeys();
+    });
+  }, 200);
+}
 </script>
 <div id="toast" class="toast"></div>
 </body>
