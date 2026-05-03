@@ -414,7 +414,7 @@ select option{background:#282828}
               </div>
               <div style="font-size:11px;color:var(--t2);margin-top:8px;line-height:1.5">
                 저장하면 아래 시험 설정과 함께 묶여서 보관돼요.<br>
-                학원 코드가 있으면 자동으로 채점 앱에도 연동됩니다.
+                학원 코드가 있으면 자동으로 채점 프로그램에도 연동됩니다.
               </div>
             </div>
           </div>
@@ -1013,7 +1013,7 @@ function copyAcademyCode() {
 function copyAcademyShareMessage() {
   const code = getAcademyCode();
   if (!code) return;
-  const msg = `📚 김기준영어학원 채점 앱 안내\n\n아래 주소 접속 후 학원 코드를 입력해주세요.\n\n👉 ${location.origin}/grading\n🏫 학원 코드: ${code}\n\n코드는 한 번만 입력하면 자동 저장돼요.`;
+  const msg = `📚 김기준영어학원 채점 프로그램 안내\n\n아래 주소 접속 후 학원 코드를 입력해주세요.\n\n👉 ${location.origin}/grading\n🏫 학원 코드: ${code}\n\n코드는 한 번만 입력하면 자동 저장돼요.`;
   navigator.clipboard.writeText(msg).then(()=>{
     showToast('✓ 카톡 메시지 복사됨 — 조교에게 붙여넣기 하세요', 'ok');
   }).catch(()=>showToast('복사 실패', 'err'));
@@ -1665,7 +1665,7 @@ function saveAnswerKey() {
       else           showToast(`✓ "${name}" 로컬 저장됨 (☁ 동기화 실패)`, '');
     });
   } else {
-    showToast(`✓ "${name}" 저장 완료\n💡 학원 코드를 발급하면 채점 앱과 연동돼요`, 'ok');
+    showToast(`✓ "${name}" 저장 완료\n💡 학원 코드를 발급하면 채점 프로그램과 연동돼요`, 'ok');
   }
 }
 
@@ -2035,7 +2035,7 @@ function saveVocabConfig() {
       }
     });
   } else {
-    showToast(`✓ "${name}" 저장 완료${ansCount>0?' (정답 '+ansCount+'개 포함)':''}\n💡 학원 코드를 발급하면 채점 앱과 연동돼요`, 'ok');
+    showToast(`✓ "${name}" 저장 완료${ansCount>0?' (정답 '+ansCount+'개 포함)':''}\n💡 학원 코드를 발급하면 채점 프로그램과 연동돼요`, 'ok');
   }
 }
 
