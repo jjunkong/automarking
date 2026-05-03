@@ -328,8 +328,9 @@ body{padding-bottom:52px}
         </select>
       </div>
       <div>
-        <label>학생 이름 / 번호</label>
-        <input type="text" id="studentName" placeholder="예: 홍길동 / 3번">
+        <label>학생 이름 / 번호 <span style="color:var(--t2);font-weight:500;text-transform:none;letter-spacing:0">(선택)</span></label>
+        <input type="text" id="studentName" placeholder="비워두면 사진에서 자동 인식">
+        <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">💡 답안지에 이름이 적혀 있으면 비워두세요. AI가 자동으로 읽어줘요.</div>
       </div>
     </div>
   </div>
@@ -395,15 +396,22 @@ body{padding-bottom:52px}
 
 <!-- ══ SCREEN: REVIEW ══ -->
 <div id="s-review" class="screen">
-  <div style="display:flex;align-items:center;justify-content:space-between">
-    <div>
-      <div style="font-size:16px;font-weight:700" id="reviewName"></div>
-      <div style="font-size:12px;color:var(--t2)" id="reviewMeta"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px">학생 이름</div>
+      <input type="text" id="reviewNameInput" placeholder="이름 입력"
+        style="width:100%;height:38px;padding:0 12px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--f);font-size:15px;font-weight:700;color:var(--t0);outline:none">
+      <div id="reviewMeta" style="font-size:11px;color:var(--t2);margin-top:4px"></div>
     </div>
-    <div style="text-align:right">
+    <div style="text-align:right;flex-shrink:0">
       <div style="font-size:24px;font-weight:800;font-family:var(--m)" id="reviewScore"></div>
       <div style="font-size:11px;color:var(--t2)">현재 점수</div>
     </div>
+  </div>
+
+  <!-- AI 추출 안내 (조건부 표시) -->
+  <div id="nameExtractedHint" style="display:none;background:rgba(206,147,216,.08);border:1px solid rgba(206,147,216,.25);border-radius:var(--r);padding:8px 12px;font-size:11px;color:#CE93D8">
+    ✨ 사진에서 이름을 자동 인식했어요. 틀렸으면 위에서 수정해주세요.
   </div>
 
   <!-- 애매한 항목 먼저 -->
@@ -639,9 +647,8 @@ async function goToSetup() {
 function goToPhoto() {
   const name = document.getElementById('studentName').value.trim();
   const key  = document.getElementById('keySelect').value;
-  if (!name) { showToast('학생 이름을 입력해 주세요','err'); return; }
   if (!key)  { showToast('정답표를 선택해 주세요','err'); return; }
-  state.studentName = name;
+  state.studentName = name;  // 비어있어도 OK — AI가 추출 시도
   state.keyName = key;
   // 정답 데이터 로드
   if (key !== '__demo__') {
@@ -689,8 +696,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 function checkSetupReady() {
-  const ok = document.getElementById('keySelect').value &&
-             document.getElementById('studentName').value.trim();
+  const ok = !!document.getElementById('keySelect').value;
   document.getElementById('toPhotoBtn').disabled = !ok;
 }
 
@@ -766,15 +772,23 @@ async function extractAnswers() {
   const types    = state.keyData?.types || [{type:'kor',from:1,to:total,label:'영→한 뜻쓰기'}];
   const typeDesc = types.map(t=>`Q${t.from}~Q${t.to}: ${t.type==='kor'?'한국어 뜻쓰기(Korean meaning)':'영어 스펠링(English spelling)'}`).join(', ');
 
+  // 사용자가 이름을 직접 입력했으면 AI에게 추출시키지 않음
+  const userProvidedName = state.studentName && state.studentName.trim();
+  const namePrompt = userProvidedName
+    ? '' // 이름 추출 불필요
+    : `\n또한 답안지 상단의 "학생 이름" 또는 "이름" 칸에 적힌 학생 이름을 읽어주세요. 한글/영문 모두 OK. 빈칸이면 null.\n`;
+
   const prompt = `이것은 영어 단어시험 답안지 사진입니다.
 시험 구성: ${typeDesc}
 총 ${total}문항입니다.
 
 각 번호의 학생이 쓴 답을 읽어주세요.
-빈칸이거나 읽을 수 없으면 null로 표시하세요.
+빈칸이거나 읽을 수 없으면 null로 표시하세요.${namePrompt}
 
 반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
-{"answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}`;
+${userProvidedName
+  ? '{"answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}'
+  : '{"student_name":"홍길동","answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}'}`;
 
   const apiKey = getApiKey();
   if (!apiKey) throw new Error('API 키가 없어요. index.html에서 먼저 설정해 주세요.');
@@ -799,6 +813,12 @@ async function extractAnswers() {
   const data = await res.json();
   const text = data.content?.find(b=>b.type==='text')?.text||'{}';
   const json = JSON.parse(text.replace(/```json|```/g,'').trim());
+  // AI가 추출한 이름이 있고, 사용자가 입력한 이름이 없으면 사용
+  state.nameFromAI = false;
+  if (!userProvidedName && json.student_name && typeof json.student_name === 'string') {
+    state.studentName = json.student_name.trim();
+    state.nameFromAI = true;
+  }
   return json.answers||[];
 }
 
@@ -891,7 +911,28 @@ function renderReview() {
   const okCount = results.filter(r=>r.correct===true).length;
   const total   = state.keyData?.total || results.length;
 
-  document.getElementById('reviewName').textContent = state.studentName;
+  // 이름 입력 필드 채우기 (AI가 추출한 값 또는 사용자가 입력한 값)
+  const nameInput = document.getElementById('reviewNameInput');
+  nameInput.value = state.studentName || '';
+  // AI가 추출했는지 표시 (사용자가 setup에서 안 입력했고, AI가 채워준 경우)
+  const hint = document.getElementById('nameExtractedHint');
+  if (state.studentName && state.nameFromAI) {
+    hint.style.display = '';
+  } else {
+    hint.style.display = 'none';
+  }
+  // 비어있으면 빨간 테두리로 강조
+  if (!nameInput.value.trim()) {
+    nameInput.style.borderColor = 'var(--err)';
+    nameInput.placeholder = '⚠ 사진에서 이름을 못 읽었어요. 직접 입력해주세요';
+  } else {
+    nameInput.style.borderColor = 'var(--bm)';
+  }
+  // 입력 시 빨간 테두리 해제
+  nameInput.oninput = ()=>{
+    nameInput.style.borderColor = nameInput.value.trim() ? 'var(--bm)' : 'var(--err)';
+  };
+
   document.getElementById('reviewMeta').textContent = `${state.keyName||'채점'} · ${results.length}문항 읽음`;
   document.getElementById('reviewScore').textContent = `${okCount} / ${total}`;
 
@@ -912,7 +953,7 @@ function renderReview() {
   document.getElementById('confirmBtn').textContent =
     unc.length ? `⚠ 미확인 ${unc.length}개 있음 — 그래도 확정` : '✓ 채점 확정 & 저장';
 
-  showScreen('review', `${state.studentName} 검토`);
+  showScreen('review', state.studentName ? `${state.studentName} 검토` : '채점 검토');
 }
 
 function renderResultItem(r, withBtns) {
@@ -968,6 +1009,17 @@ function toggleAutoList() {
 
 // ── 채점 확정 ─────────────────────────────────────────────
 function confirmResult() {
+  // 이름 입력 필드에서 최종 이름 가져오기 (AI 추출 + 수동 편집 결과)
+  const nameInput = document.getElementById('reviewNameInput');
+  const finalName = (nameInput.value || '').trim();
+  if (!finalName) {
+    showToast('학생 이름을 입력해주세요','err');
+    nameInput.focus();
+    nameInput.style.borderColor = 'var(--err)';
+    return;
+  }
+  state.studentName = finalName;
+
   const results  = state.results;
   const okCount  = results.filter(r=>r.correct===true).length;
   const errCount = results.filter(r=>r.correct===false).length;
@@ -980,7 +1032,7 @@ function confirmResult() {
     id: Date.now(),
     date: new Date().toLocaleDateString('ko-KR'),
     time: new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
-    student: state.studentName,
+    student: finalName,
     keyName: state.keyName,
     type: state.type,
     score: okCount,
@@ -1067,16 +1119,38 @@ function updateHome() {
     return;
   }
   el.innerHTML = hist.slice(0,10).map(r=>`
-    <div class="hist-item">
+    <div class="hist-item" style="position:relative">
       <div style="flex:1;min-width:0">
-        <div class="hist-name">${r.student}</div>
-        <div class="hist-meta">${r.keyName||''} · ${r.date} ${r.time}</div>
+        <div class="hist-name">${escapeHtml(r.student||'(이름 없음)')}</div>
+        <div class="hist-meta">${escapeHtml(r.keyName||'')} · ${r.date} ${r.time}</div>
       </div>
-      <div style="text-align:right">
+      <div style="text-align:right;margin-right:8px">
         <div class="hist-score" style="color:${r.passed?'var(--ok)':'var(--err)'}">${r.score}/${r.total}</div>
         <div class="hist-verdict ${r.passed?'pass':'fail'}">${r.passed?'통과':'재시험'}</div>
       </div>
+      <button onclick="deleteHistoryItem(${r.id})" title="삭제"
+        style="width:28px;height:28px;flex-shrink:0;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--err)';this.style.color='var(--err)'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">✕</button>
     </div>`).join('');
+}
+
+// HTML 이스케이프 (학생 이름 등 표시용)
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 개별 채점 기록 삭제
+function deleteHistoryItem(id) {
+  const hist = getHistory();
+  const item = hist.find(h => h.id === id);
+  if (!item) return;
+  if (!confirm(`"${item.student}" (${item.score}/${item.total}) 기록을 삭제할까요?`)) return;
+  const filtered = hist.filter(h => h.id !== id);
+  localStorage.setItem('kkj_grading_hist', JSON.stringify(filtered));
+  updateHome();
+  showToast('기록이 삭제됐습니다');
 }
 
 function getHistory() {
