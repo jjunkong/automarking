@@ -184,9 +184,11 @@ select option{background:#282828}
 .toast.err{border-color:rgba(255,77,77,.4);color:var(--err)}
 
 /* ── NP BAR ── */
-.np{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:52px;background:var(--b1);border-top:1px solid var(--bo);display:flex;align-items:center;justify-content:center;gap:8px;z-index:50}
+.np{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--b1);border-top:1px solid var(--bo);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 0 10px;z-index:50}
+.np-row{display:flex;align-items:center;justify-content:center;gap:8px}
 .npt{font-size:10px;font-weight:600;color:var(--t2);letter-spacing:.6px;text-transform:uppercase}
 .npd{width:3px;height:3px;border-radius:50%;background:var(--t2)}
+.np-copy{font-size:9px;font-weight:500;color:var(--g);letter-spacing:.4px}
 body{padding-bottom:52px}
 </style>
 </head>
@@ -463,11 +465,14 @@ body{padding-bottom:52px}
 
 <!-- NP BAR -->
 <div class="np">
-  <span class="npt" style="color:var(--g)">KKJ</span>
-  <div class="npd"></div>
-  <span class="npt">채점 프로그램</span>
-  <div class="npd"></div>
-  <span class="npt" id="npStatus">홈</span>
+  <div class="np-row">
+    <span class="npt" style="color:var(--g)">KKJ</span>
+    <div class="npd"></div>
+    <span class="npt">채점 프로그램</span>
+    <div class="npd"></div>
+    <span class="npt" id="npStatus">홈</span>
+  </div>
+  <div class="np-copy">ALL COPYRIGHT reserved @김기준영어학원</div>
 </div>
 
 <div class="toast" id="toast"></div>
