@@ -341,12 +341,22 @@ select option{background:#282828}
           <!-- 업로드 영역 -->
           <div id="pdfDropArea"
             onclick="document.getElementById('pdfFileInput').click()"
+            ondragover="event.preventDefault();this.style.borderColor='#CE93D8';this.style.background='rgba(206,147,216,.08)'"
+            ondragleave="this.style.borderColor='rgba(206,147,216,.3)';this.style.background='var(--b2)'"
+            ondrop="event.preventDefault();this.style.borderColor='rgba(206,147,216,.3)';this.style.background='var(--b2)';onPdfDropped(event)"
             style="background:var(--b2);border:2px dashed rgba(206,147,216,.3);border-radius:var(--r);
-              padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px"
-            onmouseover="this.style.borderColor='#CE93D8'" onmouseout="this.style.borderColor='rgba(206,147,216,.3)'">
-            <div style="font-size:32px;margin-bottom:8px">📄</div>
-            <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:4px">PDF 파일 선택</div>
+              padding:32px 24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;
+              user-select:none;"
+            onmouseover="this.style.borderColor='#CE93D8';this.style.background='rgba(206,147,216,.05)'"
+            onmouseout="this.style.borderColor='rgba(206,147,216,.3)';this.style.background='var(--b2)'">
+            <div style="font-size:36px;margin-bottom:10px">📄</div>
+            <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:6px">PDF를 여기에 드래그하거나 클릭하여 선택</div>
             <div style="font-size:12px;color:var(--t2)">문제+정답 형식의 PDF를 올려주세요</div>
+            <div style="margin-top:14px">
+              <span style="display:inline-block;padding:6px 18px;background:rgba(206,147,216,.15);
+                border:1px solid rgba(206,147,216,.3);border-radius:20px;
+                font-size:12px;font-weight:600;color:#CE93D8">파일 선택</span>
+            </div>
             <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="onPdfSelected(event)">
           </div>
 
@@ -1692,6 +1702,15 @@ let vcAnswerMap = {};
 function onPdfSelected(e) {
   const file = e.target.files[0];
   if (!file) return;
+  parsePdfAnswers(file);
+}
+
+function onPdfDropped(e) {
+  const file = e.dataTransfer?.files[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    showToast('PDF 파일만 업로드 가능해요','err'); return;
+  }
   parsePdfAnswers(file);
 }
 
