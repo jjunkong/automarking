@@ -839,9 +839,12 @@ select option{background:#282828}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button onclick="copyAcademyCode()" style="height:34px;padding:0 14px;background:#CE93D8;border:none;border-radius:17px;color:#000;font-family:var(--f);font-size:12px;font-weight:700;cursor:pointer">📋 코드만 복사</button>
         <button onclick="copyAcademyShareMessage()" style="height:34px;padding:0 14px;background:transparent;border:1px solid rgba(206,147,216,.5);border-radius:17px;color:#CE93D8;font-family:var(--f);font-size:12px;font-weight:700;cursor:pointer">💬 카톡 메시지 복사</button>
-        <button onclick="confirmAcademyReset()" style="height:34px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:17px;color:var(--t2);font-family:var(--f);font-size:12px;cursor:pointer">코드 변경</button>
+        <button onclick="rotateAcademyCode()" style="height:34px;padding:0 14px;background:transparent;border:1px solid rgba(255,107,107,.4);border-radius:17px;color:#ff6b6b;font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer" title="조교 퇴직 시 사용. 새 코드로 교체되어 옛 코드는 즉시 무효화됨.">🔒 보안 재발급</button>
       </div>
       <div id="academySyncStatus" style="font-size:11px;color:var(--t2);margin-top:10px"></div>
+      <div style="font-size:10px;color:var(--t2);margin-top:8px;line-height:1.5;border-top:1px solid var(--bo);padding-top:10px">
+        💡 <strong style="color:#ff6b6b">보안 재발급</strong>: 조교가 그만뒀을 때 사용하세요. 옛 코드는 즉시 무효화되고, 모든 조교 폰에서 자동 로그아웃돼요. 데이터는 그대로 유지됩니다.
+      </div>
     </div>
 
     <!-- 코드가 없을 때: 발급 / 직접 입력 -->
@@ -1002,9 +1005,55 @@ function copyAcademyShareMessage() {
 }
 
 function confirmAcademyReset() {
-  if (!confirm('코드를 변경하면 기존 코드의 데이터에 더 이상 접근할 수 없어요.\n그래도 변경하시겠어요?')) return;
+  // (구) 단순 로컬 초기화 — 보안 재발급으로 대체됨. 호환성을 위해 유지.
+  if (!confirm('이 코드를 이 PC에서 제거할까요?\n(클라우드 데이터는 그대로 유지됨)')) return;
   setAcademyCode('');
-  showToast('코드가 초기화됐어요', '');
+  showToast('이 PC에서 코드가 제거됐어요', '');
+}
+
+// 보안 재발급: 옛 코드 무효화 + 새 코드 발급 (데이터는 그대로 보존)
+async function rotateAcademyCode() {
+  const oldCode = getAcademyCode();
+  if (!oldCode) {
+    showToast('현재 발급된 코드가 없어요', 'err');
+    return;
+  }
+
+  const msg = `🔒 보안 재발급 — 정말 진행할까요?\n\n`
+            + `현재 코드: ${oldCode}\n\n`
+            + `재발급 후 일어나는 일:\n`
+            + `  ✓ 시험 정답 등 모든 데이터는 그대로 유지\n`
+            + `  ✓ 새로운 코드가 발급됨\n`
+            + `  ✗ 옛 코드는 즉시 무효화됨\n`
+            + `  ✗ 조교 폰에서 자동 로그아웃 (앱 다시 열면 새 코드 입력 화면)\n\n`
+            + `※ 퇴직한 조교의 접근을 차단할 때 사용하세요.\n`
+            + `※ 기존 조교에게도 새 코드를 다시 알려줘야 해요.\n\n`
+            + `계속하시겠어요?`;
+  if (!confirm(msg)) return;
+
+  const status = document.getElementById('academySyncStatus');
+  if (status) status.textContent = '⏳ 보안 재발급 중...';
+
+  const r = await cloudSync('rotateCode', { code: oldCode });
+  if (!r.ok) {
+    if (status) status.textContent = '⚠ 재발급 실패: ' + (r.error || '서버 오류');
+    showToast('재발급 실패: ' + (r.error || '서버 오류'), 'err');
+    return;
+  }
+
+  // 새 코드를 로컬에 저장
+  setAcademyCode(r.code);
+  if (status) status.textContent = `✓ 새 코드 발급 완료 (${r.code})`;
+
+  // 알림 + 새 코드 강조 표시
+  showToast(`✓ 새 코드 발급: ${r.code}\n조교들에게 새 코드를 알려주세요!`, 'ok');
+
+  // 새 코드를 카톡 메시지로 자동 복사 (조교 안내 편의)
+  setTimeout(()=>{
+    if (confirm(`새 코드 ${r.code} 가 발급됐어요.\n\n조교 안내용 카톡 메시지를 복사할까요?`)) {
+      copyAcademyShareMessage();
+    }
+  }, 800);
 }
 
 // 기존 localStorage 데이터를 모두 클라우드에 업로드
