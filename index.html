@@ -259,6 +259,12 @@ select option{background:#282828}
       <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
       <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
     </div>
+    <button onclick="openApiKeyModal()" id="apiKeyBtn"
+      style="height:32px;padding:0 12px;background:var(--b2);border:1px solid var(--bm);
+        border-radius:16px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;
+        cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
+      onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
+      onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">🔑 API 키</button>
     <div class="vbadge">v2.0</div>
   </div>
 </header>
@@ -773,7 +779,27 @@ select option{background:#282828}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ── API 키 설정 모달 ── -->
+<div id="apiKeyModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:480px;width:100%">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">🔑 Anthropic API 키 설정</div>
+    <div style="font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.6">
+      AI 채점 기능을 사용하려면 Anthropic API 키가 필요해요.<br>
+      키는 브라우저에만 저장되며 외부로 전송되지 않아요.
+    </div>
+    <div style="margin-bottom:6px">
+      <label style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;display:block;margin-bottom:6px">API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." style="width:100%;height:44px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--m);font-size:13px;color:var(--t0);outline:none">
+    </div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:20px">
+      API 키는 <a href="https://console.anthropic.com" target="_blank" style="color:var(--g)">console.anthropic.com</a> 에서 발급받을 수 있어요.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveApiKey()" style="flex:1;height:44px;background:var(--g);border:none;border-radius:22px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">저장</button>
+      <button onclick="closeApiKeyModal()" id="apiKeyCancelBtn" style="height:44px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:22px;color:var(--t1);font-family:var(--f);font-size:14px;cursor:pointer">취소</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let sections = [], sid = 0;
@@ -1696,8 +1722,39 @@ function renderSavedVocab() {
   }).join('');
 }
 
-// ── TYPE C PDF 정답 파싱 ─────────────────────────────────
-let vcAnswerMap = {};
+// ── API 키 관리 ───────────────────────────────────────────
+function getApiKey() {
+  return localStorage.getItem('kkj_api_key') || '';
+}
+function openApiKeyModal() {
+  document.getElementById('apiKeyInput').value = getApiKey();
+  document.getElementById('apiKeyModal').style.display = 'flex';
+  // 키가 없으면 취소 버튼 숨김
+  document.getElementById('apiKeyCancelBtn').style.display = getApiKey() ? '' : 'none';
+}
+function closeApiKeyModal() {
+  document.getElementById('apiKeyModal').style.display = 'none';
+}
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant-')) { showToast('올바른 API 키 형식이 아니에요 (sk-ant-로 시작)','err'); return; }
+  localStorage.setItem('kkj_api_key', key);
+  document.getElementById('apiKeyBtn').style.borderColor = 'rgba(29,185,84,.4)';
+  document.getElementById('apiKeyBtn').style.color = 'var(--g)';
+  document.getElementById('apiKeyBtn').textContent = '🔑 API 키 ✓';
+  closeApiKeyModal();
+  showToast('API 키가 저장됐어요','ok');
+}
+// 페이지 로드 시 키 상태 반영
+document.addEventListener('DOMContentLoaded', ()=>{
+  if (getApiKey()) {
+    document.getElementById('apiKeyBtn').style.color = 'var(--g)';
+    document.getElementById('apiKeyBtn').textContent = '🔑 API 키 ✓';
+  } else {
+    // 키 없으면 모달 자동 표시
+    setTimeout(()=>openApiKeyModal(), 500);
+  }
+});
 
 function onPdfSelected(e) {
   const file = e.target.files[0];
@@ -1736,9 +1793,22 @@ async function parsePdfAnswers(file) {
 반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
 {"total":120,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다","번성하다"]},{"num":2,"word":"region","meanings":["지역","지방","지대"]}]}`;
 
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      document.getElementById('pdfProgress').style.display='none';
+      openApiKeyModal();
+      showToast('API 키를 먼저 입력해 주세요','err');
+      return;
+    }
+
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:8000,
