@@ -1,0 +1,9 @@
+{
+  "name": "kkj-automarking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "김기준영어학원 자동 채점 시스템",
+  "dependencies": {
+    "@upstash/redis": "^1.34.3"
+  }
+}
