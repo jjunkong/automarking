@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KKJ 채점 앱</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1DB954;--gg:rgba(29,185,84,.18);--gl:rgba(29,185,84,.1);
+  --b0:#121212;--b1:#181818;--b2:#242424;--b3:#2a2a2a;
+  --bo:rgba(255,255,255,.08);--bm:rgba(255,255,255,.14);
+  --t0:#fff;--t1:#B3B3B3;--t2:#6A6A6A;
+  --ok:#1DB954;--err:#FF4D4D;--warn:#FFB74D;--sky:#29B6F6;--purple:#CE93D8;
+  --r:10px;--rl:16px;
+  --f:'DM Sans',system-ui,sans-serif;--m:'DM Mono',monospace;
+}
+html{font-family:var(--f);background:var(--b0);color:var(--t0);height:100%}
+body{min-height:100vh;max-width:480px;margin:0 auto;background:var(--b0)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+
+/* ── HEADER ── */
+.hdr{
+  background:rgba(18,18,18,.96);backdrop-filter:blur(12px);
+  padding:14px 20px 12px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--bo);
+  position:sticky;top:0;z-index:100;
+}
+.hdr-logo{width:32px;height:32px;background:var(--g);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#000;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.hdr-sub{font-size:11px;color:var(--t2);margin-top:1px}
+.hdr-back{margin-left:auto;padding:6px 12px;background:transparent;border:1px solid var(--bm);border-radius:20px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+
+/* ── SCREENS ── */
+.screen{display:none;padding:20px;flex-direction:column;gap:16px;min-height:calc(100vh - 60px)}
+.screen.active{display:flex}
+
+/* ── CARD ── */
+.card{background:var(--b1);border:1px solid var(--bo);border-radius:var(--rl);overflow:hidden}
+.ch{padding:14px 18px 12px;border-bottom:1px solid var(--bo)}
+.ct{font-size:14px;font-weight:700}
+.cd{font-size:12px;color:var(--t2);margin-top:2px}
+.cb{padding:16px 18px}
+
+/* ── FORM ── */
+label{display:block;font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px}
+input,select{
+  width:100%;height:44px;padding:0 14px;
+  background:var(--b3);border:1px solid var(--bm);
+  border-radius:var(--r);font-family:var(--f);font-size:14px;color:var(--t0);
+  outline:none;appearance:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+input::placeholder{color:var(--t2)}
+input:focus,select:focus{border-color:var(--g);box-shadow:0 0 0 3px var(--gg)}
+select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6A6A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer;
+}
+select option{background:#282828}
+
+/* ── BUTTONS ── */
+.btn{
+  width:100%;height:52px;border:none;border-radius:26px;
+  font-family:var(--f);font-size:15px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .2s;
+}
+.btn-g{background:var(--g);color:#000}
+.btn-g:hover{background:#1ed760;transform:scale(1.02);box-shadow:0 0 20px var(--gg)}
+.btn-g:active{transform:scale(.99)}
+.btn-o{background:transparent;border:1.5px solid var(--bm);color:var(--t1)}
+.btn-o:hover{border-color:var(--g);color:var(--g)}
+.btn-sm{height:38px;padding:0 18px;width:auto;font-size:13px;border-radius:19px}
+.btn:disabled{opacity:.4;cursor:default;transform:none !important}
+
+/* ── TYPE CARDS (home) ── */
+.type-cards{display:flex;flex-direction:column;gap:10px}
+.type-card{
+  background:var(--b2);border:1.5px solid var(--bo);border-radius:var(--rl);
+  padding:16px 18px;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:14px;
+}
+.type-card:hover{border-color:var(--g);background:var(--b3)}
+.type-card.selected{border-color:var(--g);background:rgba(29,185,84,.08)}
+.type-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.type-info{flex:1}
+.type-name{font-size:14px;font-weight:700}
+.type-desc{font-size:12px;color:var(--t2);margin-top:2px}
+.type-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--bm);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;transition:all .2s}
+.type-card.selected .type-check{background:var(--g);border-color:var(--g);color:#000}
+
+/* ── PHOTO AREA ── */
+.photo-area{
+  background:var(--b2);border:2px dashed var(--bm);border-radius:var(--rl);
+  min-height:220px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;
+  cursor:pointer;transition:all .2s;padding:20px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.photo-area:hover{border-color:var(--g)}
+.photo-area.has-photo{border-style:solid;border-color:var(--g)}
+.photo-area img{width:100%;border-radius:8px;display:block}
+.photo-icon{font-size:40px;opacity:.4}
+.photo-text{font-size:14px;font-weight:600;color:var(--t1)}
+.photo-sub{font-size:12px;color:var(--t2)}
+
+/* ── PROCESSING ── */
+.processing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:60px 20px;text-align:center}
+.spin{width:52px;height:52px;border:3px solid rgba(29,185,84,.2);border-top:3px solid var(--g);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.proc-title{font-size:17px;font-weight:700}
+.proc-sub{font-size:13px;color:var(--t2);line-height:1.6}
+.proc-steps{display:flex;flex-direction:column;gap:8px;width:100%;max-width:280px}
+.proc-step{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--b2);border-radius:8px;font-size:12px;color:var(--t2)}
+.proc-step.done{color:var(--g)}
+.proc-step.active{color:var(--t0)}
+.proc-step-icon{font-size:14px;width:18px;text-align:center}
+
+/* ── RESULT ITEMS ── */
+.result-list{display:flex;flex-direction:column;gap:6px}
+.result-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:var(--r);
+  background:var(--b2);border:1px solid var(--bo);
+}
+.result-item.ok  {border-color:rgba(29,185,84,.3);background:rgba(29,185,84,.06)}
+.result-item.err {border-color:rgba(255,77,77,.3);background:rgba(255,77,77,.06)}
+.result-item.unc {border-color:rgba(255,183,77,.35);background:rgba(255,183,77,.08)}
+.rnum{font-size:11px;font-weight:800;color:var(--t2);min-width:26px;font-family:var(--m)}
+.ranswer{flex:1;font-size:13px;font-weight:500}
+.rexpect{font-size:11px;color:var(--t2);margin-top:1px}
+.rbadge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0}
+.ok .rbadge{background:rgba(29,185,84,.15);color:var(--ok)}
+.err .rbadge{background:rgba(255,77,77,.15);color:var(--err)}
+.unc .rbadge{background:rgba(255,183,77,.15);color:var(--warn)}
+.unc-btns{display:flex;gap:6px;flex-shrink:0}
+.unc-btn{width:36px;height:36px;border-radius:50%;border:2px solid;cursor:pointer;font-size:14px;font-weight:800;transition:all .15s;background:transparent}
+.unc-btn.o{border-color:var(--ok);color:var(--ok)}
+.unc-btn.o:hover,.unc-btn.o.sel{background:var(--ok);color:#000;border-color:var(--ok)}
+.unc-btn.x{border-color:var(--err);color:var(--err)}
+.unc-btn.x:hover,.unc-btn.x.sel{background:var(--err);color:#fff;border-color:var(--err)}
+
+/* ── SCORE DISPLAY ── */
+.score-big{text-align:center;padding:28px 20px}
+.score-circle{
+  width:120px;height:120px;border-radius:50%;margin:0 auto 16px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:4px solid;
+}
+.score-circle.pass{border-color:var(--ok);background:rgba(29,185,84,.1)}
+.score-circle.fail{border-color:var(--err);background:rgba(255,77,77,.1)}
+.score-num{font-size:28px;font-weight:800;letter-spacing:-1px;font-family:var(--m)}
+.score-label{font-size:11px;font-weight:600;margin-top:2px}
+.score-verdict{font-size:22px;font-weight:800;margin-bottom:6px}
+.score-detail{font-size:13px;color:var(--t2)}
+
+/* ── HISTORY ── */
+.hist-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);
+}
+.hist-name{flex:1;font-size:14px;font-weight:600}
+.hist-meta{font-size:11px;color:var(--t2);margin-top:2px}
+.hist-score{font-size:16px;font-weight:800;font-family:var(--m)}
+.hist-verdict{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:2px;display:inline-block}
+.hist-verdict.pass{background:rgba(29,185,84,.15);color:var(--ok)}
+.hist-verdict.fail{background:rgba(255,77,77,.15);color:var(--err)}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--b2);color:var(--t0);border:1px solid var(--bm);
+  padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:200;
+  opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.ok{border-color:rgba(29,185,84,.5);color:var(--ok)}
+.toast.err{border-color:rgba(255,77,77,.4);color:var(--err)}
+
+/* ── NP BAR ── */
+.np{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:52px;background:var(--b1);border-top:1px solid var(--bo);display:flex;align-items:center;justify-content:center;gap:8px;z-index:50}
+.npt{font-size:10px;font-weight:600;color:var(--t2);letter-spacing:.6px;text-transform:uppercase}
+.npd{width:3px;height:3px;border-radius:50%;background:var(--t2)}
+body{padding-bottom:52px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-logo">KKJ</div>
+  <div>
+    <div class="hdr-title" id="hdrTitle">채점 앱</div>
+    <div class="hdr-sub" id="hdrSub">김기준영어학원</div>
+  </div>
+  <button class="hdr-back" id="backBtn" onclick="goBack()" style="display:none">← 뒤로</button>
+</header>
+
+<!-- ══ SCREEN: HOME ══ -->
+<div id="s-home" class="screen active">
+
+  <!-- 최근 채점 -->
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">오늘 채점 현황</div>
+    <div id="todaySummary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px;text-align:center">
+        <div id="todayCount" style="font-size:22px;font-weight:800;color:var(--t0);font-family:var(--m)">0</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">채점 완료</div>
+      </div>
+      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px;text-align:center">
+        <div id="todayPass" style="font-size:22px;font-weight:800;color:var(--ok);font-family:var(--m)">0</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">통과</div>
+      </div>
+      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px;text-align:center">
+        <div id="todayFail" style="font-size:22px;font-weight:800;color:var(--err);font-family:var(--m)">0</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">재시험</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 채점 시작 -->
+  <div>
+    <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">채점 유형 선택</div>
+    <div class="type-cards">
+      <div class="type-card" onclick="selectType('typec')" id="tc-typec">
+        <div class="type-icon" style="background:rgba(206,147,216,.15)">📝</div>
+        <div class="type-info">
+          <div class="type-name">TYPE C — 단어시험</div>
+          <div class="type-desc">영→한 뜻쓰기 / 한→영 스펠링</div>
+        </div>
+        <div class="type-check">✓</div>
+      </div>
+      <div class="type-card" onclick="selectType('typea')" id="tc-typea">
+        <div class="type-icon" style="background:rgba(29,185,84,.12)">📄</div>
+        <div class="type-info">
+          <div class="type-name">TYPE A — 모의고사 / 내신</div>
+          <div class="type-desc">5지선다 / Bracket형 / 서술형</div>
+        </div>
+        <div class="type-check">✓</div>
+      </div>
+      <div class="type-card" onclick="selectType('typeb')" id="tc-typeb">
+        <div class="type-icon" style="background:rgba(41,182,246,.12)">📋</div>
+        <div class="type-info">
+          <div class="type-name">TYPE B — 워크북</div>
+          <div class="type-desc">BLANK / QUESTION / T·N / SUMMARY</div>
+        </div>
+        <div class="type-check">✓</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-g" id="startBtn" onclick="goToSetup()" disabled>
+    <span style="font-size:18px">→</span> 채점 시작
+  </button>
+
+  <!-- 최근 기록 -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase">최근 채점 기록</div>
+      <button onclick="clearHistory()" style="font-size:10px;color:var(--t2);background:transparent;border:none;cursor:pointer">전체 삭제</button>
+    </div>
+    <div id="histList" style="display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">채점 기록이 없습니다</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ SCREEN: SETUP ══ -->
+<div id="s-setup" class="screen">
+  <div class="card">
+    <div class="ch"><div class="ct" id="setupTitle">시험 설정</div><div class="cd">채점할 시험을 선택하세요</div></div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label>정답표 선택</label>
+        <select id="keySelect">
+          <option value="">— 정답표를 선택하세요 —</option>
+        </select>
+      </div>
+      <div>
+        <label>학생 이름 / 번호</label>
+        <input type="text" id="studentName" placeholder="예: 홍길동 / 3번">
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-g" id="toPhotoBtn" onclick="goToPhoto()" disabled>
+    <span style="font-size:18px">📷</span> 다음 — 사진 촬영
+  </button>
+  <button class="btn btn-o" onclick="goHome()">← 뒤로</button>
+</div>
+
+<!-- ══ SCREEN: PHOTO ══ -->
+<div id="s-photo" class="screen">
+  <div class="card">
+    <div class="ch">
+      <div class="ct">답안지 사진 촬영</div>
+      <div class="cd" id="photoDesc">답안지 전체가 나오도록 수직으로 촬영해 주세요</div>
+    </div>
+    <div class="cb">
+      <div class="photo-area" id="photoArea" onclick="document.getElementById('photoInput').click()">
+        <div id="photoPlaceholder">
+          <div class="photo-icon">📸</div>
+          <div class="photo-text">탭하여 사진 촬영</div>
+          <div class="photo-sub">카메라 또는 갤러리에서 선택</div>
+        </div>
+        <img id="photoPreview" style="display:none;width:100%;border-radius:8px">
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment"
+        style="display:none" onchange="onPhotoSelected(event)">
+      <button id="retakeBtn" onclick="retakePhoto()"
+        style="display:none;margin-top:10px;width:100%;height:38px;background:transparent;
+          border:1px solid var(--bm);border-radius:19px;color:var(--t2);font-family:var(--f);
+          font-size:13px;cursor:pointer">다시 찍기</button>
+    </div>
+  </div>
+
+  <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px 14px">
+    <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">촬영 팁</div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--t1)">
+      <div style="display:flex;gap:8px"><span>✓</span><span>답안지 전체가 프레임에 들어오도록</span></div>
+      <div style="display:flex;gap:8px"><span>✓</span><span>밝은 조명, 그림자 없이</span></div>
+      <div style="display:flex;gap:8px"><span>✓</span><span>수직으로 정면에서 촬영</span></div>
+    </div>
+  </div>
+
+  <button class="btn btn-g" id="gradeBtn" onclick="startGrading()" disabled>
+    <span style="font-size:18px">⚡</span> AI 채점 시작
+  </button>
+  <button class="btn btn-o" onclick="goToSetup()">← 뒤로</button>
+</div>
+
+<!-- ══ SCREEN: PROCESSING ══ -->
+<div id="s-proc" class="screen" style="justify-content:center">
+  <div class="processing">
+    <div class="spin"></div>
+    <div class="proc-title" id="procTitle">AI가 답안을 읽는 중...</div>
+    <div class="proc-sub" id="procSub">잠시만 기다려 주세요</div>
+    <div class="proc-steps" id="procSteps">
+      <div class="proc-step active" id="ps1"><span class="proc-step-icon">🔍</span> 사진에서 답안 인식 중</div>
+      <div class="proc-step"       id="ps2"><span class="proc-step-icon">📊</span> 정답과 비교 중</div>
+      <div class="proc-step"       id="ps3"><span class="proc-step-icon">🧮</span> 점수 계산 중</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: REVIEW ══ -->
+<div id="s-review" class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:16px;font-weight:700" id="reviewName"></div>
+      <div style="font-size:12px;color:var(--t2)" id="reviewMeta"></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:24px;font-weight:800;font-family:var(--m)" id="reviewScore"></div>
+      <div style="font-size:11px;color:var(--t2)">현재 점수</div>
+    </div>
+  </div>
+
+  <!-- 애매한 항목 먼저 -->
+  <div id="uncSection" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--warn)"></div>
+      <span style="font-size:12px;font-weight:700;color:var(--warn)">확인 필요 — 탭하여 O/X 선택</span>
+      <span id="uncCount" style="font-size:11px;color:var(--t2)"></span>
+    </div>
+    <div class="result-list" id="uncList"></div>
+  </div>
+
+  <!-- 자동 채점 결과 -->
+  <div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--t2)"></div>
+      <span style="font-size:12px;font-weight:700;color:var(--t2)">자동 채점 완료</span>
+      <button onclick="toggleAutoList()" id="autoToggle"
+        style="margin-left:auto;font-size:11px;color:var(--t2);background:transparent;border:1px solid var(--bm);border-radius:12px;padding:2px 10px;cursor:pointer">접기</button>
+    </div>
+    <div class="result-list" id="autoList"></div>
+  </div>
+
+  <button class="btn btn-g" id="confirmBtn" onclick="confirmResult()">
+    ✓ 채점 확정 &amp; 저장
+  </button>
+</div>
+
+<!-- ══ SCREEN: RESULT ══ -->
+<div id="s-result" class="screen">
+  <div class="card">
+    <div class="score-big">
+      <div class="score-circle" id="resultCircle">
+        <div class="score-num" id="resultScoreNum"></div>
+        <div class="score-label" id="resultScoreLabel"></div>
+      </div>
+      <div class="score-verdict" id="resultVerdict"></div>
+      <div class="score-detail" id="resultDetail"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><div class="ct">채점 상세</div></div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:6px" id="resultBreakdown"></div>
+  </div>
+
+  <button class="btn btn-g" onclick="gradeNext()">
+    <span style="font-size:18px">+</span> 다음 학생 채점
+  </button>
+  <button class="btn btn-o" onclick="goHome()">홈으로</button>
+</div>
+
+<!-- NP BAR -->
+<div class="np">
+  <span class="npt" style="color:var(--g)">KKJ</span>
+  <div class="npd"></div>
+  <span class="npt">채점 앱</span>
+  <div class="npd"></div>
+  <span class="npt" id="npStatus">홈</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── 상태 ──────────────────────────────────────────────────
+let state = {
+  type: null,        // 'typec' | 'typea' | 'typeb'
+  keyName: null,
+  keyData: null,
+  studentName: '',
+  photoFile: null,
+  photoB64: null,
+  photoMime: null,
+  results: [],       // [{num, student, correct, auto, status:'ok'|'err'|'unc'}]
+  history: [],
+};
+
+// ── localStorage 키 공유 (index.html과 동일) ──────────────
+function loadAnswerKeys() {
+  // TYPE C: kkj_vocab
+  // TYPE A: kkj_answer_keys
+  const sel = document.getElementById('keySelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— 정답표를 선택하세요 —</option>';
+
+  if (state.type === 'typec') {
+    try {
+      const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+      Object.keys(vocab).forEach(name => {
+        const o = document.createElement('option');
+        o.value = name; o.textContent = name;
+        sel.appendChild(o);
+      });
+    } catch(e) {}
+  } else if (state.type === 'typea') {
+    try {
+      const keys = JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}');
+      Object.keys(keys).forEach(name => {
+        const o = document.createElement('option');
+        o.value = name; o.textContent = name;
+        sel.appendChild(o);
+      });
+    } catch(e) {}
+  }
+
+  // 샘플 추가 (저장된 게 없을 때 테스트용)
+  if (sel.options.length === 1) {
+    const o = document.createElement('option');
+    o.value = '__demo__';
+    o.textContent = '⚡ 데모 — 직접 채점 (정답 없이)';
+    sel.appendChild(o);
+  }
+}
+
+// ── 화면 전환 ─────────────────────────────────────────────
+function showScreen(id, title, sub) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  document.getElementById('hdrTitle').textContent = title||'채점 앱';
+  document.getElementById('hdrSub').textContent   = sub||'김기준영어학원';
+  document.getElementById('npStatus').textContent  = title||'홈';
+  document.getElementById('backBtn').style.display = id==='home'?'none':'block';
+  window.scrollTo(0,0);
+}
+
+function goHome()    { state.type=null; showScreen('home','채점 앱'); updateHome(); }
+function goToSetup() {
+  if (!state.type) { showToast('채점 유형을 선택해 주세요','err'); return; }
+  loadAnswerKeys();
+  document.getElementById('studentName').value = '';
+  document.getElementById('toPhotoBtn').disabled = true;
+  const titles = { typec:'단어시험 설정', typea:'TYPE A 설정', typeb:'TYPE B 설정' };
+  document.getElementById('setupTitle').textContent = titles[state.type]||'시험 설정';
+  showScreen('setup', titles[state.type]);
+}
+function goToPhoto() {
+  const name = document.getElementById('studentName').value.trim();
+  const key  = document.getElementById('keySelect').value;
+  if (!name) { showToast('학생 이름을 입력해 주세요','err'); return; }
+  if (!key)  { showToast('정답표를 선택해 주세요','err'); return; }
+  state.studentName = name;
+  state.keyName = key;
+  // 정답 데이터 로드
+  if (key !== '__demo__') {
+    try {
+      if (state.type==='typec') {
+        const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+        state.keyData = vocab[key];
+      } else {
+        const keys = JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}');
+        state.keyData = keys[key];
+      }
+    } catch(e) { state.keyData = null; }
+  } else {
+    state.keyData = null;
+  }
+  // 사진 초기화
+  state.photoFile = null; state.photoB64 = null;
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('photoPlaceholder').style.display='';
+  document.getElementById('retakeBtn').style.display='none';
+  document.getElementById('gradeBtn').disabled=true;
+  document.getElementById('photoArea').classList.remove('has-photo');
+  showScreen('photo', `${name} — 사진 촬영`);
+}
+function goBack() {
+  const cur = document.querySelector('.screen.active').id;
+  if (cur==='s-setup')  goHome();
+  else if (cur==='s-photo') goToSetup();
+  else goHome();
+}
+
+// ── 유형 선택 ─────────────────────────────────────────────
+function selectType(t) {
+  state.type = t;
+  document.querySelectorAll('.type-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('tc-'+t).classList.add('selected');
+  document.getElementById('startBtn').disabled = false;
+}
+
+// ── setup 유효성 ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('keySelect').addEventListener('change', checkSetupReady);
+  document.getElementById('studentName').addEventListener('input', checkSetupReady);
+  updateHome();
+});
+
+function checkSetupReady() {
+  const ok = document.getElementById('keySelect').value &&
+             document.getElementById('studentName').value.trim();
+  document.getElementById('toPhotoBtn').disabled = !ok;
+}
+
+// ── 사진 선택 ─────────────────────────────────────────────
+function onPhotoSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  state.photoFile = file;
+  state.photoMime = file.type||'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = r => {
+    const b64full = r.result;
+    state.photoB64 = b64full.split(',')[1];
+    const img = document.getElementById('photoPreview');
+    img.src = b64full; img.style.display='block';
+    document.getElementById('photoPlaceholder').style.display='none';
+    document.getElementById('retakeBtn').style.display='block';
+    document.getElementById('gradeBtn').disabled=false;
+    document.getElementById('photoArea').classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+}
+
+function retakePhoto() {
+  document.getElementById('photoInput').value='';
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('photoPlaceholder').style.display='';
+  document.getElementById('retakeBtn').style.display='none';
+  document.getElementById('gradeBtn').disabled=true;
+  document.getElementById('photoArea').classList.remove('has-photo');
+  state.photoB64=null;
+}
+
+// ── AI 채점 시작 ──────────────────────────────────────────
+async function startGrading() {
+  if (!state.photoB64) { showToast('사진을 먼저 촬영해 주세요','err'); return; }
+  showScreen('proc','AI 채점 중...');
+
+  try {
+    await stepProc(0);
+    const extracted = await extractAnswers();
+    await stepProc(1);
+    const results = gradeAnswers(extracted);
+    await stepProc(2);
+    state.results = results;
+    renderReview();
+  } catch(e) {
+    console.error(e);
+    showToast('오류: '+e.message,'err');
+    goToPhoto();
+  }
+}
+
+function stepProc(step) {
+  const steps = ['ps1','ps2','ps3'];
+  steps.forEach((id,i)=>{
+    const el=document.getElementById(id);
+    el.classList.remove('active','done');
+    if(i<step) el.classList.add('done'), el.querySelector('.proc-step-icon').textContent='✓';
+    else if(i===step) el.classList.add('active');
+  });
+  return new Promise(r=>setTimeout(r,600));
+}
+
+// ── Claude Vision API 호출 ────────────────────────────────
+async function extractAnswers() {
+  const total    = state.keyData?.total || 60;
+  const types    = state.keyData?.types || [{type:'kor',from:1,to:total,label:'영→한 뜻쓰기'}];
+  const typeDesc = types.map(t=>`Q${t.from}~Q${t.to}: ${t.type==='kor'?'한국어 뜻쓰기(Korean meaning)':'영어 스펠링(English spelling)'}`).join(', ');
+
+  const prompt = `이것은 영어 단어시험 답안지 사진입니다.
+시험 구성: ${typeDesc}
+총 ${total}문항입니다.
+
+각 번호의 학생이 쓴 답을 읽어주세요.
+빈칸이거나 읽을 수 없으면 null로 표시하세요.
+
+반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
+{"answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:4000,
+      messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:state.photoMime,data:state.photoB64}},
+        {type:'text',text:prompt}
+      ]}]
+    })
+  });
+  const data = await res.json();
+  const text = data.content?.find(b=>b.type==='text')?.text||'{}';
+  const json = JSON.parse(text.replace(/```json|```/g,'').trim());
+  return json.answers||[];
+}
+
+// ── 정답 비교 ─────────────────────────────────────────────
+function gradeAnswers(extracted) {
+  const keyData  = state.keyData;
+  const results  = [];
+
+  // 정답 맵 구성
+  let answerMap = {}; // {num: {correct:[...], type:'kor'|'eng'}}
+  if (keyData && keyData.types) {
+    // TYPE C vocab key
+    const vocabKey = getVocabAnswerKey(keyData);
+    keyData.types.forEach(t=>{
+      for(let n=t.from;n<=t.to;n++) {
+        answerMap[n] = { corrects: vocabKey[n]||[], type: t.type };
+      }
+    });
+  }
+
+  extracted.forEach(item=>{
+    const num    = item.num;
+    const ans    = item.answer;
+    const info   = answerMap[num];
+
+    if (!ans || ans.trim()==='') {
+      results.push({num, student:'(빈칸)', correct:false, auto:true, status:'err', corrects:info?.corrects||[]});
+      return;
+    }
+
+    if (!info || !info.corrects || !info.corrects.length) {
+      // 정답 없음 → 수동 확인
+      results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:[], type:info?.type});
+      return;
+    }
+
+    if (info.type==='eng') {
+      // 스펠링: 대소문자 무시 정확 비교
+      const ok = info.corrects.some(c=>c.trim().toLowerCase()===ans.trim().toLowerCase());
+      results.push({num, student:ans, correct:ok, auto:true, status:ok?'ok':'err', corrects:info.corrects});
+    } else {
+      // 뜻쓰기: 핵심어 포함 여부 (간단 체크)
+      const studentClean = ans.trim().replace(/\s/g,'');
+      const ok = info.corrects.some(c=>{
+        const clean = c.trim().replace(/\s/g,'');
+        return studentClean.includes(clean) || clean.includes(studentClean) ||
+               studentClean.toLowerCase()===clean.toLowerCase();
+      });
+      // 부분 일치면 uncertain
+      const close = !ok && info.corrects.some(c=>similarity(ans,c)>0.6);
+      if (close) {
+        results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects});
+      } else {
+        results.push({num, student:ans, correct:ok, auto:true, status:ok?'ok':'err', corrects:info.corrects});
+      }
+    }
+  });
+
+  return results;
+}
+
+function getVocabAnswerKey(keyData) {
+  // kkj_vocab에서 정답 로드
+  // 정답은 kkj_answer_keys에 별도 저장 (향후), 지금은 빈 맵
+  return {};
+}
+
+function similarity(a, b) {
+  a = a.trim().toLowerCase(); b = b.trim().toLowerCase();
+  if (a===b) return 1;
+  let matches = 0;
+  const shorter = a.length<b.length?a:b;
+  for(const c of shorter) if(b.includes(c)||a.includes(c)) matches++;
+  return matches/Math.max(a.length,b.length);
+}
+
+// ── 리뷰 화면 렌더 ────────────────────────────────────────
+let autoListVisible = true;
+
+function renderReview() {
+  const results = state.results;
+  const unc  = results.filter(r=>r.status==='unc');
+  const auto = results.filter(r=>r.status!=='unc');
+  const okCount = results.filter(r=>r.correct===true).length;
+  const total   = state.keyData?.total || results.length;
+
+  document.getElementById('reviewName').textContent = state.studentName;
+  document.getElementById('reviewMeta').textContent = `${state.keyName||'채점'} · ${results.length}문항 읽음`;
+  document.getElementById('reviewScore').textContent = `${okCount} / ${total}`;
+
+  // 미확인 섹션
+  const uncSec = document.getElementById('uncSection');
+  if (unc.length) {
+    uncSec.style.display='';
+    document.getElementById('uncCount').textContent = `${unc.length}개`;
+    document.getElementById('uncList').innerHTML = unc.map(r=>renderResultItem(r,true)).join('');
+  } else {
+    uncSec.style.display='none';
+  }
+
+  // 자동 채점
+  document.getElementById('autoList').innerHTML = auto.map(r=>renderResultItem(r,false)).join('');
+
+  // 확정 버튼
+  document.getElementById('confirmBtn').textContent =
+    unc.length ? `⚠ 미확인 ${unc.length}개 있음 — 그래도 확정` : '✓ 채점 확정 & 저장';
+
+  showScreen('review', `${state.studentName} 검토`);
+}
+
+function renderResultItem(r, withBtns) {
+  const corrStr = r.corrects?.slice(0,2).join(' / ') || '';
+  if (withBtns) {
+    return `<div class="result-item unc" id="ritem-${r.num}">
+      <span class="rnum">${r.num}.</span>
+      <div style="flex:1;min-width:0">
+        <div class="ranswer">${r.student}</div>
+        ${corrStr?`<div class="rexpect">정답: ${corrStr}</div>`:''}
+      </div>
+      <div class="unc-btns">
+        <button class="unc-btn o" onclick="setUnc(${r.num},true)" id="ub-o-${r.num}">O</button>
+        <button class="unc-btn x" onclick="setUnc(${r.num},false)" id="ub-x-${r.num}">X</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="result-item ${r.status}">
+    <span class="rnum">${r.num}.</span>
+    <div style="flex:1;min-width:0">
+      <div class="ranswer">${r.student}</div>
+      ${corrStr&&r.status==='err'?`<div class="rexpect">정답: ${corrStr}</div>`:''}
+    </div>
+    <span class="rbadge">${r.status==='ok'?'O':'X'}</span>
+  </div>`;
+}
+
+function setUnc(num, correct) {
+  const r = state.results.find(r=>r.num===num);
+  if (!r) return;
+  r.correct = correct; r.status = correct?'ok':'err';
+
+  const oBtn = document.getElementById(`ub-o-${num}`);
+  const xBtn = document.getElementById(`ub-x-${num}`);
+  if(oBtn){oBtn.classList.toggle('sel',correct); xBtn.classList.toggle('sel',!correct);}
+
+  // 점수 업데이트
+  const okCount = state.results.filter(r=>r.correct===true).length;
+  const total   = state.keyData?.total||state.results.length;
+  document.getElementById('reviewScore').textContent=`${okCount} / ${total}`;
+
+  // 미확인 개수 업데이트
+  const remUnc = state.results.filter(r=>r.status==='unc').length;
+  if (remUnc>0) document.getElementById('uncCount').textContent=`${remUnc}개`;
+  else document.getElementById('uncSection').style.display='none';
+}
+
+function toggleAutoList() {
+  autoListVisible = !autoListVisible;
+  document.getElementById('autoList').style.display = autoListVisible?'':'none';
+  document.getElementById('autoToggle').textContent = autoListVisible?'접기':'펼치기';
+}
+
+// ── 채점 확정 ─────────────────────────────────────────────
+function confirmResult() {
+  const results  = state.results;
+  const okCount  = results.filter(r=>r.correct===true).length;
+  const errCount = results.filter(r=>r.correct===false).length;
+  const total    = state.keyData?.total||results.length;
+  const passRate = parseInt(state.keyData?.passRate||90);
+  const passNum  = Math.ceil(total*passRate/100);
+  const passed   = okCount >= passNum;
+
+  const record = {
+    id: Date.now(),
+    date: new Date().toLocaleDateString('ko-KR'),
+    time: new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
+    student: state.studentName,
+    keyName: state.keyName,
+    type: state.type,
+    score: okCount,
+    total,
+    passRate,
+    passed,
+    results: results.map(r=>({num:r.num,student:r.student,correct:r.correct})),
+  };
+
+  // 저장
+  const hist = getHistory();
+  hist.unshift(record);
+  localStorage.setItem('kkj_grading_hist', JSON.stringify(hist.slice(0,200)));
+
+  // 결과 화면
+  renderResult(record);
+}
+
+function renderResult(r) {
+  const pct = Math.round(r.score/r.total*100);
+  const circle = document.getElementById('resultCircle');
+  circle.className = `score-circle ${r.passed?'pass':'fail'}`;
+  document.getElementById('resultScoreNum').textContent  = `${pct}%`;
+  document.getElementById('resultScoreLabel').textContent= `${r.score}/${r.total}`;
+  document.getElementById('resultVerdict').textContent   = r.passed?'✅ 통과':'❌ 재시험';
+  document.getElementById('resultVerdict').style.color   = r.passed?'var(--ok)':'var(--err)';
+  document.getElementById('resultDetail').textContent    =
+    `통과 기준 ${r.passRate}% (${Math.ceil(r.total*r.passRate/100)}개) · ${r.passed?'합격':'불합격'}`;
+
+  const bd = document.getElementById('resultBreakdown');
+  const ok  = r.results.filter(x=>x.correct===true).length;
+  const err = r.results.filter(x=>x.correct===false).length;
+  const unc = r.results.filter(x=>x.correct===null).length;
+  bd.innerHTML = `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bo)">
+      <span style="font-size:13px;color:var(--t1)">정답</span>
+      <span style="font-size:14px;font-weight:700;color:var(--ok);font-family:var(--m)">${ok}개</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bo)">
+      <span style="font-size:13px;color:var(--t1)">오답</span>
+      <span style="font-size:14px;font-weight:700;color:var(--err);font-family:var(--m)">${err}개</span>
+    </div>
+    ${unc>0?`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bo)">
+      <span style="font-size:13px;color:var(--t1)">미확인</span>
+      <span style="font-size:14px;font-weight:700;color:var(--warn);font-family:var(--m)">${unc}개</span>
+    </div>`:''}
+    <div style="display:flex;justify-content:space-between;padding:8px 0">
+      <span style="font-size:13px;color:var(--t1)">정확도</span>
+      <span style="font-size:14px;font-weight:700;color:var(--t0);font-family:var(--m)">${pct}%</span>
+    </div>`;
+
+  showScreen('result',`${r.student} — 결과`);
+}
+
+function gradeNext() {
+  // 같은 설정으로 다음 학생
+  document.getElementById('studentName').value='';
+  document.getElementById('toPhotoBtn').disabled=true;
+  loadAnswerKeys();
+  document.getElementById('keySelect').value = state.keyName||'';
+  checkSetupReady();
+  showScreen('setup','다음 학생 설정');
+}
+
+// ── 홈 업데이트 ───────────────────────────────────────────
+function updateHome() {
+  const hist  = getHistory();
+  const today = new Date().toLocaleDateString('ko-KR');
+  const todays = hist.filter(h=>h.date===today);
+  document.getElementById('todayCount').textContent = todays.length;
+  document.getElementById('todayPass').textContent  = todays.filter(h=>h.passed).length;
+  document.getElementById('todayFail').textContent  = todays.filter(h=>!h.passed).length;
+
+  const el = document.getElementById('histList');
+  if (!hist.length) {
+    el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">채점 기록이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = hist.slice(0,10).map(r=>`
+    <div class="hist-item">
+      <div style="flex:1;min-width:0">
+        <div class="hist-name">${r.student}</div>
+        <div class="hist-meta">${r.keyName||''} · ${r.date} ${r.time}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="hist-score" style="color:${r.passed?'var(--ok)':'var(--err)'}">${r.score}/${r.total}</div>
+        <div class="hist-verdict ${r.passed?'pass':'fail'}">${r.passed?'통과':'재시험'}</div>
+      </div>
+    </div>`).join('');
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('kkj_grading_hist')||'[]'); }
+  catch(e) { return []; }
+}
+
+function clearHistory() {
+  if (!confirm('채점 기록을 모두 삭제할까요?')) return;
+  localStorage.removeItem('kkj_grading_hist');
+  updateHome();
+  showToast('기록이 삭제됐습니다');
+}
+
+// ── 토스트 ────────────────────────────────────────────────
+function showToast(msg,type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+(type==='err'?'err':type==='ok'?'ok':'');
+  setTimeout(()=>t.classList.add('show'),10);
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+updateHome();
+</script>
+</body>
+</html>
