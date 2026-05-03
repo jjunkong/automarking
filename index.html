@@ -251,8 +251,9 @@ select option{background:#282828}
   </div>
   <div style="display:flex;align-items:center;gap:12px">
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('omr')">📄 OMR 생성</button>
-      <button class="tab" onclick="switchTab('key')">✏️ 정답 입력</button>
+      <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
+      <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
+      <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
     </div>
     <div class="vbadge">v2.0</div>
   </div>
@@ -366,10 +367,109 @@ select option{background:#282828}
         </div>
       </div>
 
-      <button class="btn secondary" onclick="switchTab('omr')">← OMR 생성으로 돌아가기</button>
+      <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
     </div>
 
-  </div>
+    <!-- TYPE B 워크북 탭 -->
+    <div id="tab-typeb" class="screen">
+
+      <!-- 저장된 지문 -->
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct">저장된 지문 설정</div><div class="cd">이전에 저장한 지문을 불러오거나 새로 저장합니다</div></div>
+        </div>
+        <div class="cb" style="padding:16px 22px">
+          <div id="savedPassageList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+            <div style="font-size:12px;color:var(--t2);text-align:center;padding:10px">저장된 지문이 없습니다</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="savePassageName" placeholder="저장 이름 (예: 29번_2026년3월)" style="flex:1;height:38px">
+            <button onclick="savePassage()" style="height:38px;padding:0 16px;background:var(--g);border:none;border-radius:var(--r);color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--g)'">💾 저장</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 지문 기본 정보 -->
+      <div class="card">
+        <div class="ch"><div><div class="ct">지문 기본 정보</div><div class="cd">답안지 상단에 인쇄될 내용</div></div></div>
+        <div class="cb">
+          <div class="fr c2">
+            <div><label>시험명</label><input type="text" id="tbExamTitle" placeholder="예: 2026년 3월 모의고사 변형"></div>
+            <div><label>지문 번호</label><input type="text" id="tbPassageNum" placeholder="예: 29번 / 31번 / 32번"></div>
+          </div>
+          <div class="fr c2" style="margin-bottom:0">
+            <div><label>학교 / 학년</label><input type="text" id="tbGrade" placeholder="예: 미강고 1학년"></div>
+            <div><label>날짜</label><input type="text" id="tbDate" placeholder="예: 2026.05"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLANK PART 설정 -->
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct">BLANK PART 설정</div><div class="cd">각 문장의 bracket 개수를 입력하세요</div></div>
+          <button onclick="addSentence()" style="height:30px;padding:0 12px;background:var(--gl);border:1px solid rgba(29,185,84,.3);border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer">+ 문장 추가</button>
+        </div>
+        <div class="cb">
+          <div class="info-box" style="margin-bottom:14px">
+            <span class="info-icon">💡</span>
+            <span>각 문장당 bracket이 몇 개인지 입력하세요. 예) 문장01에 [A/B] [C/D] [E/F] 이면 <strong style="color:var(--g)">3</strong>개</span>
+          </div>
+          <div id="sentenceList" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+      </div>
+
+      <!-- QUESTION PART 설정 -->
+      <div class="card">
+        <div class="ch"><div><div class="ct">QUESTION PART 설정</div><div class="cd">단답형 문항 수</div></div></div>
+        <div class="cb">
+          <div class="fr c2" style="margin-bottom:0">
+            <div>
+              <label>문항 수</label>
+              <input type="number" id="tbQCount" min="1" max="20" value="8" placeholder="예: 8">
+            </div>
+            <div>
+              <label>칸 높이</label>
+              <select id="tbLineH">
+                <option value="tall">높게 (긴 답 가능)</option>
+                <option value="normal" selected>보통</option>
+                <option value="short">짧게 (단어 위주)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBJECT / T·N / SUMMARY는 자동 포함 안내 -->
+      <div class="card">
+        <div class="ch"><div><div class="ct">SUBJECT / TRUE or NOT / SUMMARY</div><div class="cd">구조가 고정이라 자동 포함됩니다</div></div></div>
+        <div class="cb" style="padding:14px 22px">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
+              <span style="font-size:13px;font-weight:600">SUBJECT</span>
+              <span style="font-size:12px;color:var(--t2)">① ② ③ ④ ⑤ 선택</span>
+              <span style="font-size:11px;color:var(--g);font-weight:600">자동 포함 ✓</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
+              <span style="font-size:13px;font-weight:600">TRUE or NOT</span>
+              <span style="font-size:12px;color:var(--t2)">① ~ ⑧ T / N</span>
+              <span style="font-size:11px;color:var(--g);font-weight:600">자동 포함 ✓</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
+              <span style="font-size:13px;font-weight:600">SUMMARY</span>
+              <span style="font-size:12px;color:var(--t2)">(A)(B) → ①②③④⑤</span>
+              <span style="font-size:11px;color:var(--g);font-weight:600">자동 포함 ✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="showTypeBPreview()">
+        <span style="font-size:16px">⊞</span> TYPE B 답안지 미리보기 &amp; 인쇄
+      </button>
+      <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
+
+    </div>
 
   <!-- SIDEBAR -->
   <div class="sidebar">
@@ -473,10 +573,11 @@ function init() {
 }
 
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active', ['omr','key'][i]===t));
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','key'][i]===t));
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if (t === 'key') renderAnswerKey();
+  if (t==='key') renderAnswerKey();
+  if (t==='typeb') { renderSentences(); renderSavedPassages(); }
 }
 
 function addSection(type='five', from=null, to=null, active=true) {
@@ -887,10 +988,290 @@ function showToast(msg,type=''){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 
+// ── TYPE B 워크북 ────────────────────────────────────────
+let sentences = []; // [{id, brackets}]
+let sentId = 0;
+
+function addSentence(brackets=3) {
+  sentences.push({ id:++sentId, brackets });
+  renderSentences();
+}
+
+function removeSentence(id) {
+  sentences = sentences.filter(s=>s.id!==id);
+  renderSentences();
+}
+
+function updateBrackets(id, val) {
+  const s = sentences.find(s=>s.id===id);
+  if (s) s.brackets = Math.max(1, Math.min(10, parseInt(val)||1));
+}
+
+function renderSentences() {
+  const el = document.getElementById('sentenceList');
+  if (!el) return;
+  if (!sentences.length) {
+    el.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:12px">문장을 추가해 주세요</div>';
+    return;
+  }
+  el.innerHTML = sentences.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
+      <span style="font-size:12px;font-weight:700;color:var(--g);min-width:36px;font-family:var(--m)">S${String(i+1).padStart(2,'0')}</span>
+      <div style="flex:1">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          ${Array.from({length:s.brackets},(_,j)=>`
+            <div style="display:flex;gap:2px;align-items:center;background:var(--b3);border-radius:4px;padding:3px 6px;border:1px solid var(--bm)">
+              <span style="font-size:10px;color:var(--t2);font-weight:700">B${j+1}</span>
+              <div style="width:14px;height:14px;border-radius:50%;border:1px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#8898aa;background:#fff">L</div>
+              <div style="width:14px;height:14px;border-radius:50%;border:1px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#8898aa;background:#fff">R</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="font-size:10px;color:var(--t2);letter-spacing:.5px;text-transform:uppercase;margin:0">Bracket 수</label>
+        <input type="number" min="1" max="10" value="${s.brackets}"
+          onchange="updateBrackets(${s.id},+this.value);renderSentences()"
+          style="width:52px;height:30px;text-align:center;font-size:13px;font-weight:700;font-family:var(--m)">
+      </div>
+      <button onclick="removeSentence(${s.id})"
+        style="width:28px;height:28px;border:1px solid var(--bm);background:transparent;border-radius:6px;color:var(--t2);cursor:pointer;font-size:14px;transition:all .2s"
+        onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
+    </div>`).join('');
+}
+
+// ── TYPE B 저장/불러오기 ──────────────────────────────────
+function getSavedPassages() {
+  try { return JSON.parse(localStorage.getItem('kkj_passages')||'{}'); }
+  catch(e) { return {}; }
+}
+
+function savePassage() {
+  const name = document.getElementById('savePassageName').value.trim();
+  if (!name) { showToast('저장 이름을 입력해 주세요','err'); return; }
+  if (!sentences.length) { showToast('문장을 먼저 추가해 주세요','err'); return; }
+  const saved = getSavedPassages();
+  saved[name] = {
+    examTitle: document.getElementById('tbExamTitle').value,
+    passageNum: document.getElementById('tbPassageNum').value,
+    grade: document.getElementById('tbGrade').value,
+    date: document.getElementById('tbDate').value,
+    sentences: sentences.map(s=>({brackets:s.brackets})),
+    qCount: parseInt(document.getElementById('tbQCount').value)||8,
+    lineH: document.getElementById('tbLineH').value,
+    savedAt: new Date().toLocaleDateString('ko-KR'),
+  };
+  localStorage.setItem('kkj_passages', JSON.stringify(saved));
+  document.getElementById('savePassageName').value='';
+  renderSavedPassages();
+  showToast(`✓  "${name}" 저장 완료`,'ok');
+}
+
+function loadPassage(name) {
+  const saved = getSavedPassages();
+  const d = saved[name]; if (!d) return;
+  document.getElementById('tbExamTitle').value  = d.examTitle||'';
+  document.getElementById('tbPassageNum').value = d.passageNum||'';
+  document.getElementById('tbGrade').value      = d.grade||'';
+  document.getElementById('tbDate').value       = d.date||'';
+  document.getElementById('tbQCount').value     = d.qCount||8;
+  document.getElementById('tbLineH').value      = d.lineH||'normal';
+  sentences = (d.sentences||[]).map(s=>({id:++sentId, brackets:s.brackets}));
+  renderSentences();
+  showToast(`✓  "${name}" 불러오기 완료`,'ok');
+}
+
+function deletePassage(name) {
+  if (!confirm(`"${name}" 지문 설정을 삭제할까요?`)) return;
+  const saved = getSavedPassages();
+  delete saved[name];
+  localStorage.setItem('kkj_passages', JSON.stringify(saved));
+  renderSavedPassages();
+}
+
+function renderSavedPassages() {
+  const el = document.getElementById('savedPassageList');
+  if (!el) return;
+  const saved = getSavedPassages();
+  const keys = Object.keys(saved);
+  if (!keys.length) {
+    el.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:10px">저장된 지문이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = keys.map(name=>{
+    const d = saved[name];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)" onmouseover="this.style.borderColor='var(--bm)'" onmouseout="this.style.borderColor='var(--bo)'">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px">${d.passageNum||''} · S${(d.sentences||[]).length}문장 · Q${d.qCount||0} · ${d.savedAt||''}</div>
+      </div>
+      <button onclick="loadPassage('${name.replace(/'/g,"\\'")}')"
+        style="height:30px;padding:0 12px;background:var(--gl);border:1px solid rgba(29,185,84,.3);border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer"
+        onmouseover="this.style.background='var(--gg)'" onmouseout="this.style.background='var(--gl)'">불러오기</button>
+      <button onclick="deletePassage('${name.replace(/'/g,"\\'")}')"
+        style="width:30px;height:30px;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:14px;cursor:pointer;transition:all .2s"
+        onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
+    </div>`;
+  }).join('');
+}
+
+// ── TYPE B 미리보기 ──────────────────────────────────────
+function showTypeBPreview() {
+  if (!sentences.length) { showToast('문장을 먼저 추가해 주세요','err'); return; }
+
+  const examTitle  = document.getElementById('tbExamTitle').value  || '김기준영어학원 워크북 답안지';
+  const passageNum = document.getElementById('tbPassageNum').value || '';
+  const grade      = document.getElementById('tbGrade').value      || '';
+  const date       = document.getElementById('tbDate').value       || '';
+  const qCount     = parseInt(document.getElementById('tbQCount').value)||8;
+  const lineH      = document.getElementById('tbLineH').value;
+  const lineHeight = lineH==='tall'?52:lineH==='short'?32:42;
+  const sub        = [grade, passageNum, date].filter(Boolean).join('  ·  ');
+
+  // ── BLANK PART HTML ──────────────────────────────────
+  const blankRows = sentences.map((s,i)=>{
+    const pairs = Array.from({length:s.brackets},(_,j)=>`
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1px;margin-right:6px">
+        <div style="font-size:8px;color:#aaa;font-weight:600;letter-spacing:.3px">B${j+1}</div>
+        <div style="display:flex;gap:3px">
+          <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#8898aa;background:#fff">L</div>
+          <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #c8d4e0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#8898aa;background:#fff">R</div>
+        </div>
+      </div>`).join('');
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;
+        min-height:38px;background:${i%2===0?'#f8fafc':'#fff'};border-bottom:1px solid #edf2f7">
+        <span style="font-size:11px;font-weight:800;color:#29B6F6;min-width:32px;font-family:monospace">S${String(i+1).padStart(2,'0')}</span>
+        <div style="display:flex;align-items:flex-end;flex-wrap:wrap">${pairs}</div>
+      </div>`;
+  }).join('');
+
+  // ── QUESTION PART HTML ──────────────────────────────
+  const qRows = Array.from({length:qCount},(_,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:5px 10px;
+      min-height:${lineHeight}px;background:${i%2===0?'#f8fafc':'#fff'};border-bottom:1px solid #edf2f7">
+      <span style="font-size:12px;font-weight:800;color:#9C27B0;min-width:22px;flex-shrink:0">
+        ${['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'][i]||`(${i+1})`}
+      </span>
+      <div style="flex:1;border-bottom:1.5px solid #c8d4e0;height:${lineHeight*0.55}px"></div>
+    </div>`).join('');
+
+  // ── T/N HTML ─────────────────────────────────────────
+  const tnItems = Array.from({length:8},(_,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:5px 8px;background:${i%2===0?'#f8fafc':'#fff'};border-bottom:1px solid #edf2f7;min-height:30px">
+      <span style="font-size:11px;font-weight:700;color:#FF7043;min-width:18px">${['①','②','③','④','⑤','⑥','⑦','⑧'][i]}</span>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid #c8d4e0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#8898aa">T</div>
+          <span style="font-size:9px;color:#aaa">/</span>
+          <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid #c8d4e0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#8898aa">N</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // ── SUBJECT HTML ──────────────────────────────────────
+  const subjectBubs = ['①','②','③','④','⑤'].map(n=>
+    `<div style="width:26px;height:26px;border-radius:50%;border:1.5px solid #c8d4e0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#8898aa;margin-right:6px">${n}</div>`
+  ).join('');
+
+  // ── SUMMARY HTML ──────────────────────────────────────
+  const summaryBubs = (label) => ['①','②','③','④','⑤'].map(n=>
+    `<div style="width:24px;height:24px;border-radius:50%;border:1.5px solid #c8d4e0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#8898aa;margin-right:4px">${n}</div>`
+  ).join('');
+
+  const html = `
+    <div style="padding:18px 22px 22px;font-family:'Helvetica Neue',Arial,sans-serif">
+
+      <!-- 헤더 -->
+      <div style="border-top:3px solid #1DB954;padding-top:10px;margin-bottom:12px;text-align:center">
+        <div style="font-size:16px;font-weight:800;color:#0a2540;margin-bottom:4px">${examTitle}</div>
+        ${sub?`<div style="font-size:10px;color:#8898aa">${sub}</div>`:''}
+      </div>
+
+      <!-- 정보칸 -->
+      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr 0.8fr;border:1px solid #d0d8e4;margin-bottom:10px">
+        ${[['Name'],['Class / No.'],['Date'],['Score']].map(([en],i)=>`
+          <div style="padding:6px 10px;${i>0?'border-left:1px solid #d0d8e4':''}">
+            <div style="font-size:8px;font-weight:700;color:#8898aa;text-transform:uppercase;margin-bottom:3px">${en}</div>
+            <div style="height:16px;${i===3?'font-size:15px;font-weight:800;color:#0a2540;text-align:center;line-height:1.8':''}">${i===3?'/':''}</div>
+          </div>`).join('')}
+      </div>
+
+      <!-- ① BLANK PART -->
+      <div style="margin-bottom:12px">
+        <div style="background:#29B6F6;padding:6px 12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.3px">BLANK PART</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.75)">— 각 문장의 괄호에서 정답에 동그라미 표시</span>
+        </div>
+        <div style="border:1px solid #e0e8f0;border-top:none">${blankRows}</div>
+      </div>
+
+      <!-- ② QUESTION PART -->
+      <div style="margin-bottom:12px">
+        <div style="background:#9C27B0;padding:6px 12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.3px">QUESTION PART</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.75)">— 답을 칸 안에 또렷하게 작성</span>
+        </div>
+        <div style="border:1px solid #e0e8f0;border-top:none">${qRows}</div>
+      </div>
+
+      <!-- ③④⑤ 하단 3분할 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+
+        <!-- SUBJECT -->
+        <div>
+          <div style="background:#1DB954;padding:5px 10px">
+            <span style="font-size:10px;font-weight:800;color:#fff">SUBJECT</span>
+          </div>
+          <div style="border:1px solid #e0e8f0;border-top:none;padding:10px 10px">
+            <div style="display:flex;flex-wrap:wrap;align-items:center">${subjectBubs}</div>
+          </div>
+        </div>
+
+        <!-- TRUE or NOT -->
+        <div>
+          <div style="background:#FF7043;padding:5px 10px">
+            <span style="font-size:10px;font-weight:800;color:#fff">TRUE or NOT</span>
+          </div>
+          <div style="border:1px solid #e0e8f0;border-top:none">${tnItems}</div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div>
+          <div style="background:#FF8F00;padding:5px 10px">
+            <span style="font-size:10px;font-weight:800;color:#fff">SUMMARY</span>
+          </div>
+          <div style="border:1px solid #e0e8f0;border-top:none;padding:10px">
+            <div style="font-size:10px;font-weight:700;color:#FF8F00;margin-bottom:6px">(A)</div>
+            <div style="display:flex;margin-bottom:10px">${summaryBubs('A')}</div>
+            <div style="font-size:10px;font-weight:700;color:#FF8F00;margin-bottom:6px">(B)</div>
+            <div style="display:flex">${summaryBubs('B')}</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 푸터 -->
+      <div style="border-top:2px solid #1DB954;padding-top:7px;display:flex;justify-content:space-between;margin-top:12px">
+        <span style="font-size:9px;color:#aaa">KKJ ENGLISH  ·  Workbook TYPE B Answer Sheet</span>
+        <span style="font-size:9px;color:#aaa">김기준영어학원</span>
+      </div>
+    </div>`;
+
+  document.getElementById('omrPaper').innerHTML = html;
+  document.getElementById('previewModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
 document.getElementById('bubbleSize').addEventListener('change',updateStats);
 document.getElementById('pageMargin').addEventListener('change',updateStats);
 init();
 renderSavedKeys();
+renderSavedPassages();
+// 기본 문장 3개 추가
+addSentence(3); addSentence(4); addSentence(2);
 </script>
 </body>
 </html>
