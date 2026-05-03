@@ -256,6 +256,7 @@ select option{background:#282828}
     <div class="tabs">
       <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
       <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
+      <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
       <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
     </div>
     <div class="vbadge">v2.0</div>
@@ -319,6 +320,114 @@ select option{background:#282828}
       <button class="btn" onclick="showPreview()">
         <span style="font-size:16px">⊞</span> 미리보기 &amp; 인쇄
       </button>
+
+    </div>
+
+
+    <!-- TYPE C 단어시험 탭 -->
+    <div id="tab-typec" class="screen">
+
+      <!-- 저장된 단어시험 설정 -->
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct">저장된 단어시험 설정</div><div class="cd">이전에 저장한 설정을 불러오거나 새로 저장합니다</div></div>
+        </div>
+        <div class="cb" style="padding:16px 22px">
+          <div id="savedVocabList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+            <div style="font-size:12px;color:var(--t2);text-align:center;padding:10px">저장된 설정이 없습니다</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="saveVocabName" placeholder="저장 이름 (예: 능률VOCA DAY44 120단어)" style="flex:1;height:38px">
+            <button onclick="saveVocabConfig()" style="height:38px;padding:0 16px;background:var(--g);border:none;border-radius:var(--r);color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--g)'">💾 저장</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 시험 기본 정보 -->
+      <div class="card">
+        <div class="ch"><div><div class="ct">시험 기본 정보</div><div class="cd">답안지 상단에 인쇄될 내용</div></div></div>
+        <div class="cb">
+          <div class="fr">
+            <div><label>시험명</label><input type="text" id="vcExamTitle" placeholder="예: 능률VOCA 어원편 DAY 44 외 6개 레슨"></div>
+          </div>
+          <div class="fr c3" style="margin-bottom:0">
+            <div><label>학교 / 학년</label><input type="text" id="vcGrade" placeholder="예: 미강고 1학년"></div>
+            <div><label>출제자</label><input type="text" id="vcAuthor" placeholder="예: 김기준"></div>
+            <div><label>날짜</label><input type="text" id="vcDate" placeholder="예: 2026.05"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 문항 구성 -->
+      <div class="card">
+        <div class="ch"><div><div class="ct">문항 구성</div><div class="cd">시험 구성을 설정하세요</div></div></div>
+        <div class="cb">
+
+          <div class="fr c2">
+            <div>
+              <label>총 문항 수</label>
+              <select id="vcTotal">
+                <option value="30">30문항</option>
+                <option value="40">40문항</option>
+                <option value="50">50문항</option>
+                <option value="60" selected>60문항</option>
+                <option value="80">80문항</option>
+                <option value="100">100문항</option>
+                <option value="120">120문항</option>
+                <option value="custom">직접 입력</option>
+              </select>
+            </div>
+            <div>
+              <label>통과 기준</label>
+              <select id="vcPassRate">
+                <option value="80">80% 이상</option>
+                <option value="90" selected>90% 이상</option>
+                <option value="95">95% 이상</option>
+                <option value="100">100%</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="vcCustomRow" style="display:none;margin-bottom:16px">
+            <label>직접 입력 (문항 수)</label>
+            <input type="number" id="vcCustomTotal" min="1" max="300" value="120" style="width:120px">
+          </div>
+
+          <hr class="divider">
+          <div class="sl">시험 유형 구성</div>
+
+          <div style="display:flex;flex-direction:column;gap:8px" id="vcTypeList"></div>
+          <button class="addbtn" onclick="addVcType()" style="margin-top:8px">
+            <span style="font-size:18px;line-height:1">+</span> 유형 추가
+          </button>
+
+          <hr class="divider">
+
+          <div class="fr c2" style="margin-bottom:0">
+            <div>
+              <label>글씨 칸 높이</label>
+              <select id="vcLineH">
+                <option value="large">크게 (넓은 칸)</option>
+                <option value="medium" selected>보통</option>
+                <option value="small">작게 (많은 문항)</option>
+              </select>
+            </div>
+            <div>
+              <label>열 수</label>
+              <select id="vcCols">
+                <option value="1">1열</option>
+                <option value="2" selected>2열</option>
+                <option value="3">3열</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="showVocabPreview()">
+        <span style="font-size:16px">⊞</span> TYPE C 답안지 미리보기 &amp; 인쇄
+      </button>
+      <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
 
     </div>
 
@@ -735,11 +844,12 @@ function renderSections() {
 }
 
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','key'][i]===t));
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','typec','key'][i]===t));
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if (t==='key') { renderAnswerKey(); renderBracketKey(); renderEssayKey(); }
+  if (t==='key')   { renderAnswerKey(); renderBracketKey(); renderEssayKey(); }
   if (t==='typeb') { renderSentences(); renderSavedPassages(); }
+  if (t==='typec') { renderVcTypes(); renderSavedVocab(); }
 }
 
 function updateStats() {
@@ -1328,7 +1438,285 @@ function showToast(msg,type=''){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 
-// ── TYPE B 워크북 ────────────────────────────────────────
+// ── TYPE C 단어시험 ───────────────────────────────────────
+let vcTypes = []; // [{id, type:'kor'|'eng', label, from, to}]
+let vcTypeId = 0;
+
+function initVcTypes() {
+  vcTypes = [];
+  addVcType('kor', 1,  60, '영단어 → 한국어 뜻쓰기');
+  addVcType('eng', 61, 120, '한국어 → 영단어 스펠링');
+}
+
+function addVcType(type='kor', from=null, to=null, label=null) {
+  const last = vcTypes.reduce((m,t)=>Math.max(m,t.to||0), 0);
+  vcTypes.push({
+    id: ++vcTypeId,
+    type: type,
+    label: label || (type==='kor'?'영단어 → 한국어 뜻쓰기':'한국어 → 영단어 스펠링'),
+    from: from ?? last+1,
+    to:   to   ?? last+10,
+  });
+  renderVcTypes();
+}
+
+function removeVcType(id) {
+  vcTypes = vcTypes.filter(t=>t.id!==id);
+  renderVcTypes();
+}
+
+function updateVcType(id, key, val) {
+  const t = vcTypes.find(t=>t.id===id);
+  if (t) { t[key]=val; renderVcTypes(); }
+}
+
+function renderVcTypes() {
+  const el = document.getElementById('vcTypeList');
+  if (!el) return;
+  if (!vcTypes.length) {
+    el.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:12px">유형을 추가해 주세요</div>';
+    return;
+  }
+  el.innerHTML = vcTypes.map((t,i)=>`
+    <div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:8px;align-items:center;
+      padding:10px 12px;background:var(--b2);border-radius:var(--rl);border:1px solid var(--bo)">
+      <div style="width:22px;height:22px;border-radius:50%;
+        background:${t.type==='kor'?'#CE93D8':'#29B6F6'};
+        display:flex;align-items:center;justify-content:center;
+        font-size:9px;font-weight:800;color:#000">${i+1}</div>
+      <div>
+        <label style="margin-bottom:4px">유형</label>
+        <select onchange="updateVcType(${t.id},'type',this.value)" style="height:34px;font-size:12px">
+          <option value="kor" ${t.type==='kor'?'selected':''}>영→한 뜻쓰기</option>
+          <option value="eng" ${t.type==='eng'?'selected':''}>한→영 스펠링</option>
+        </select>
+      </div>
+      <div>
+        <label style="margin-bottom:4px">시작 번호</label>
+        <input type="number" min="1" value="${t.from}"
+          onchange="updateVcType(${t.id},'from',+this.value)"
+          style="height:34px;font-size:13px">
+      </div>
+      <div>
+        <label style="margin-bottom:4px">끝 번호</label>
+        <input type="number" min="1" value="${t.to}"
+          onchange="updateVcType(${t.id},'to',+this.value)"
+          style="height:34px;font-size:13px">
+      </div>
+      <button onclick="removeVcType(${t.id})"
+        style="width:26px;height:26px;border:1px solid var(--bm);background:transparent;
+          border-radius:6px;color:var(--t2);cursor:pointer;font-size:13px"
+        onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
+      <div style="grid-column:2/-1;margin-top:2px">
+        <label style="margin-bottom:4px">섹션 제목 (선택)</label>
+        <input type="text" value="${t.label}"
+          onchange="updateVcType(${t.id},'label',this.value)"
+          placeholder="예: 영단어 → 한국어 뜻쓰기"
+          style="height:32px;font-size:12px">
+      </div>
+    </div>`).join('');
+}
+
+// ── 저장/불러오기 ─────────────────────────────────────────
+function getSavedVocab() {
+  try { return JSON.parse(localStorage.getItem('kkj_vocab')||'{}'); }
+  catch(e) { return {}; }
+}
+
+function saveVocabConfig() {
+  const name = document.getElementById('saveVocabName').value.trim();
+  if (!name) { showToast('저장 이름을 입력해 주세요','err'); return; }
+  const saved = getSavedVocab();
+  saved[name] = {
+    examTitle: document.getElementById('vcExamTitle').value,
+    grade:     document.getElementById('vcGrade').value,
+    author:    document.getElementById('vcAuthor').value,
+    date:      document.getElementById('vcDate').value,
+    total:     getVcTotal(),
+    passRate:  document.getElementById('vcPassRate').value,
+    lineH:     document.getElementById('vcLineH').value,
+    cols:      document.getElementById('vcCols').value,
+    types:     vcTypes.map(t=>({...t})),
+    savedAt:   new Date().toLocaleDateString('ko-KR'),
+  };
+  localStorage.setItem('kkj_vocab', JSON.stringify(saved));
+  document.getElementById('saveVocabName').value='';
+  renderSavedVocab();
+  showToast(`✓  "${name}" 저장 완료`,'ok');
+}
+
+function loadVocabConfig(name) {
+  const saved = getSavedVocab();
+  const d = saved[name]; if (!d) return;
+  document.getElementById('vcExamTitle').value = d.examTitle||'';
+  document.getElementById('vcGrade').value     = d.grade||'';
+  document.getElementById('vcAuthor').value    = d.author||'';
+  document.getElementById('vcDate').value      = d.date||'';
+  document.getElementById('vcPassRate').value  = d.passRate||'90';
+  document.getElementById('vcLineH').value     = d.lineH||'medium';
+  document.getElementById('vcCols').value      = d.cols||'2';
+  const totalSel = document.getElementById('vcTotal');
+  if ([30,40,50,60,80,100,120].includes(+d.total)) {
+    totalSel.value = String(d.total);
+    document.getElementById('vcCustomRow').style.display='none';
+  } else {
+    totalSel.value = 'custom';
+    document.getElementById('vcCustomTotal').value = d.total;
+    document.getElementById('vcCustomRow').style.display='';
+  }
+  vcTypes = (d.types||[]).map(t=>({...t, id:++vcTypeId}));
+  renderVcTypes();
+  showToast(`✓  "${name}" 불러오기 완료`,'ok');
+}
+
+function deleteVocabConfig(name) {
+  if (!confirm(`"${name}" 설정을 삭제할까요?`)) return;
+  const saved = getSavedVocab();
+  delete saved[name];
+  localStorage.setItem('kkj_vocab', JSON.stringify(saved));
+  renderSavedVocab();
+}
+
+function renderSavedVocab() {
+  const el = document.getElementById('savedVocabList');
+  if (!el) return;
+  const saved = getSavedVocab();
+  const keys = Object.keys(saved);
+  if (!keys.length) {
+    el.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:10px">저장된 설정이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = keys.map(name=>{
+    const d = saved[name];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+      background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)"
+      onmouseover="this.style.borderColor='var(--bm)'" onmouseout="this.style.borderColor='var(--bo)'">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px">${d.total}문항 · 통과 ${d.passRate}% · ${d.savedAt||''}</div>
+      </div>
+      <button onclick="loadVocabConfig('${name.replace(/'/g,"\\'")}')"
+        style="height:30px;padding:0 12px;background:var(--gl);border:1px solid rgba(29,185,84,.3);
+          border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer"
+        onmouseover="this.style.background='var(--gg)'" onmouseout="this.style.background='var(--gl)'">불러오기</button>
+      <button onclick="deleteVocabConfig('${name.replace(/'/g,"\\'")}')"
+        style="width:30px;height:30px;background:transparent;border:1px solid var(--bm);
+          border-radius:50%;color:var(--t2);font-size:14px;cursor:pointer"
+        onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">×</button>
+    </div>`;
+  }).join('');
+}
+
+function getVcTotal() {
+  const sel = document.getElementById('vcTotal');
+  if (!sel) return 60;
+  if (sel.value==='custom') return parseInt(document.getElementById('vcCustomTotal').value)||60;
+  return parseInt(sel.value)||60;
+}
+
+// ── 미리보기 ──────────────────────────────────────────────
+function showVocabPreview() {
+  if (!vcTypes.length) { showToast('유형을 먼저 추가해 주세요','err'); return; }
+
+  const title    = document.getElementById('vcExamTitle').value || '김기준영어학원 단어시험 답안지';
+  const grade    = document.getElementById('vcGrade').value    || '';
+  const author   = document.getElementById('vcAuthor').value   || '';
+  const date     = document.getElementById('vcDate').value     || '';
+  const total    = getVcTotal();
+  const passRate = document.getElementById('vcPassRate').value;
+  const lineH    = document.getElementById('vcLineH').value;
+  const cols     = parseInt(document.getElementById('vcCols').value)||2;
+
+  const rowH = lineH==='large'?46:lineH==='medium'?36:28;
+  const fs   = lineH==='large'?13:lineH==='medium'?12:11;
+  const sub  = [grade,author,date].filter(Boolean).join('  ·  ');
+
+  const passNum = Math.ceil(total * parseInt(passRate)/100);
+
+  const typeColors = { kor:'#CE93D8', eng:'#29B6F6' };
+  const typeBg     = { kor:'rgba(206,147,216,.12)', eng:'rgba(41,182,246,.1)' };
+
+  let sectionsHTML = '';
+  for (const t of vcTypes) {
+    const n   = Math.max(0, t.to - t.from + 1);
+    if (!n) continue;
+    const clr = typeColors[t.type];
+    const bg  = typeBg[t.type];
+    const perCol = Math.ceil(n / cols);
+
+    let colsHTML = '';
+    for (let ci=0; ci<cols; ci++) {
+      let rows = '';
+      for (let ri=0; ri<perCol; ri++) {
+        const idx = ci*perCol+ri;
+        if (idx>=n) break;
+        const num = t.from+idx;
+        const shade = idx%2===0?'#f8fafc':'#fff';
+        rows += `
+          <div style="display:flex;align-items:center;gap:8px;
+            padding:4px 10px;min-height:${rowH}px;
+            background:${shade};border-bottom:1px solid #edf2f7;
+            border-right:1px solid #e8eef5">
+            <span style="font-size:${fs}px;font-weight:800;color:${clr};
+              min-width:26px;flex-shrink:0;font-family:monospace">${num}.</span>
+            <div style="flex:1;border-bottom:1.5px solid #c8d4e0;
+              height:${rowH*0.55}px;"></div>
+          </div>`;
+      }
+      colsHTML += `<div style="flex:1;overflow:hidden">${rows}</div>`;
+    }
+
+    sectionsHTML += `
+      <div style="margin-bottom:14px">
+        <div style="background:${clr};padding:7px 14px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;font-weight:800;color:#fff">${t.label}</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.8)">Q${t.from} – Q${t.to} (${n}문항)</span>
+        </div>
+        <div style="display:flex;border:1px solid #e0e8f0;border-top:none">${colsHTML}</div>
+      </div>`;
+  }
+
+  document.getElementById('omrPaper').innerHTML = `
+    <div style="padding:18px 22px 22px;font-family:'Helvetica Neue',Arial,sans-serif">
+
+      <!-- 헤더 -->
+      <div style="border-top:3px solid #1DB954;padding-top:10px;margin-bottom:12px;text-align:center">
+        <div style="font-size:17px;font-weight:800;color:#0a2540;margin-bottom:4px">${title}</div>
+        ${sub?`<div style="font-size:10px;color:#8898aa;margin-bottom:4px">${sub}</div>`:''}
+        <div style="font-size:10px;color:#8898aa">총 ${total}문항 · 통과 기준 <strong style="color:#1DB954">${passRate}% (${passNum}개)</strong> 이상</div>
+      </div>
+
+      <!-- 정보칸 -->
+      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr 0.8fr;border:1px solid #d0d8e4;margin-bottom:10px">
+        ${[['Name'],['Class / No.'],['Date'],['Score']].map(([en],i)=>`
+          <div style="padding:6px 10px;${i>0?'border-left:1px solid #d0d8e4':''}">
+            <div style="font-size:8px;font-weight:700;color:#8898aa;text-transform:uppercase;margin-bottom:3px">${en}</div>
+            <div style="height:16px;${i===3?'font-size:15px;font-weight:800;color:#0a2540;text-align:center;line-height:1.8':''}">
+              ${i===3?`&nbsp;&nbsp;/ ${total}`:''}
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <!-- 주의사항 -->
+      <p style="font-size:9px;color:#8898aa;margin-bottom:12px">
+        ※ 영→한 : 우리말 뜻을 칸 안에 또렷하게 작성 &nbsp;|&nbsp; 한→영 : 영어 단어 스펠링을 정확하게 작성 &nbsp;|&nbsp; 통과 기준 ${passRate}% (${passNum}개 이상)
+      </p>
+
+      <!-- 섹션들 -->
+      ${sectionsHTML}
+
+      <!-- 푸터 -->
+      <div style="border-top:2px solid #1DB954;padding-top:7px;display:flex;justify-content:space-between;margin-top:8px">
+        <span style="font-size:9px;color:#aaa">KKJ ENGLISH  ·  TYPE C Vocabulary Test Answer Sheet</span>
+        <span style="font-size:9px;color:#aaa">김기준영어학원</span>
+      </div>
+    </div>`;
+
+  document.getElementById('previewModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
 let sentences = []; // [{id, brackets:[2,3,2,...]}]
 let sentId = 0;
 
@@ -1648,10 +2036,16 @@ document.getElementById('pageMargin').addEventListener('change',updateStats);
 init();
 renderSavedKeys();
 renderSavedPassages();
-// 기본 샘플 문장 (29번 기준)
-addSentence([2,2,2,2,2,2]);  // S01 - bracket 6개 (모두 2개 선택)
-addSentence([2,2,2]);         // S02
-addSentence([2,3,2,3,2,2,2]); // S03 - 3개 선택 포함 예시
+renderSavedVocab();
+initVcTypes();
+// TYPE B 기본 샘플
+addSentence([2,2,2,2,2,2]);
+addSentence([2,2,2]);
+addSentence([2,3,2,3,2,2,2]);
+
+document.getElementById('vcTotal').addEventListener('change', function() {
+  document.getElementById('vcCustomRow').style.display = this.value==='custom' ? '' : 'none';
+});
 </script>
 </body>
 </html>
