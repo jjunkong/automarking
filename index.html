@@ -101,6 +101,7 @@ select option{background:#282828}
   background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);
   padding:12px 14px;
   display:grid;grid-template-columns:24px 1fr 1fr 1fr 40px;
+  grid-template-rows:auto;
   gap:10px;align-items:center;transition:all .2s;position:relative;
 }
 .sitem:hover{border-color:var(--bm);background:var(--b3)}
@@ -120,6 +121,8 @@ select option{background:#282828}
 }
 .b5{background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.3)}
 .be{background:rgba(255,183,77,.12);color:var(--amb);border:1px solid rgba(255,183,77,.3)}
+.bb{background:rgba(41,182,246,.12);color:#29B6F6;border:1px solid rgba(41,182,246,.3)}
+.section-num.bracket,.snum.bracket{background:#29B6F6}
 .sitem.off .sbadge{background:#222;color:#555;border-color:#333}
 
 /* ── TOGGLE ── */
@@ -286,7 +289,7 @@ select option{background:#282828}
 
           <div class="info-box" style="margin-bottom:16px">
             <span class="info-icon">💡</span>
-            <span><strong style="color:var(--g)">Bracket형 (어법/어휘 선택)</strong>은 OMR 없이 <strong>문제지에 직접 동그라미</strong>를 치고 사진을 찍어 채점합니다. OMR은 5지선다와 서술형만 포함해요.</span>
+            <span><strong style="color:#29B6F6">Bracket형</strong>은 문항당 bracket 구성을 설정합니다. <strong style="color:var(--g)">5지선다</strong>와 <strong style="color:var(--amb)">서술형</strong>도 함께 포함할 수 있어요.</span>
           </div>
 
           <div class="sl">문항 구간</div>
@@ -565,24 +568,21 @@ select option{background:#282828}
 
 <script>
 let sections = [], sid = 0;
-let answerKey = {}; // {qn: answer}
+let answerKey = {};
 
 function init() {
-  addSection('five',  1,  20, true);
-  addSection('essay', 21, 25, true);
+  addSection('bracket', 1,  23, true, [2,2,3,2,2,3]);
+  addSection('five',   24,  43, true);
+  addSection('essay',  44,  46, true);
 }
 
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','key'][i]===t));
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('tab-'+t).classList.add('active');
-  if (t==='key') renderAnswerKey();
-  if (t==='typeb') { renderSentences(); renderSavedPassages(); }
-}
-
-function addSection(type='five', from=null, to=null, active=true) {
+function addSection(type='five', from=null, to=null, active=true, bracketArr=null) {
   const last = sections.filter(s=>s.active).reduce((m,s)=>Math.max(m,s.to), 0);
-  sections.push({ id:++sid, type, active, from:from??last+1, to:to??last+10 });
+  sections.push({
+    id:++sid, type, active,
+    from:from??last+1, to:to??last+10,
+    brackets: bracketArr ? [...bracketArr] : [2,2,2,2,2,2]
+  });
   renderSections();
 }
 
@@ -596,17 +596,67 @@ function updateSec(id, key, val) {
   if (s) { s[key]=val; updateStats(); renderAnswerKey(); }
 }
 
+// bracket 편집 (TYPE A용)
+function addSecBracket(id) {
+  const s = sections.find(s=>s.id===id);
+  if (s && s.brackets.length < 12) { s.brackets.push(2); renderSections(); }
+}
+function removeSecBracket(id) {
+  const s = sections.find(s=>s.id===id);
+  if (s && s.brackets.length > 1) { s.brackets.pop(); renderSections(); }
+}
+function toggleSecBracket(id, bidx) {
+  const s = sections.find(s=>s.id===id);
+  if (s) { s.brackets[bidx] = s.brackets[bidx]===2?3:2; renderSections(); }
+}
+
 function renderSections() {
   const list = document.getElementById('sectionsList');
   list.innerHTML = '';
   sections.forEach((sec, idx) => {
-    const info = {
-      five:  { nc:'five',  badge:'b5', label:'5지선다 ①~⑤' },
-      essay: { nc:'essay', badge:'be', label:'서술형' },
-    }[sec.type];
+    const typeMap = {
+      bracket: { nc:'bracket', badge:'bb', label:'Bracket형' },
+      five:    { nc:'five',    badge:'b5', label:'5지선다 ①~⑤' },
+      essay:   { nc:'essay',   badge:'be', label:'서술형' },
+    };
+    const info = typeMap[sec.type] || typeMap.five;
     const on = sec.active;
     const el = document.createElement('div');
     el.className = `sitem ${on?'':'off'}`;
+
+    // bracket 미리보기
+    const bracketPreview = sec.type==='bracket' && on ? `
+      <div style="grid-column:2/-1;margin-top:8px;padding:10px 12px;background:var(--b3);border-radius:var(--r);border:1px solid var(--bo)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase">문항당 Bracket 구성</span>
+          <span style="font-size:10px;color:var(--t2)">(모든 문항에 동일하게 적용)</span>
+          <button onclick="addSecBracket(${sec.id})"
+            style="height:22px;padding:0 8px;background:var(--gl);border:1px solid rgba(29,185,84,.3);border-radius:11px;color:var(--g);font-family:var(--f);font-size:10px;font-weight:700;cursor:pointer">+ B</button>
+          <button onclick="removeSecBracket(${sec.id})"
+            style="height:22px;padding:0 8px;background:transparent;border:1px solid var(--bm);border-radius:11px;color:var(--t2);font-family:var(--f);font-size:10px;font-weight:700;cursor:pointer"
+            onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='var(--t2)'">- B</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${sec.brackets.map((cnt,j)=>`
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer"
+                 onclick="toggleSecBracket(${sec.id},${j})" title="클릭 → 2개↔3개">
+              <div style="display:flex;gap:2px">
+                ${Array.from({length:cnt},(_,k)=>`
+                  <div style="width:16px;height:16px;border-radius:50%;
+                    border:1.5px solid ${cnt===3?'#FFB74D':'#29B6F6'};
+                    background:transparent;display:flex;align-items:center;justify-content:center;
+                    font-size:8px;font-weight:800;color:${cnt===3?'#FFB74D':'#29B6F6'}">${k+1}</div>
+                `).join('')}
+              </div>
+              <span style="font-size:8px;font-weight:700;
+                color:${cnt===3?'#FFB74D':'#29B6F6'};
+                background:${cnt===3?'rgba(255,183,77,.1)':'rgba(41,182,246,.08)'};
+                padding:0 4px;border-radius:3px">B${j+1}</span>
+            </div>`).join('')}
+          <span style="font-size:10px;color:var(--t2);align-self:center;margin-left:4px">← 클릭으로 2개↔3개</span>
+        </div>
+      </div>` : '';
+
     el.innerHTML = `
       <div class="snum ${info.nc}">${idx+1}</div>
       <div><label style="margin-bottom:5px">시작</label>
@@ -620,18 +670,88 @@ function renderSections() {
       <div><label style="margin-bottom:5px">유형</label>
         <select onchange="updateSec(${sec.id},'type',this.value)"
           style="height:34px;font-size:13px" ${on?'':'disabled'}>
-          <option value="five"  ${sec.type==='five' ?'selected':''}>5지선다</option>
-          <option value="essay" ${sec.type==='essay'?'selected':''}>서술형</option>
+          <option value="bracket" ${sec.type==='bracket'?'selected':''}>Bracket형</option>
+          <option value="five"    ${sec.type==='five'   ?'selected':''}>5지선다</option>
+          <option value="essay"   ${sec.type==='essay'  ?'selected':''}>서술형</option>
         </select></div>
       <button class="tog ${on?'on':'off-s'}" onclick="toggleSec(${sec.id})">
         <span style="font-size:13px">${on?'✓':'—'}</span>
         <span style="font-size:8px;font-weight:700">${on?'ON':'OFF'}</span>
       </button>
-      <div class="sbadge ${info.badge}">${info.label}</div>`;
+      <div class="sbadge ${info.badge}">${info.label}</div>
+      ${bracketPreview}`;
     list.appendChild(el);
   });
   updateStats();
   renderAnswerKey();
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','key'][i]===t));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if (t==='key') renderAnswerKey();
+  if (t==='typeb') { renderSentences(); renderSavedPassages(); }
+}
+
+function updateStats() {
+  const active = sections.filter(s=>s.active);
+  let total=0, bracket=0, five=0, essay=0;
+  active.forEach(s=>{
+    const n=Math.max(0,s.to-s.from+1); total+=n;
+    if(s.type==='bracket') bracket+=n;
+    else if(s.type==='five') five+=n;
+    else essay+=n;
+  });
+  document.getElementById('statTotal').textContent  = total;
+  document.getElementById('statFive').textContent   = five;
+  document.getElementById('statEssay').textContent  = essay;
+  document.getElementById('totalBadge').textContent = total+'문항';
+
+  // 사이드바에 bracket 행 동적 추가
+  let bEl = document.getElementById('statBracketRow');
+  if (bracket > 0 && !bEl) {
+    const firstRow = document.querySelector('.srow.row5');
+    if (firstRow) {
+      const div = document.createElement('div');
+      div.id='statBracketRow';
+      div.className='srow';
+      div.style.cssText='background:rgba(41,182,246,.08)';
+      div.innerHTML=`<div style="display:flex;align-items:center;gap:8px"><div class="sdot" style="background:#29B6F6"></div><span class="sname" style="color:#7dd3fc">Bracket형</span></div><span class="sval" id="statBracket" style="color:#29B6F6;font-family:var(--m);font-size:20px;font-weight:800">0</span>`;
+      firstRow.parentNode.insertBefore(div, firstRow);
+    }
+  }
+  const bVal = document.getElementById('statBracket');
+  if (bVal) bVal.textContent = bracket;
+  if (bEl && bracket === 0) bEl.remove();
+
+  const sz=document.getElementById('bubbleSize').value;
+  const rh=sz==='large'?11:sz==='medium'?9:7.5;
+  const rb=sz==='large'?13:sz==='medium'?11:9;
+  const c5=sz==='large'?4:sz==='medium'?5:6;
+  const cb=sz==='large'?2:sz==='medium'?3:4;
+  const re=sz==='large'?16:sz==='medium'?14:12;
+  let rows=0;
+  active.forEach(s=>{
+    const n=Math.max(0,s.to-s.from+1);
+    if(s.type==='bracket') rows+=Math.ceil(n/cb)*rb+14;
+    else if(s.type==='five') rows+=Math.ceil(n/c5)*rh+14;
+    else rows+=n*re+14;
+  });
+  const pages=Math.max(1,Math.ceil(rows/250));
+  document.getElementById('statPages').textContent=pages+'p';
+
+  const pp=document.getElementById('previewPages');
+  if(!active.length){pp.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:8px">구간을 추가하면 표시됩니다</div>';return;}
+  let ph='';
+  for(let p=1;p<=pages;p++) ph+=`
+    <div class="pbar">
+      <div class="picon">p.${p}</div>
+      <div style="flex:1"><div style="font-size:12px;font-weight:600">Page ${p}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:1px">${p===1?'Header + Answer Grid':'Continued'}</div></div>
+      <div style="font-size:10px;font-weight:800;color:var(--g)">A4</div>
+    </div>`;
+  pp.innerHTML=ph;
 }
 
 function renderAnswerKey() {
@@ -804,43 +924,6 @@ function renderSavedKeys() {
 }
 
 
-function updateStats() {
-  const active = sections.filter(s=>s.active);
-  let total=0, five=0, essay=0;
-  active.forEach(s=>{
-    const n=Math.max(0,s.to-s.from+1); total+=n;
-    if(s.type==='five') five+=n; else essay+=n;
-  });
-  document.getElementById('statTotal').textContent = total;
-  document.getElementById('statFive').textContent  = five;
-  document.getElementById('statEssay').textContent = essay;
-  document.getElementById('totalBadge').textContent = total+'문항';
-
-  const sz = document.getElementById('bubbleSize').value;
-  const rh = sz==='large'?11:sz==='medium'?9:7.5;
-  const c5 = sz==='large'?4:sz==='medium'?5:6;
-  const re = sz==='large'?16:sz==='medium'?14:12;
-  let rows=0;
-  active.forEach(s=>{
-    const n=Math.max(0,s.to-s.from+1);
-    rows += s.type==='five'? Math.ceil(n/c5)*rh+14 : Math.ceil(n/2)*re+14;
-  });
-  const pages = Math.max(1,Math.ceil(rows/250));
-  document.getElementById('statPages').textContent = pages+'p';
-
-  const pp = document.getElementById('previewPages');
-  if(!active.length){pp.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:8px">구간을 추가하면 표시됩니다</div>';return;}
-  let ph='';
-  for(let p=1;p<=pages;p++) ph+=`
-    <div class="pbar">
-      <div class="picon">p.${p}</div>
-      <div style="flex:1"><div style="font-size:12px;font-weight:600">Page ${p}</div>
-        <div style="font-size:10px;color:var(--t2);margin-top:1px">${p===1?'Header + Answer Grid':'Continued'}</div></div>
-      <div style="font-size:10px;font-weight:800;color:var(--g)">A4</div>
-    </div>`;
-  pp.innerHTML = ph;
-}
-
 // ── 미리보기 ────────────────────────────────────────────
 function showPreview() {
   const active = sections.filter(s=>s.active);
@@ -897,7 +980,50 @@ function showPreview() {
       continue;
     }
 
-    // ── 5지선다: 다단 컬럼 ─────────────────────────────
+    // ── Bracket형: 다단 컬럼 ───────────────────────────
+    if (sec.type === 'bracket') {
+      const cb = sz==='large'?2:sz==='medium'?3:4;
+      const rbH = sz==='large'?44:sz==='medium'?38:32;
+      const col  = Math.ceil(n/cb);
+      let cols='';
+      for(let ci=0;ci<cb;ci++){
+        let rows='';
+        for(let ri=0;ri<col;ri++){
+          const idx=ci*col+ri; if(idx>=n)break;
+          const qn=sec.from+idx;
+          const bg=idx%2===0?'#f8fafc':'#fff';
+          const pairs=(sec.brackets||[2,2,2,2,2,2]).map((cnt,j)=>`
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1px;margin-right:5px">
+              <div style="display:flex;gap:2px">
+                ${Array.from({length:cnt},(_,k)=>`
+                  <div style="width:${bub-2}px;height:${bub-2}px;border-radius:50%;
+                    border:1.5px solid ${cnt===3?'#FFB74D':'#c8d4e0'};
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:${fs-4}px;font-weight:800;
+                    color:${cnt===3?'#FFB74D':'#8898aa'};background:#fff">${k+1}</div>
+                `).join('')}
+              </div>
+              <span style="font-size:7px;color:#ccc">B${j+1}</span>
+            </div>`).join('');
+          rows+=`
+            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;
+              min-height:${rbH}px;background:${bg};
+              border-bottom:1px solid #edf2f7;border-right:1px solid #e8eef5">
+              <span style="font-size:${fs-1}px;font-weight:800;color:#29B6F6;min-width:28px;flex-shrink:0">Q${qn}</span>
+              <div style="display:flex;align-items:flex-end;flex-wrap:nowrap">${pairs}</div>
+            </div>`;
+        }
+        cols+=`<div style="flex:1;overflow:hidden">${rows}</div>`;
+      }
+      secHTML+=`
+        <div style="margin-bottom:14px">
+          <div style="background:#29B6F6;padding:7px 14px">
+            <span style="font-size:12px;font-weight:800;color:#fff">Q${sec.from} – Q${sec.to}　　Bracket형　[ 각 괄호에서 정답 번호에 동그라미 ]</span>
+          </div>
+          <div style="display:flex;border:1px solid #e0e8f0;border-top:none">${cols}</div>
+        </div>`;
+      continue;
+    }
     const c   = c5;
     const col = Math.ceil(n/c);
     let cols = '';
