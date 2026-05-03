@@ -322,7 +322,7 @@ select option{background:#282828}
 
     </div>
 
-    <!-- 정답 입력 탭 -->
+    <!-- 정답 관리 탭 -->
     <div id="tab-key" class="screen">
 
       <!-- 저장된 정답 불러오기 -->
@@ -336,37 +336,56 @@ select option{background:#282828}
           </div>
           <div style="display:flex;gap:8px">
             <input type="text" id="saveKeyName" placeholder="정답 이름 (예: 2026년 3월 모의고사)" style="flex:1;height:38px">
-            <button onclick="saveAnswerKey()" style="height:38px;padding:0 16px;background:var(--g);border:none;border-radius:var(--r);color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--g)'">💾 저장</button>
+            <button onclick="saveAnswerKey()" style="height:38px;padding:0 16px;background:var(--g);border:none;border-radius:var(--r);color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--g)'">💾 저장</button>
           </div>
         </div>
       </div>
 
-      <!-- 빠른 입력 -->
+      <!-- ① Bracket 정답 -->
       <div class="card">
         <div class="ch">
-          <div><div class="ct">5지선다 정답 입력</div><div class="cd">버튼 클릭 또는 키보드 1~5로 빠르게 입력</div></div>
+          <div><div class="ct" style="color:#29B6F6">① Bracket 정답</div><div class="cd">각 bracket에서 정답을 하나 이상 선택하세요 (복수 정답 가능)</div></div>
+          <div style="font-size:11px;color:var(--t2);background:rgba(41,182,246,.1);border:1px solid rgba(41,182,246,.25);padding:3px 10px;border-radius:20px">클릭으로 선택/해제</div>
+        </div>
+        <div class="cb" style="padding:16px 22px">
+          <div id="bracketKeyGrid">
+            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">TYPE A 생성 탭에서 Bracket 구간을 먼저 설정해 주세요</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 5지선다 정답 -->
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct" style="color:var(--g)">② 5지선다 정답</div><div class="cd">버튼 클릭 또는 빠른 붙여넣기</div></div>
           <div style="display:flex;gap:6px;align-items:center">
             <div id="progressBadge" style="font-family:var(--m);font-size:11px;color:var(--t2);background:var(--b2);padding:3px 10px;border-radius:20px;border:1px solid var(--bo)">0 / 0</div>
-            <button onclick="clearAllAnswers()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">전체 초기화</button>
+            <button onclick="clearAllAnswers()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer" onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">초기화</button>
           </div>
         </div>
         <div class="cb" style="padding:16px 22px">
-
-          <!-- 빠른 붙여넣기 -->
-          <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px 14px;margin-bottom:16px">
+          <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
             <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">빠른 붙여넣기</div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input type="text" id="bulkInput" placeholder="예: 13245135241... 또는 1,3,2,4,5,1,3,5..." style="flex:1;height:36px;font-family:var(--m);font-size:13px">
-              <button onclick="parseBulk()" style="height:36px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'">적용</button>
+              <input type="text" id="bulkInput" placeholder="예: 13245135241... 또는 1,3,2,4,5..." style="flex:1;height:36px;font-family:var(--m);font-size:13px">
+              <button onclick="parseBulk()" style="height:36px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer" onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'">적용</button>
             </div>
-            <div style="font-size:11px;color:var(--t2);margin-top:6px">숫자만 연속 입력하거나 쉼표로 구분해서 붙여넣으면 순서대로 자동 적용됩니다</div>
           </div>
-
-          <!-- 클릭 그리드 -->
           <div id="answerKeyGrid">
-            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">OMR 생성 탭에서 5지선다 구간을 먼저 설정해 주세요</div>
+            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">5지선다 구간을 먼저 설정해 주세요</div>
           </div>
+        </div>
+      </div>
 
+      <!-- ③ 서술형 정답 -->
+      <div class="card">
+        <div class="ch">
+          <div><div class="ct" style="color:var(--amb)">③ 서술형 정답 / 채점 기준</div><div class="cd">핵심 키워드 또는 모범 답안 입력</div></div>
+        </div>
+        <div class="cb" style="padding:16px 22px">
+          <div id="essayKeyGrid">
+            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">서술형 구간을 먼저 설정해 주세요</div>
+          </div>
         </div>
       </div>
 
@@ -568,7 +587,9 @@ select option{background:#282828}
 
 <script>
 let sections = [], sid = 0;
-let answerKey = {};
+let answerKey = {};       // 5지선다: {qn: answer}
+let bracketAnswers = {};  // bracket: {"Q1_B1": [2], "Q1_B2": [1,2], ...}
+let essayAnswers = {};    // 서술형: {qn: {answer, keywords, score}}
 
 function init() {
   addSection('bracket', 1,  23, true, [2,2,3,2,2,3]);
@@ -690,7 +711,7 @@ function switchTab(t) {
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['omr','typeb','key'][i]===t));
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if (t==='key') renderAnswerKey();
+  if (t==='key') { renderAnswerKey(); renderBracketKey(); renderEssayKey(); }
   if (t==='typeb') { renderSentences(); renderSavedPassages(); }
 }
 
@@ -793,6 +814,134 @@ function renderAnswerKey() {
   }
   grid.innerHTML = html;
   updateProgress();
+  renderBracketKey();
+  renderEssayKey();
+}
+
+// ── Bracket 정답 ─────────────────────────────────────────
+function renderBracketKey() {
+  const el = document.getElementById('bracketKeyGrid');
+  if (!el) return;
+  const brackets = sections.filter(s=>s.active&&s.type==='bracket');
+  if (!brackets.length) {
+    el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">TYPE A 생성 탭에서 Bracket 구간을 먼저 설정해 주세요</div>';
+    return;
+  }
+  let html='';
+  for (const sec of brackets) {
+    const n = Math.max(0, sec.to - sec.from + 1);
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;color:#29B6F6;letter-spacing:.6px;text-transform:uppercase;
+        margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(41,182,246,.2)">
+        Q${sec.from} – Q${sec.to}　Bracket형 (${n}문항)
+      </div>`;
+    for (let i=0; i<n; i++) {
+      const qn = sec.from+i;
+      const bracketArr = sec.brackets || [2,2,2];
+      const allFilled = bracketArr.every((_,j)=>(bracketAnswers[`Q${qn}_B${j+1}`]||[]).length>0);
+      html += `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;
+          background:${allFilled?'rgba(41,182,246,.06)':'var(--b2)'};
+          border-radius:var(--r);border:1px solid ${allFilled?'rgba(41,182,246,.3)':'var(--bo)'};
+          margin-bottom:6px">
+          <span style="font-size:11px;font-weight:800;color:#29B6F6;min-width:30px;font-family:var(--m);margin-top:4px">Q${qn}</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${bracketArr.map((cnt, j)=>{
+              const key = `Q${qn}_B${j+1}`;
+              const sel = bracketAnswers[key] || [];
+              return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <span style="font-size:9px;font-weight:700;color:var(--t2)">B${j+1}</span>
+                <div style="display:flex;gap:3px">
+                  ${Array.from({length:cnt},(_,k)=>{
+                    const num = k+1;
+                    const active = sel.includes(num);
+                    return `<button onclick="toggleBracketAnswer('${key}',${num},${cnt})"
+                      style="width:28px;height:28px;border-radius:6px;
+                        border:2px solid ${active?'#29B6F6':'var(--bm)'};
+                        background:${active?'#29B6F6':'transparent'};
+                        color:${active?'#000':'var(--t2)'};
+                        font-family:var(--f);font-size:12px;font-weight:800;cursor:pointer;transition:all .12s;"
+                      title="클릭으로 선택/해제">${num}</button>`;
+                  }).join('')}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+          ${allFilled?'<span style="font-size:10px;color:#29B6F6;margin-left:auto;margin-top:4px;flex-shrink:0">✓</span>':''}
+        </div>`;
+    }
+    html += `</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function toggleBracketAnswer(key, num, maxCnt) {
+  if (!bracketAnswers[key]) bracketAnswers[key] = [];
+  const idx = bracketAnswers[key].indexOf(num);
+  if (idx >= 0) {
+    bracketAnswers[key].splice(idx, 1);
+  } else {
+    bracketAnswers[key].push(num);
+    bracketAnswers[key].sort();
+  }
+  renderBracketKey();
+}
+
+// ── 서술형 정답 ──────────────────────────────────────────
+function renderEssayKey() {
+  const el = document.getElementById('essayKeyGrid');
+  if (!el) return;
+  const essays = sections.filter(s=>s.active&&s.type==='essay');
+  if (!essays.length) {
+    el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">서술형 구간을 먼저 설정해 주세요</div>';
+    return;
+  }
+  let html='';
+  for (const sec of essays) {
+    const n = Math.max(0, sec.to - sec.from + 1);
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;color:var(--amb);letter-spacing:.6px;text-transform:uppercase;
+        margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,183,77,.2)">
+        Q${sec.from} – Q${sec.to}　서술형 (${n}문항)
+      </div>`;
+    for (let i=0; i<n; i++) {
+      const qn = sec.from+i;
+      const ea = essayAnswers[qn] || {};
+      html += `
+        <div style="padding:10px 12px;background:var(--b2);border-radius:var(--r);
+          border:1px solid ${ea.answer?'rgba(255,183,77,.3)':'var(--bo)'};margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:800;color:var(--amb);font-family:var(--m)">Q${qn}</span>
+            <div style="flex:1"></div>
+            <label style="font-size:10px;color:var(--t2);margin:0">배점</label>
+            <input type="number" min="1" max="20" value="${ea.score||5}"
+              onchange="essayAnswers[${qn}]=Object.assign(essayAnswers[${qn}]||{},{score:+this.value})"
+              style="width:48px;height:28px;text-align:center;font-size:12px;font-weight:700;font-family:var(--m);background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0)">
+            <span style="font-size:10px;color:var(--t2);margin:0">점</span>
+          </div>
+          <div style="margin-bottom:6px">
+            <label style="font-size:10px;color:var(--t2);margin-bottom:5px;display:block">모범 답안 / 핵심 내용</label>
+            <textarea rows="2" placeholder="예: The answer should include the concept of..."
+              oninput="essayAnswers[${qn}]=Object.assign(essayAnswers[${qn}]||{},{answer:this.value})"
+              style="width:100%;padding:8px 10px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);
+                font-family:var(--f);font-size:12px;color:var(--t0);resize:vertical;outline:none;
+                transition:border-color .15s"
+              onfocus="this.style.borderColor='var(--amb)'" onblur="this.style.borderColor='var(--bm)'"
+              >${ea.answer||''}</textarea>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--t2);margin-bottom:5px;display:block">핵심 키워드 (쉼표 구분, AI 채점 시 활용)</label>
+            <input type="text" value="${ea.keywords||''}" placeholder="예: neuroplasticity, flexibility, change"
+              oninput="essayAnswers[${qn}]=Object.assign(essayAnswers[${qn}]||{},{keywords:this.value})"
+              style="width:100%;height:34px;padding:0 10px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);
+                font-family:var(--f);font-size:12px;color:var(--t0);outline:none;transition:border-color .15s"
+              onfocus="this.style.borderColor='var(--amb)'" onblur="this.style.borderColor='var(--bm)'">
+          </div>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+  el.innerHTML = html;
 }
 
 function setAnswer(qn, ans) {
@@ -873,7 +1022,7 @@ function saveAnswerKey() {
   if (!filled) { showToast('입력된 정답이 없습니다','err'); return; }
 
   const saved = getSavedKeys();
-  saved[name] = { key:JSON.parse(JSON.stringify(answerKey)), count:filled, date:new Date().toLocaleDateString('ko-KR'), total:allQns.length };
+  saved[name] = { key:JSON.parse(JSON.stringify(answerKey)), bracketKey:JSON.parse(JSON.stringify(bracketAnswers)), essayKey:JSON.parse(JSON.stringify(essayAnswers)), count:filled, date:new Date().toLocaleDateString('ko-KR'), total:allQns.length };
   localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
   document.getElementById('saveKeyName').value = '';
   renderSavedKeys();
@@ -883,8 +1032,10 @@ function saveAnswerKey() {
 function loadAnswerKey(name) {
   const saved = getSavedKeys();
   if (!saved[name]) return;
-  answerKey = JSON.parse(JSON.stringify(saved[name].key));
-  renderAnswerKey();
+  answerKey = JSON.parse(JSON.stringify(saved[name].key||{}));
+  bracketAnswers = JSON.parse(JSON.stringify(saved[name].bracketKey||{}));
+  essayAnswers = JSON.parse(JSON.stringify(saved[name].essayKey||{}));
+  renderAnswerKey(); renderBracketKey(); renderEssayKey();
   showToast(`✓  "${name}" 불러오기 완료`,'ok');
 }
 
