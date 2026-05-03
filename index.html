@@ -1036,17 +1036,32 @@ function toggleCard(cardId) {
 function parseBulk() {
   const raw = document.getElementById('bulkInput').value.trim();
   if (!raw) return;
-  // 숫자만 추출 (1~5)
-  const nums = raw.replace(/[^1-5]/g,'').split('').map(Number);
-  if (!nums.length) { showToast('1~5 사이 숫자를 입력해 주세요','err'); return; }
+
+  // 토큰 파싱: (13) → [1,3] / 1 → [1]
+  const tokens = [];
+  const pattern = /\(([1-5]+)\)|([1-5])/g;
+  let m;
+  while ((m = pattern.exec(raw)) !== null) {
+    if (m[1]) {
+      // 괄호 안: 각 숫자를 개별 정답으로
+      const nums = [...new Set(m[1].split('').map(Number).filter(n=>n>=1&&n<=5))].sort((a,b)=>a-b);
+      tokens.push(nums);
+    } else {
+      tokens.push([parseInt(m[2])]);
+    }
+  }
+
+  if (!tokens.length) { showToast('1~5 사이 숫자를 입력해 주세요','err'); return; }
 
   const fives = sections.filter(s=>s.active&&s.type==='five');
   const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
 
-  nums.forEach((n,i) => { if(i<allQns.length) answerKey[allQns[i]]=[n]; });
+  tokens.forEach((arr, i) => { if (i < allQns.length) answerKey[allQns[i]] = arr; });
   document.getElementById('bulkInput').value = '';
   renderAnswerKey();
-  showToast(`✓  ${Math.min(nums.length,allQns.length)}문항 정답 입력 완료`,'ok');
+
+  const multi = tokens.filter(t=>t.length>1).length;
+  showToast(`✓  ${Math.min(tokens.length,allQns.length)}문항 입력 완료${multi>0?` (복수정답 ${multi}개)`:''}`, 'ok');
 }
 
 // ── 저장 / 불러오기 ──────────────────────────────────────
