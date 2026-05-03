@@ -320,6 +320,14 @@ select option { background: #282828; color: var(--text-base); }
   .sidebar { display:none; }
   .form-row.cols-3 { grid-template-columns:1fr; }
 }
+
+/* bubble base */
+.bub {
+  border-radius:50%; border:1.5px solid #c0ccd8;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-weight:700; color:#8898aa; background:#fff;
+  flex-shrink:0; line-height:1;
+}
 </style>
 </head>
 <body>
@@ -329,7 +337,7 @@ select option { background: #282828; color: var(--text-base); }
   <div class="logo">
     <div class="logo-mark">KKJ</div>
     <div>
-      <div class="logo-name">KKJ English Academy</div>
+      <div class="logo-name">김기준영어학원</div>
       <div class="logo-sub">OMR 자동 생성기</div>
     </div>
   </div>
@@ -405,9 +413,9 @@ select option { background: #282828; color: var(--text-base); }
       </div>
     </div>
 
-    <button class="btn-primary" id="generateBtn" onclick="generatePDF()">
-      <span id="btnIcon" style="font-size:16px">↓</span>
-      <span id="btnText">OMR 답안지 PDF 생성</span>
+    <button class="btn-primary" id="generateBtn" onclick="showPreview()">
+      <span id="btnIcon" style="font-size:16px">⊞</span>
+      <span id="btnText">미리보기 &amp; 인쇄</span>
     </button>
 
   </div>
@@ -481,6 +489,33 @@ select option { background: #282828; color: var(--text-base); }
   <span class="np-text">채점 자동화 프로젝트</span>
   <div class="np-dot"></div>
   <span class="np-text">OMR Generator v1.2</span>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div id="previewModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);overflow:auto;">
+  <div style="max-width:860px;margin:24px auto;padding:0 16px 40px;">
+
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0 14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--sp-green);"></div>
+        <span style="font-size:14px;font-weight:700;color:var(--text-base);">미리보기</span>
+        <span style="font-size:12px;color:var(--text-muted);">— 인쇄하면 PDF로 저장도 가능합니다</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="printOMR()" style="height:40px;padding:0 22px;background:var(--sp-green);border:none;border-radius:20px;color:#000;font-family:var(--font);font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--sp-green)'">
+          🖨 인쇄 / PDF 저장
+        </button>
+        <button onclick="closePreview()" style="height:40px;padding:0 18px;background:transparent;border:1px solid var(--border-mid);border-radius:20px;color:var(--text-sub);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--border-hi)'" onmouseout="this.style.borderColor='var(--border-mid)'">
+          닫기
+        </button>
+      </div>
+    </div>
+
+    <!-- OMR Paper -->
+    <div id="omrPaper" style="background:#fff;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden;"></div>
+
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -613,9 +648,206 @@ function updateStats() {
   preview.innerHTML=html;
 }
 
-async function generatePDF() {
-  const active=sections.filter(s=>s.active);
-  if(active.length===0){showToast('활성화된 구간이 없습니다','error');return;}
+// ── 미리보기 열기 ────────────────────────────────────────
+function showPreview() {
+  const active = sections.filter(s => s.active);
+  if (active.length === 0) { showToast('활성화된 구간이 없습니다', 'error'); return; }
+
+  const examTitle  = document.getElementById('examTitle').value  || 'KKJ English Academy — Answer Sheet';
+  const examGrade  = document.getElementById('examGrade').value  || '';
+  const examAuthor = document.getElementById('examAuthor').value || '';
+  const examDate   = document.getElementById('examDate').value   || '';
+  const sizeKey    = document.getElementById('bubbleSize').value;
+  const marginKey  = document.getElementById('pageMargin').value;
+
+  const margin = marginKey === 'narrow' ? '10mm' : '15mm';
+  const bubSize = sizeKey === 'large' ? 22 : sizeKey === 'medium' ? 18 : 15; // px
+  const rowH    = sizeKey === 'large' ? 36 : sizeKey === 'medium' ? 30 : 26; // px
+  const cols5   = sizeKey === 'large' ? 3  : sizeKey === 'medium' ? 4  : 5;
+  const colsB   = sizeKey === 'large' ? 2  : sizeKey === 'medium' ? 3  : 4;
+  const fs      = sizeKey === 'large' ? 13 : sizeKey === 'medium' ? 12 : 11;
+
+  const sub = [examGrade, examAuthor, examDate].filter(Boolean).join('  ·  ');
+
+  const secColors = { bracket:'#29B6F6', five:'#1DB954', essay:'#FFB74D' };
+  const secLabels = {
+    bracket: s => `Q${s.from} – Q${s.to}　　Bracket Choice　[ L = 왼쪽  /  R = 오른쪽 ]　(B1 ~ B${s.maxBracket||8})`,
+    five:    s => `Q${s.from} – Q${s.to}　　5지선다　[ ① ② ③ ④ ⑤ ]`,
+    essay:   s => `Q${s.from} – Q${s.to}　　서술형`,
+  };
+
+  let sectionsHTML = '';
+
+  for (const sec of active) {
+    const n = Math.max(0, sec.to - sec.from + 1);
+    if (n <= 0) continue;
+    const color = secColors[sec.type];
+    const cols  = sec.type === 'bracket' ? colsB : sec.type === 'five' ? cols5 : 2;
+    const colPct = (100 / cols).toFixed(2);
+
+    // build rows
+    let rowsHTML = '';
+    for (let i = 0; i < n; i++) {
+      const qn = sec.from + i;
+      const isShaded = i % 2 === 0;
+      let bubblesHTML = '';
+
+      if (sec.type === 'bracket') {
+        const maxB = sec.maxBracket || 8;
+        let pairs = '';
+        for (let b = 0; b < maxB; b++) {
+          pairs += `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+              <div style="display:flex;gap:2px;">
+                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-3}px;">L</div>
+                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-3}px;">R</div>
+              </div>
+              <span style="font-size:9px;color:#aaa;line-height:1">B${b+1}</span>
+            </div>`;
+        }
+        bubblesHTML = `<div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:nowrap;">${pairs}</div>`;
+      } else if (sec.type === 'five') {
+        const nums = ['①','②','③','④','⑤'];
+        bubblesHTML = `<div style="display:flex;gap:8px;align-items:center;">` +
+          nums.map(n => `<div class="bub" style="width:${bubSize+2}px;height:${bubSize+2}px;font-size:${fs-2}px;">${n}</div>`).join('') +
+          `</div>`;
+      } else {
+        bubblesHTML = `<div style="flex:1;border-bottom:1.5px solid #ddd;min-width:120px;height:${bubSize}px;"></div>`;
+      }
+
+      rowsHTML += `
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 10px;
+          min-height:${rowH}px;background:${isShaded?'#f8fafc':'#fff'};
+          border-bottom:1px solid #eef2f7;">
+          <span style="font-size:${fs-1}px;font-weight:700;color:${color};min-width:30px;flex-shrink:0">Q${qn}</span>
+          ${bubblesHTML}
+        </div>`;
+    }
+
+    // wrap in columns
+    let colsHTML = '';
+    const perCol = Math.ceil(n / cols);
+    for (let c = 0; c < cols; c++) {
+      const start = c * perCol;
+      const end   = Math.min(start + perCol, n);
+      let colRows = '';
+      for (let i = start; i < end; i++) {
+        const qn = sec.from + i;
+        const isShaded = i % 2 === 0;
+        let bubs = '';
+        if (sec.type === 'bracket') {
+          const maxB = sec.maxBracket || 8;
+          let pairs = '';
+          for (let b = 0; b < maxB; b++) {
+            pairs += `<div style="display:flex;flex-direction:column;align-items:center;gap:0px;margin-right:3px">
+              <div style="display:flex;gap:2px;">
+                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-4}px;">L</div>
+                <div class="bub" style="width:${bubSize}px;height:${bubSize}px;font-size:${fs-4}px;">R</div>
+              </div>
+              <span style="font-size:8px;color:#bbb;line-height:1.2">B${b+1}</span>
+            </div>`;
+          }
+          bubs = `<div style="display:flex;align-items:flex-end;flex-wrap:nowrap;">${pairs}</div>`;
+        } else if (sec.type === 'five') {
+          bubs = ['①','②','③','④','⑤'].map(num =>
+            `<div class="bub" style="width:${bubSize+2}px;height:${bubSize+2}px;font-size:${fs-2}px;margin-right:5px;">${num}</div>`
+          ).join('');
+          bubs = `<div style="display:flex;align-items:center;">${bubs}</div>`;
+        } else {
+          bubs = `<div style="flex:1;border-bottom:1.5px solid #d0d8e4;min-width:60px;"></div>`;
+        }
+        colRows += `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 8px;
+            min-height:${rowH}px;background:${i%2===0?'#f8fafc':'#fff'};
+            border-bottom:1px solid #eef2f7;border-right:1px solid #e8eef5;">
+            <span style="font-size:${fs-1}px;font-weight:700;color:${color};min-width:26px;flex-shrink:0">Q${qn}</span>
+            ${bubs}
+          </div>`;
+      }
+      colsHTML += `<div style="flex:1;overflow:hidden;">${colRows}</div>`;
+    }
+
+    sectionsHTML += `
+      <div style="margin-bottom:16px;">
+        <div style="background:${color};padding:8px 14px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:-.2px;">${secLabels[sec.type](sec)}</span>
+        </div>
+        <div style="display:flex;border:1px solid #e8eef5;border-top:none;">${colsHTML}</div>
+      </div>`;
+  }
+
+  const html = `
+    <div style="padding:20px 24px 28px;font-family:'Helvetica Neue',Arial,sans-serif;">
+
+      <!-- 헤더 -->
+      <div style="border-top:3px solid #1DB954;padding-top:12px;margin-bottom:16px;">
+        <h1 style="font-size:18px;font-weight:800;color:#0a2540;text-align:center;margin-bottom:${sub?'6px':'12px'}">${examTitle}</h1>
+        ${sub ? `<p style="font-size:11px;color:#8898aa;text-align:center;margin-bottom:12px;">${sub}</p>` : ''}
+      </div>
+
+      <!-- 정보칸 -->
+      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr 0.8fr;border:1px solid #d0d8e4;margin-bottom:8px;">
+        ${[['Name','이름'],['Class / No.','반·번호'],['Date','날짜'],['Score','점수']].map(([en,ko],i)=>`
+          <div style="padding:8px 10px;${i>0?'border-left:1px solid #d0d8e4;':''}">
+            <div style="font-size:9px;font-weight:700;color:#8898aa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;">${en}</div>
+            <div style="height:18px;${i===3?'font-size:18px;font-weight:700;color:#0a2540;text-align:center;line-height:1.8':''}">
+              ${i===3?'/':''}
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <!-- 주의사항 -->
+      <p style="font-size:9.5px;color:#8898aa;margin-bottom:16px;">
+        ※ 선택형 : 버블 안을 꽉 채워서 진하게 표시 &nbsp;|&nbsp; 서술형 : 칸 안에 또렷하게 작성 &nbsp;|&nbsp; 수정 시 X로 지우고 재작성
+      </p>
+
+      <!-- 섹션들 -->
+      ${sectionsHTML}
+
+      <!-- 푸터 -->
+      <div style="border-top:2px solid #1DB954;padding-top:8px;display:flex;justify-content:space-between;margin-top:8px;">
+        <span style="font-size:9px;color:#aaa;">KKJ ENGLISH · OMR Auto-Grading Answer Sheet</span>
+        <span style="font-size:9px;color:#aaa;">김기준영어학원</span>
+      </div>
+    </div>`;
+
+  document.getElementById('omrPaper').innerHTML = html;
+  document.getElementById('previewModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+  document.getElementById('previewModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function printOMR() {
+  const content = document.getElementById('omrPaper').innerHTML;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>KKJ OMR 답안지</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family:'Helvetica Neue',Arial,sans-serif; background:#fff; }
+      .bub {
+        border-radius:50%; border:1.5px solid #c0ccd8;
+        display:inline-flex; align-items:center; justify-content:center;
+        font-weight:700; color:#8898aa; background:#fff;
+        flex-shrink:0;
+      }
+      @media print {
+        @page { margin:12mm; size:A4; }
+        body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      }
+    </style>
+  </head><body>${content}</body></html>`);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 400);
+}
+
+// 기존 generatePDF는 유지 (혹시 필요할 때를 위해)
+async function generatePDF() { showPreview(); }
 
   const btn=document.getElementById('generateBtn');
   btn.disabled=true;
@@ -635,9 +867,9 @@ async function generatePDF() {
 
     const ML=marginKey==='narrow'?10:14, MR=ML, MT=13, MB=10, PW=210, PH=297, CW=PW-ML-MR;
     const cfg={
-      large: {bubR:4.2,rowH_b:11, rowH_5:9.5,rowH_e:15,cols_b:3,cols_5:5,fs_q:8,  fs_b:6.5},
-      medium:{bubR:3.5,rowH_b:9,  rowH_5:8,  rowH_e:13,cols_b:4,cols_5:6,fs_q:7.5,fs_b:6  },
-      small: {bubR:2.8,rowH_b:7.5,rowH_5:6.5,rowH_e:11,cols_b:5,cols_5:7,fs_q:6.5,fs_b:5.5},
+      large: {bubR:4.0, rowH_b:13,  rowH_5:12,  rowH_e:15, cols_b:2, cols_5:3, fs_q:8,   fs_b:7  },
+      medium:{bubR:3.2, rowH_b:11,  rowH_5:10,  rowH_e:13, cols_b:3, cols_5:4, fs_q:7.5, fs_b:6  },
+      small: {bubR:2.6, rowH_b:9.5, rowH_5:8.5, rowH_e:11, cols_b:4, cols_5:5, fs_q:6.5, fs_b:5.5},
     }[sizeKey];
 
     const GREEN=[29,185,84],BLACK=[10,37,64],GRAY=[130,152,170],
@@ -703,23 +935,34 @@ async function generatePDF() {
             doc.setFontSize(cfg.fs_q);doc.setFont('helvetica','bold');doc.setTextColor(...color);
             doc.text(`Q${qn}`,x0+2,y0+rowH*0.65);
             if(sec.type==='bracket'){
-              const maxB=sec.maxBracket||8,startX=x0+14,step=(colW-16)/maxB;
+              const maxB=sec.maxBracket||8;
+              const pairW = cfg.bubR*2.2*2 + 1.5; // width of one L+R pair
+              const totalW = colW - 16;
+              const gap = maxB > 1 ? (totalW - maxB*pairW) / (maxB-1) : 0;
+              const startX = x0 + 14;
               for(let b=0;b<maxB;b++){
-                const bx=startX+b*step+step/2,cy=y0+rowH/2;
-                doc.setDrawColor(...LGRAY);doc.setFillColor(255,255,255);doc.setLineWidth(0.35);
-                doc.circle(bx-cfg.bubR*1.2,cy,cfg.bubR*0.88,'FD');
-                doc.setFontSize(cfg.fs_b-1);doc.setFont('helvetica','bold');doc.setTextColor(...GRAY);
-                doc.text('L',bx-cfg.bubR*1.2,cy+cfg.bubR*0.38,{align:'center'});
-                doc.setFillColor(255,255,255);doc.circle(bx+cfg.bubR*1.2,cy,cfg.bubR*0.88,'FD');
-                doc.text('R',bx+cfg.bubR*1.2,cy+cfg.bubR*0.38,{align:'center'});
+                const pairX = startX + b*(pairW + gap);
+                const cxL = pairX + cfg.bubR*1.1;
+                const cxR = pairX + cfg.bubR*1.1 + cfg.bubR*2.2 + 1.5;
+                const cy = y0+rowH/2;
+                // L bubble
+                doc.setDrawColor(200,210,220);doc.setFillColor(255,255,255);doc.setLineWidth(0.4);
+                doc.circle(cxL,cy,cfg.bubR,'FD');
+                doc.setFontSize(cfg.fs_b);doc.setFont('helvetica','bold');doc.setTextColor(100,120,140);
+                doc.text('L',cxL,cy+cfg.bubR*0.38,{align:'center'});
+                // R bubble
+                doc.setDrawColor(200,210,220);doc.setFillColor(255,255,255);
+                doc.circle(cxR,cy,cfg.bubR,'FD');
+                doc.setTextColor(100,120,140);
+                doc.text('R',cxR,cy+cfg.bubR*0.38,{align:'center'});
               }
             }else if(sec.type==='five'){
-              const startX=x0+13,step=(colW-15)/5;
+              const labelW=12, avail=colW-labelW-2, step=avail/5;
               ['1','2','3','4','5'].forEach((num,j)=>{
-                const bx=startX+j*step+step/2,cy=y0+rowH/2;
-                doc.setDrawColor(...LGRAY);doc.setFillColor(255,255,255);doc.setLineWidth(0.4);
+                const bx=x0+labelW+j*step+step/2, cy=y0+rowH/2;
+                doc.setDrawColor(200,210,220);doc.setFillColor(255,255,255);doc.setLineWidth(0.4);
                 doc.circle(bx,cy,cfg.bubR,'FD');
-                doc.setFontSize(cfg.fs_b);doc.setFont('helvetica','bold');doc.setTextColor(...GRAY);
+                doc.setFontSize(cfg.fs_b);doc.setFont('helvetica','bold');doc.setTextColor(100,120,140);
                 doc.text(num,bx,cy+cfg.bubR*0.38,{align:'center'});
               });
             }else{
