@@ -1533,7 +1533,12 @@ function printOMR(){
 }
 
 function showToast(msg,type=''){
-  const t=document.getElementById('toast');
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toast';t.className='toast';
+    document.body.appendChild(t);
+  }
   t.textContent=msg;t.className='toast '+type;
   setTimeout(()=>t.classList.add('show'),10);
   setTimeout(()=>t.classList.remove('show'),3000);
@@ -2322,5 +2327,6 @@ document.getElementById('vcTotal').addEventListener('change', function() {
   document.getElementById('vcCustomRow').style.display = this.value==='custom' ? '' : 'none';
 });
 </script>
+<div id="toast" class="toast"></div>
 </body>
 </html>
