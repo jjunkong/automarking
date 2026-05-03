@@ -6,245 +6,320 @@
 <title>KKJ OMR Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --stripe-purple: #635BFF;
-    --stripe-purple-dark: #4F46E5;
-    --stripe-purple-light: #EEF0FF;
-    --bg: #F6F9FC;
-    --surface: #FFFFFF;
-    --border: #E3E8EF;
-    --border-strong: #C9D3DF;
-    --text-primary: #0A2540;
-    --text-secondary: #425466;
-    --text-muted: #8898AA;
-    --shadow-sm: 0 1px 3px rgba(10,37,64,.06), 0 1px 2px rgba(10,37,64,.04);
-    --shadow-md: 0 4px 16px rgba(10,37,64,.08), 0 1px 4px rgba(10,37,64,.04);
-    --shadow-lg: 0 16px 40px rgba(10,37,64,.12), 0 4px 12px rgba(10,37,64,.06);
-    --radius: 8px; --radius-lg: 12px;
-    --font: 'DM Sans', system-ui, sans-serif;
-    --font-mono: 'DM Mono', monospace;
-  }
+:root {
+  --sp-green:      #1DB954;
+  --sp-green-dark: #169040;
+  --sp-green-glow: rgba(29,185,84,.18);
+  --sp-green-dim:  rgba(29,185,84,.10);
 
-  html { font-family: var(--font); background: var(--bg); color: var(--text-primary); }
-  body { min-height: 100vh; }
-  .app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+  --bg-base:    #121212;
+  --bg-elevated:#181818;
+  --bg-card:    #242424;
+  --bg-hover:   #2a2a2a;
+  --bg-input:   #2a2a2a;
 
-  /* ── HEADER ── */
-  header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 0 32px; height: 60px;
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-mark {
-    width: 32px; height: 32px;
-    background: linear-gradient(135deg, var(--stripe-purple), #00D4AA);
-    border-radius: 8px; display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: white;
-  }
-  .logo-text { font-size: 15px; font-weight: 600; letter-spacing: -.3px; }
-  .logo-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-  .header-badge {
-    font-size: 11px; font-weight: 500;
-    background: var(--stripe-purple-light); color: var(--stripe-purple);
-    padding: 4px 10px; border-radius: 20px;
-  }
+  --border:    rgba(255,255,255,.08);
+  --border-mid:rgba(255,255,255,.14);
+  --border-hi: rgba(255,255,255,.22);
 
-  /* ── MAIN ── */
-  main {
-    display: grid; grid-template-columns: 1fr 360px;
-    max-width: 1200px; margin: 0 auto; width: 100%;
-    padding: 32px 24px; gap: 24px;
-  }
-  .left-col { display: flex; flex-direction: column; gap: 20px; }
+  --text-base: #FFFFFF;
+  --text-sub:  #B3B3B3;
+  --text-muted:#6A6A6A;
 
-  /* ── CARD ── */
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;
-  }
-  .card-header {
-    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .card-title { font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
-  .card-desc  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .card-body  { padding: 24px; }
+  --sky:   #29B6F6;
+  --amber: #FFB74D;
 
-  /* ── FORM ── */
-  .form-row { display: grid; gap: 16px; margin-bottom: 20px; }
-  .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-  label {
-    display: block; font-size: 12px; font-weight: 500;
-    color: var(--text-secondary); margin-bottom: 6px;
-  }
-  input[type=text], input[type=number], select {
-    width: 100%; height: 38px; padding: 0 12px;
-    border: 1px solid var(--border-strong); border-radius: var(--radius);
-    font-family: var(--font); font-size: 13px; color: var(--text-primary);
-    background: var(--surface); outline: none; appearance: none;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  input:focus, select:focus {
-    border-color: var(--stripe-purple);
-    box-shadow: 0 0 0 3px rgba(99,91,255,.12);
-  }
-  select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238898AA' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 12px center;
-    padding-right: 32px; cursor: pointer;
-  }
-  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-  .section-label {
-    font-size: 11px; font-weight: 600; color: var(--text-muted);
-    letter-spacing: .8px; text-transform: uppercase; margin-bottom: 12px;
-  }
+  --radius:    6px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  /* ── SECTION ITEMS ── */
-  .sections-list { display: flex; flex-direction: column; gap: 10px; }
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'DM Mono', monospace;
+  --shadow: 0 8px 24px rgba(0,0,0,.5);
+  --glow:   0 0 20px rgba(29,185,84,.25);
+}
 
-  .section-item {
-    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 16px;
-    display: grid; grid-template-columns: 28px 1fr 1fr 1fr 44px;
-    gap: 10px; align-items: center;
-    transition: all .2s; position: relative;
-  }
-  .section-item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
-  .section-item.inactive {
-    opacity: .45;
-    border-style: dashed;
-    background: #fafafa;
-  }
-  .section-item.inactive:hover { opacity: .65; }
+html { font-family: var(--font); background: var(--bg-base); color: var(--text-base); }
+body { min-height: 100vh; padding-bottom: 72px; }
 
-  .section-num {
-    width: 24px; height: 24px; border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;
-    transition: background .2s;
-  }
-  .section-num.bracket { background: #0EA5E9; }
-  .section-num.five    { background: #10B981; }
-  .section-num.essay   { background: #F59E0B; }
-  .section-item.inactive .section-num { background: #C9D3DF !important; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-  .section-type-badge {
-    position: absolute; top: -8px; right: 52px;
-    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
-    letter-spacing: .4px; text-transform: uppercase; transition: all .2s;
-  }
-  .badge-bracket { background: #E0F2FE; color: #0369A1; }
-  .badge-five    { background: #D1FAE5; color: #065F46; }
-  .badge-essay   { background: #FEF3C7; color: #92400E; }
-  .section-item.inactive .section-type-badge { background: #E3E8EF; color: #8898AA; }
+.app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
 
-  /* ── TOGGLE BUTTON ── */
-  .toggle-btn {
-    width: 40px; height: 40px; border-radius: var(--radius);
-    border: 1.5px solid; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 2px;
-    font-size: 11px; font-weight: 700;
-    transition: all .2s; flex-shrink: 0;
-    line-height: 1;
-  }
-  .toggle-btn.active {
-    background: #F0FDF4; border-color: #86EFAC; color: #16A34A;
-  }
-  .toggle-btn.active:hover {
-    background: #DCFCE7; border-color: #4ADE80;
-  }
-  .toggle-btn.inactive-state {
-    background: #F9FAFB; border-color: #D1D5DB; color: #9CA3AF;
-  }
-  .toggle-btn.inactive-state:hover {
-    background: #F0FDF4; border-color: #86EFAC; color: #16A34A;
-  }
-  .toggle-icon { font-size: 14px; line-height: 1; }
-  .toggle-label { font-size: 8px; font-weight: 600; letter-spacing: .3px; }
+/* ── HEADER ── */
+header {
+  background: rgba(18,18,18,.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-mark {
+  width: 36px; height: 36px;
+  background: var(--sp-green);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: #000; letter-spacing: -.2px;
+  transition: box-shadow .3s;
+}
+.logo-mark:hover { box-shadow: 0 0 0 6px var(--sp-green-glow); }
+.logo-name { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+.logo-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.version-badge {
+  font-size: 11px; font-weight: 600; letter-spacing: .4px;
+  background: var(--sp-green-dim); color: var(--sp-green);
+  border: 1px solid rgba(29,185,84,.25);
+  padding: 4px 12px; border-radius: 20px;
+}
 
-  /* ── ADD SECTION BTN ── */
-  .add-section-btn {
-    width: 100%; height: 38px; background: transparent;
-    border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
-    cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500;
-    color: var(--text-muted);
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: all .15s; margin-top: 10px;
-  }
-  .add-section-btn:hover {
-    border-color: var(--stripe-purple); color: var(--stripe-purple);
-    background: var(--stripe-purple-light);
-  }
+/* ── MAIN ── */
+main {
+  display: grid; grid-template-columns: 1fr 340px;
+  max-width: 1160px; margin: 0 auto; width: 100%;
+  padding: 28px 20px; gap: 20px;
+}
+.left-col { display: flex; flex-direction: column; gap: 16px; }
 
-  /* ── PRIMARY BUTTON ── */
-  .btn-primary {
-    height: 44px; padding: 0 24px; width: 100%;
-    background: linear-gradient(135deg, var(--stripe-purple), #4F46E5);
-    border: none; border-radius: var(--radius);
-    color: white; font-family: var(--font); font-size: 14px; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-    transition: all .2s; box-shadow: 0 2px 8px rgba(99,91,255,.3);
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,91,255,.4); }
-  .btn-primary:active { transform: translateY(0); }
-  .btn-primary:disabled { opacity: .5; cursor: default; transform: none; }
+/* ── CARD ── */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden; transition: border-color .2s;
+}
+.card:hover { border-color: var(--border-mid); }
+.card-header {
+  padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+.card-desc  { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.card-body  { padding: 22px; }
 
-  /* ── SIDEBAR ── */
-  .sidebar { display: flex; flex-direction: column; gap: 16px; }
-  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px; }
-  .stat-item { padding: 12px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); }
-  .stat-val   { font-size: 22px; font-weight: 700; letter-spacing: -1px; }
-  .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
-  .preview-pages { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-  .page-bar {
-    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-  }
-  .page-icon {
-    width: 28px; background: white; border: 1px solid var(--border-strong);
-    border-radius: 4px; display: flex; align-items: center; justify-content: center;
-    font-size: 9px; color: var(--text-muted); padding: 4px 2px; text-align: center;
-    flex-shrink: 0; line-height: 1.3;
-  }
-  .page-info { flex: 1; }
-  .page-label  { font-size: 12px; font-weight: 500; }
-  .page-detail { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-  .tip-list { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-  .tip { display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
-  .tip-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+/* ── FORM ── */
+.form-row { display: grid; gap: 14px; margin-bottom: 18px; }
+.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
 
-  /* ── TOAST ── */
-  .toast {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--text-primary); color: white;
-    padding: 12px 18px; border-radius: var(--radius);
-    font-size: 13px; font-weight: 500; box-shadow: var(--shadow-lg); z-index: 1000;
-    transform: translateY(80px); opacity: 0;
-    transition: all .3s cubic-bezier(.34,1.56,.64,1);
-  }
-  .toast.show { transform: translateY(0); opacity: 1; }
-  .toast.success { background: #065F46; }
-  .toast.error   { background: #991B1B; }
+label {
+  display: block; font-size: 10px; font-weight: 700;
+  color: var(--text-muted); margin-bottom: 7px;
+  letter-spacing: .8px; text-transform: uppercase;
+}
+input[type=text], input[type=number], select {
+  width: 100%; height: 40px; padding: 0 13px;
+  background: var(--bg-input); border: 1px solid var(--border-mid);
+  border-radius: var(--radius); font-family: var(--font);
+  font-size: 13px; color: var(--text-base);
+  outline: none; appearance: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+input::placeholder { color: var(--text-muted); }
+input:focus, select:focus {
+  border-color: var(--sp-green);
+  box-shadow: 0 0 0 3px var(--sp-green-glow);
+  background: #2e2e2e;
+}
+select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6A6A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px;
+}
+select option { background: #282828; color: var(--text-base); }
 
-  .spinner {
-    width: 16px; height: 16px;
-    border: 2px solid rgba(255,255,255,.3); border-top-color: white;
-    border-radius: 50%; animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.section-label {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+}
 
-  @media (max-width: 800px) {
-    main { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-    .form-row.cols-3 { grid-template-columns: 1fr; }
-  }
+/* ── SECTION ITEMS ── */
+.sections-list { display: flex; flex-direction: column; gap: 8px; }
+.section-item {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 13px 14px;
+  display: grid; grid-template-columns: 26px 1fr 1fr 1fr 44px;
+  gap: 10px; align-items: center;
+  transition: all .2s; position: relative;
+}
+.section-item:hover { border-color: var(--border-mid); background: var(--bg-hover); }
+.section-item.inactive { opacity:.35; border-style:dashed; background:#1a1a1a; }
+.section-item.inactive:hover { opacity:.55; }
+
+.section-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: #000; flex-shrink: 0;
+}
+.section-num.bracket { background: var(--sky); }
+.section-num.five    { background: var(--sp-green); }
+.section-num.essay   { background: var(--amber); }
+.section-item.inactive .section-num { background:#444!important; color:#888; }
+
+.section-type-badge {
+  position: absolute; top: -8px; right: 52px;
+  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+  letter-spacing: .5px; text-transform: uppercase;
+}
+.badge-bracket { background:rgba(41,182,246,.15); color:var(--sky);   border:1px solid rgba(41,182,246,.3); }
+.badge-five    { background:var(--sp-green-dim);  color:var(--sp-green); border:1px solid rgba(29,185,84,.3); }
+.badge-essay   { background:rgba(255,183,77,.12); color:var(--amber); border:1px solid rgba(255,183,77,.3); }
+.section-item.inactive .section-type-badge { background:#222; color:#555; border-color:#333; }
+
+/* ── TOGGLE ── */
+.toggle-btn {
+  width: 40px; height: 40px; border-radius: var(--radius);
+  border: 1px solid; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1px;
+  font-size: 10px; font-weight: 700;
+  transition: all .2s; flex-shrink: 0;
+}
+.toggle-btn.active { background:var(--sp-green-dim); border-color:rgba(29,185,84,.4); color:var(--sp-green); }
+.toggle-btn.active:hover { background:rgba(29,185,84,.2); box-shadow:var(--glow); }
+.toggle-btn.inactive-state { background:transparent; border-color:var(--border-mid); color:#555; }
+.toggle-btn.inactive-state:hover { background:var(--sp-green-dim); border-color:rgba(29,185,84,.4); color:var(--sp-green); }
+.toggle-icon  { font-size: 13px; }
+.toggle-label { font-size: 8px; font-weight: 700; letter-spacing: .4px; }
+
+/* ── ADD BTN ── */
+.add-section-btn {
+  width: 100%; height: 40px; background: transparent;
+  border: 1.5px dashed var(--border-mid); border-radius: var(--radius);
+  cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 600;
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all .2s; margin-top: 8px;
+}
+.add-section-btn:hover { border-color:var(--sp-green); color:var(--sp-green); background:var(--sp-green-dim); }
+
+/* ── PRIMARY BTN ── */
+.btn-primary {
+  height: 48px; padding: 0 24px; width: 100%;
+  background: var(--sp-green); border: none; border-radius: 24px;
+  color: #000; font-family: var(--font); font-size: 14px; font-weight: 800;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all .2s; letter-spacing: .2px;
+}
+.btn-primary:hover { background:#1ed760; transform:scale(1.02); box-shadow:var(--glow); }
+.btn-primary:active { transform:scale(.99); }
+.btn-primary:disabled { opacity:.4; cursor:default; transform:none; box-shadow:none; }
+
+/* ── SIDEBAR ── */
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+.stat-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 13px; border-radius: var(--radius);
+  border: 1px solid var(--border); transition: border-color .2s;
+}
+.stat-row:hover { border-color: var(--border-mid); }
+.stat-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.stat-name { font-size:12px; font-weight:600; }
+.stat-val  { font-size:20px; font-weight:800; letter-spacing:-1px; font-family:var(--mono); }
+
+.stat-bracket { background:rgba(41,182,246,.08); }
+.stat-bracket .stat-dot  { background:var(--sky); }
+.stat-bracket .stat-name { color:#7dd3fc; }
+.stat-bracket .stat-val  { color:var(--sky); }
+
+.stat-five { background:var(--sp-green-dim); }
+.stat-five .stat-dot  { background:var(--sp-green); }
+.stat-five .stat-name { color:#6ee7b7; }
+.stat-five .stat-val  { color:var(--sp-green); }
+
+.stat-essay { background:rgba(255,183,77,.08); }
+.stat-essay .stat-dot  { background:var(--amber); }
+.stat-essay .stat-name { color:#fcd34d; }
+.stat-essay .stat-val  { color:var(--amber); }
+
+.stat-total { background:var(--bg-card); }
+.stat-total .stat-dot  { background:#fff; }
+.stat-total .stat-name { color:var(--text-sub); }
+.stat-total .stat-val  { color:var(--text-base); }
+
+.stat-pages { background:var(--bg-card); }
+.stat-pages .stat-dot  { background:var(--text-muted); }
+.stat-pages .stat-name { color:var(--text-muted); }
+.stat-pages .stat-val  { color:var(--text-sub); }
+
+.preview-pages { display:flex; flex-direction:column; gap:6px; padding:14px; }
+.page-bar {
+  display:flex; align-items:center; gap:10px; padding:9px 12px;
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius); transition:border-color .2s;
+}
+.page-bar:hover { border-color:var(--border-mid); }
+.page-icon {
+  width:26px; background:#1a1a1a; border:1px solid var(--border-mid);
+  border-radius:4px; display:flex; align-items:center; justify-content:center;
+  font-size:8.5px; color:var(--text-muted); padding:4px 1px;
+  text-align:center; flex-shrink:0; line-height:1.4;
+}
+.page-info { flex:1; }
+.page-label  { font-size:12px; font-weight:600; color:var(--text-base); }
+.page-detail { font-size:10px; color:var(--text-muted); margin-top:1px; }
+
+.tip-list { padding:14px; display:flex; flex-direction:column; gap:9px; }
+.tip { display:flex; gap:10px; font-size:12px; color:var(--text-sub); line-height:1.5; }
+.tip-icon {
+  width:18px; height:18px; border-radius:50%; flex-shrink:0;
+  background:var(--sp-green-dim); color:var(--sp-green);
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; font-weight:800; margin-top:1px;
+}
+
+.total-badge {
+  font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--sp-green); background:var(--sp-green-dim);
+  border:1px solid rgba(29,185,84,.25); padding:4px 12px; border-radius:20px;
+}
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:90px; right:24px;
+  background:var(--bg-card); color:var(--text-base);
+  border:1px solid var(--border-mid);
+  padding:12px 18px; border-radius:var(--radius);
+  font-size:13px; font-weight:600; box-shadow:var(--shadow); z-index:1000;
+  transform:translateY(80px); opacity:0;
+  transition:all .35s cubic-bezier(.34,1.56,.64,1);
+}
+.toast.show { transform:translateY(0); opacity:1; }
+.toast.success { border-color:rgba(29,185,84,.5); color:var(--sp-green); }
+.toast.error   { border-color:rgba(255,77,77,.4);  color:#ff6b6b; }
+
+.spinner {
+  width:16px; height:16px;
+  border:2.5px solid rgba(0,0,0,.25); border-top-color:#000;
+  border-radius:50%; animation:spin .7s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── NOW PLAYING BAR ── */
+.now-playing {
+  position:fixed; bottom:0; left:0; right:0; height:64px;
+  background:#181818; border-top:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  gap:10px; z-index:50; padding:0 24px;
+}
+.np-text { font-size:11px; font-weight:600; color:var(--text-muted); letter-spacing:.6px; text-transform:uppercase; }
+.np-dot  { width:3px; height:3px; border-radius:50%; background:var(--text-muted); }
+.np-green { color:var(--sp-green); }
+
+@media (max-width:800px) {
+  main { grid-template-columns:1fr; }
+  .sidebar { display:none; }
+  .form-row.cols-3 { grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -252,19 +327,18 @@
 
 <header>
   <div class="logo">
-    <div class="logo-mark">KK</div>
+    <div class="logo-mark">KKJ</div>
     <div>
-      <div class="logo-text">KKJ English Academy</div>
+      <div class="logo-name">KKJ English Academy</div>
       <div class="logo-sub">OMR 자동 생성기</div>
     </div>
   </div>
-  <div class="header-badge">채점 자동화 프로젝트 v1.1</div>
+  <div class="version-badge">채점 자동화 v1.2</div>
 </header>
 
 <main>
   <div class="left-col">
 
-    <!-- 시험 기본 정보 -->
     <div class="card">
       <div class="card-header">
         <div>
@@ -281,29 +355,28 @@
         </div>
         <div class="form-row cols-3">
           <div>
-            <label>학교 / 학년 (School)</label>
-            <input type="text" id="examGrade" placeholder="예: Migang High — G1" />
+            <label>학교 / 학년</label>
+            <input type="text" id="examGrade" placeholder="예: Migang High G1" />
           </div>
           <div>
-            <label>출제자 (Author)</label>
+            <label>출제자</label>
             <input type="text" id="examAuthor" placeholder="예: Kim Kijun" />
           </div>
           <div>
-            <label>시험 일자 (Date)</label>
+            <label>시험 일자</label>
             <input type="text" id="examDate" placeholder="예: 2026.05" />
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 문항 구성 -->
     <div class="card">
       <div class="card-header">
         <div>
           <div class="card-title">문항 구성 설정</div>
           <div class="card-desc">토글로 구간을 켜고 끌 수 있습니다. 비활성 구간은 PDF에서 제외됩니다.</div>
         </div>
-        <div id="totalBadge" style="font-family:var(--font-mono);font-size:12px;color:var(--stripe-purple);background:var(--stripe-purple-light);padding:4px 10px;border-radius:6px;font-weight:600;">총 0문항</div>
+        <div class="total-badge" id="totalBadge">활성 0문항</div>
       </div>
       <div class="card-body">
         <div class="section-label">문항 구간</div>
@@ -311,10 +384,8 @@
         <button class="add-section-btn" onclick="addSection()">
           <span style="font-size:18px;line-height:1">+</span> 구간 추가
         </button>
-
         <hr class="divider">
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-row cols-2" style="margin-bottom:0">
           <div>
             <label>버블 크기</label>
             <select id="bubbleSize">
@@ -335,69 +406,55 @@
     </div>
 
     <button class="btn-primary" id="generateBtn" onclick="generatePDF()">
-      <span id="btnIcon">↓</span>
+      <span id="btnIcon" style="font-size:16px">↓</span>
       <span id="btnText">OMR 답안지 PDF 생성</span>
     </button>
 
   </div>
 
-  <!-- SIDEBAR -->
   <div class="sidebar">
+
     <div class="card">
       <div class="card-header"><div class="card-title">예상 구성</div></div>
-      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:7px;">
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#EEF0FF;border-radius:8px;border:1px solid #C7D2FE;">
+      <div style="padding:14px;display:flex;flex-direction:column;gap:6px;">
+        <div class="stat-row stat-bracket">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#635BFF;flex-shrink:0"></div>
-            <span style="font-size:12px;font-weight:600;color:#4338CA;">Bracket형</span>
+            <div class="stat-dot"></div><span class="stat-name">Bracket형</span>
           </div>
-          <span id="statBracket" style="font-size:20px;font-weight:700;color:#635BFF;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
+          <span class="stat-val" id="statBracket">0</span>
         </div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;">
+        <div class="stat-row stat-five">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#10B981;flex-shrink:0"></div>
-            <span style="font-size:12px;font-weight:600;color:#065F46;">5지선다</span>
+            <div class="stat-dot"></div><span class="stat-name">5지선다</span>
           </div>
-          <span id="statFive" style="font-size:20px;font-weight:700;color:#10B981;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
+          <span class="stat-val" id="statFive">0</span>
         </div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#FFFBEB;border-radius:8px;border:1px solid #FDE68A;">
+        <div class="stat-row stat-essay">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0"></div>
-            <span style="font-size:12px;font-weight:600;color:#92400E;">서술형</span>
+            <div class="stat-dot"></div><span class="stat-name">서술형</span>
           </div>
-          <span id="statEssay" style="font-size:20px;font-weight:700;color:#F59E0B;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
+          <span class="stat-val" id="statEssay">0</span>
         </div>
-
-        <div style="height:1px;background:#E3E8EF;margin:2px 0;"></div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#F6F9FC;border-radius:8px;border:1px solid #E3E8EF;">
+        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+        <div class="stat-row stat-total">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#0A2540;flex-shrink:0"></div>
-            <span style="font-size:12px;font-weight:600;color:#425466;">활성 문항 수</span>
+            <div class="stat-dot"></div><span class="stat-name">활성 문항 수</span>
           </div>
-          <span id="statTotal" style="font-size:20px;font-weight:700;color:#0A2540;letter-spacing:-1px;font-family:var(--font-mono)">0</span>
+          <span class="stat-val" id="statTotal">0</span>
         </div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:#F6F9FC;border-radius:8px;border:1px solid #E3E8EF;">
+        <div class="stat-row stat-pages">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:7px;height:7px;border-radius:50%;background:#8898AA;flex-shrink:0"></div>
-            <span style="font-size:12px;font-weight:600;color:#425466;">예상 페이지</span>
+            <div class="stat-dot"></div><span class="stat-name">예상 페이지</span>
           </div>
-          <span id="statPages" style="font-size:20px;font-weight:700;color:#0A2540;letter-spacing:-1px;font-family:var(--font-mono)">—</span>
+          <span class="stat-val" id="statPages">—</span>
         </div>
-
       </div>
     </div>
 
     <div class="card">
       <div class="card-header"><div class="card-title">페이지 분배 예상</div></div>
       <div class="preview-pages" id="previewPages">
-        <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">
-          구간을 추가하면 표시됩니다
-        </div>
+        <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">구간을 추가하면 표시됩니다</div>
       </div>
     </div>
 
@@ -407,419 +464,300 @@
         <div class="tip"><span class="tip-icon">✓</span><span>버블 안을 꽉 채워서 진하게 동그라미</span></div>
         <div class="tip"><span class="tip-icon">✓</span><span>답안지 전체가 나오도록 수직 촬영</span></div>
         <div class="tip"><span class="tip-icon">✓</span><span>그림자 없이 밝은 조명에서 촬영</span></div>
-        <div class="tip"><span class="tip-icon">✓</span><span>서술형은 칸 안에 또렷하게, 오류는 X로 지우기</span></div>
+        <div class="tip"><span class="tip-icon">✓</span><span>서술형은 칸 안에 또렷하게, 오류는 X로</span></div>
         <div class="tip"><span class="tip-icon">✓</span><span>버블 크기 "크게" 설정 시 인식율 95%+</span></div>
       </div>
     </div>
+
   </div>
 </main>
+</div>
+
+<div class="now-playing">
+  <span class="np-text np-green">KKJ</span>
+  <div class="np-dot"></div>
+  <span class="np-text">English Academy</span>
+  <div class="np-dot"></div>
+  <span class="np-text">채점 자동화 프로젝트</span>
+  <div class="np-dot"></div>
+  <span class="np-text">OMR Generator v1.2</span>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let sections = [];
-let sectionId = 0;
+let sections = [], sectionId = 0;
 
 function init() {
-  addSection('bracket', 1,   46,  8,  true);
-  addSection('five',    47,  181, 6,  true);
-  addSection('essay',   182, 246, 6,  true);
+  addSection('bracket', 1,   46, 8, true);
+  addSection('five',    47,  181, 6, true);
+  addSection('essay',   182, 246, 6, true);
 }
 
 function addSection(type='five', from=null, to=null, maxBracket=6, active=true) {
-  const lastEnd = sections.filter(s=>s.active).reduce((m,s)=>Math.max(m,s.to),0);
-  sections.push({
-    id: ++sectionId,
-    type, active,
-    from: from ?? lastEnd + 1,
-    to:   to   ?? lastEnd + 10,
-    maxBracket
-  });
+  const lastEnd = sections.filter(s=>s.active).reduce((m,s)=>Math.max(m,s.to), 0);
+  sections.push({ id:++sectionId, type, active, from:from??lastEnd+1, to:to??lastEnd+10, maxBracket });
   renderSections();
 }
 
 function toggleActive(id) {
-  const sec = sections.find(s => s.id === id);
-  if (sec) { sec.active = !sec.active; renderSections(); }
+  const s = sections.find(s=>s.id===id);
+  if(s){ s.active=!s.active; renderSections(); }
 }
 
 function updateSection(id, key, val) {
-  const sec = sections.find(s => s.id === id);
-  if (sec) { sec[key] = val; updateStats(); }
+  const s = sections.find(s=>s.id===id);
+  if(s){ s[key]=val; updateStats(); }
 }
 
 function renderSections() {
   const list = document.getElementById('sectionsList');
   list.innerHTML = '';
-
   sections.forEach((sec, idx) => {
     const info = {
-      bracket: { badge:'badge-bracket', numClass:'bracket', label:'Bracket L/R' },
-      five:    { badge:'badge-five',    numClass:'five',    label:'5-Choice ①~⑤' },
-      essay:   { badge:'badge-essay',   numClass:'essay',   label:'Short Answer' },
+      bracket:{ numClass:'bracket', label:'Bracket L/R',  badge:'badge-bracket' },
+      five:   { numClass:'five',    label:'5-Choice ①~⑤',badge:'badge-five'    },
+      essay:  { numClass:'essay',   label:'Short Answer', badge:'badge-essay'   },
     }[sec.type];
-
     const isActive = sec.active;
     const el = document.createElement('div');
-    el.className = `section-item ${isActive ? '' : 'inactive'}`;
-
+    el.className = `section-item ${isActive?'':'inactive'}`;
     el.innerHTML = `
-      <div class="section-num ${info.numClass}">${idx + 1}</div>
-
+      <div class="section-num ${info.numClass}">${idx+1}</div>
       <div>
-        <label style="margin-bottom:4px">시작</label>
+        <label style="margin-bottom:5px">시작</label>
         <input type="number" min="1" value="${sec.from}"
           onchange="updateSection(${sec.id},'from',+this.value)"
-          style="height:34px;font-size:13px" ${isActive?'':'disabled'}>
+          style="height:36px;font-size:13px" ${isActive?'':'disabled'}>
       </div>
-
       <div>
-        <label style="margin-bottom:4px">끝</label>
+        <label style="margin-bottom:5px">끝</label>
         <input type="number" min="1" value="${sec.to}"
           onchange="updateSection(${sec.id},'to',+this.value)"
-          style="height:34px;font-size:13px" ${isActive?'':'disabled'}>
+          style="height:36px;font-size:13px" ${isActive?'':'disabled'}>
       </div>
-
       <div>
-        <label style="margin-bottom:4px">유형</label>
+        <label style="margin-bottom:5px">유형</label>
         <select onchange="updateSection(${sec.id},'type',this.value)"
-          style="height:34px;font-size:13px" ${isActive?'':'disabled'}>
+          style="height:36px;font-size:13px" ${isActive?'':'disabled'}>
           <option value="bracket" ${sec.type==='bracket'?'selected':''}>Bracket형</option>
           <option value="five"    ${sec.type==='five'   ?'selected':''}>5지선다</option>
           <option value="essay"   ${sec.type==='essay'  ?'selected':''}>서술형</option>
         </select>
       </div>
-
-      <button class="toggle-btn ${isActive ? 'active' : 'inactive-state'}"
-        onclick="toggleActive(${sec.id})" title="${isActive ? '클릭하여 비활성화' : '클릭하여 활성화'}">
-        <span class="toggle-icon">${isActive ? '✓' : '—'}</span>
-        <span class="toggle-label">${isActive ? 'ON' : 'OFF'}</span>
+      <button class="toggle-btn ${isActive?'active':'inactive-state'}"
+        onclick="toggleActive(${sec.id})" title="${isActive?'비활성화':'활성화'}">
+        <span class="toggle-icon">${isActive?'✓':'—'}</span>
+        <span class="toggle-label">${isActive?'ON':'OFF'}</span>
       </button>
-
-      ${sec.type==='bracket' && isActive ? `
+      ${sec.type==='bracket'&&isActive?`
         <div style="grid-column:2/-1;margin-top:2px">
-          <label style="margin-bottom:4px">Bracket 최대 개수</label>
+          <label style="margin-bottom:5px">Bracket 최대 개수</label>
           <select onchange="updateSection(${sec.id},'maxBracket',+this.value)"
-            style="height:32px;font-size:12px;width:200px">
+            style="height:34px;font-size:12px;width:200px">
             ${[2,3,4,5,6,7,8,9,10].map(n=>`
-              <option value="${n}" ${sec.maxBracket===n?'selected':''}>
-                ${n}개 (B1 ~ B${n})
-              </option>`).join('')}
+              <option value="${n}" ${sec.maxBracket===n?'selected':''}>${n}개 (B1 ~ B${n})</option>
+            `).join('')}
           </select>
-        </div>` : ''}
-
+        </div>`:''}
       <div class="section-type-badge ${info.badge}">${info.label}</div>
     `;
     list.appendChild(el);
   });
-
   updateStats();
 }
 
 function updateStats() {
-  const active = sections.filter(s => s.active);
+  const active = sections.filter(s=>s.active);
   let total=0, bracket=0, five=0, essay=0;
-
-  active.forEach(s => {
-    const n = Math.max(0, s.to - s.from + 1);
-    total += n;
-    if (s.type === 'bracket') bracket += n;
-    else if (s.type === 'five') five += n;
-    else essay += n;
+  active.forEach(s=>{
+    const n=Math.max(0,s.to-s.from+1); total+=n;
+    if(s.type==='bracket')bracket+=n;
+    else if(s.type==='five')five+=n;
+    else essay+=n;
   });
-
   document.getElementById('statTotal').textContent   = total;
   document.getElementById('statBracket').textContent = bracket;
   document.getElementById('statFive').textContent    = five;
   document.getElementById('statEssay').textContent   = essay;
   document.getElementById('totalBadge').textContent  = `활성 ${total}문항`;
 
-  const size  = document.getElementById('bubbleSize').value;
-  const rowH  = size==='large' ? 9 : size==='medium' ? 7.5 : 6.5;
-  const A4h   = 257;
-  const colsB = size==='large' ? 3 : size==='medium' ? 4 : 5;
-  const cols5 = size==='large' ? 5 : size==='medium' ? 6 : 7;
-
-  let rows = 0;
-  active.forEach(s => {
-    const n    = Math.max(0, s.to - s.from + 1);
-    const cols = s.type==='bracket' ? colsB : s.type==='five' ? cols5 : 2;
-    rows += Math.ceil(n/cols) * rowH + 16;
+  const size=document.getElementById('bubbleSize').value;
+  const rowH=size==='large'?9:size==='medium'?7.5:6.5;
+  const A4h=257, colsB=size==='large'?3:size==='medium'?4:5, cols5=size==='large'?5:size==='medium'?6:7;
+  let rows=0;
+  active.forEach(s=>{
+    const n=Math.max(0,s.to-s.from+1);
+    const c=s.type==='bracket'?colsB:s.type==='five'?cols5:2;
+    rows+=Math.ceil(n/c)*rowH+16;
   });
+  const pages=Math.max(1,Math.ceil(rows/A4h));
+  document.getElementById('statPages').textContent=pages+'p';
 
-  const pages = Math.max(1, Math.ceil(rows / A4h));
-  document.getElementById('statPages').textContent = pages + 'p';
-
-  const preview = document.getElementById('previewPages');
-  if (active.length === 0) {
-    preview.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">활성 구간이 없습니다</div>';
+  const preview=document.getElementById('previewPages');
+  if(active.length===0){
+    preview.innerHTML='<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">활성 구간이 없습니다</div>';
     return;
   }
-  let html = '';
-  for (let p = 1; p <= pages; p++) {
-    html += `
-    <div class="page-bar">
+  let html='';
+  for(let p=1;p<=pages;p++){
+    html+=`<div class="page-bar">
       <div class="page-icon">p.${p}</div>
       <div class="page-info">
         <div class="page-label">Page ${p}</div>
-        <div class="page-detail">${p===1 ? 'Header + Answer Grid' : 'Continued'}</div>
+        <div class="page-detail">${p===1?'Header + Answer Grid':'Continued'}</div>
       </div>
-      <div style="font-size:10px;font-weight:700;color:var(--stripe-purple)">A4</div>
+      <div style="font-size:10px;font-weight:800;color:var(--sp-green)">A4</div>
     </div>`;
   }
-  preview.innerHTML = html;
+  preview.innerHTML=html;
 }
 
-// ── PDF 생성 ─────────────────────────────────────────────
 async function generatePDF() {
-  const active = sections.filter(s => s.active);
-  if (active.length === 0) { showToast('활성화된 구간이 없습니다', 'error'); return; }
+  const active=sections.filter(s=>s.active);
+  if(active.length===0){showToast('활성화된 구간이 없습니다','error');return;}
 
-  const btn  = document.getElementById('generateBtn');
-  btn.disabled = true;
-  document.getElementById('btnIcon').outerHTML = '<div class="spinner" id="btnIcon"></div>';
-  document.getElementById('btnText').textContent = 'Generating PDF...';
-
-  await new Promise(r => setTimeout(r, 80));
+  const btn=document.getElementById('generateBtn');
+  btn.disabled=true;
+  document.getElementById('btnIcon').outerHTML='<div class="spinner" id="btnIcon"></div>';
+  document.getElementById('btnText').textContent='Generating PDF...';
+  await new Promise(r=>setTimeout(r,80));
 
   try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const examTitle =document.getElementById('examTitle').value ||'KKJ English Academy — Answer Sheet';
+    const examGrade =document.getElementById('examGrade').value ||'';
+    const examAuthor=document.getElementById('examAuthor').value||'';
+    const examDate  =document.getElementById('examDate').value  ||'';
+    const sizeKey   =document.getElementById('bubbleSize').value;
+    const marginKey =document.getElementById('pageMargin').value;
 
-    const examTitle  = document.getElementById('examTitle').value  || 'KKJ English Academy — Answer Sheet';
-    const examGrade  = document.getElementById('examGrade').value  || '';
-    const examAuthor = document.getElementById('examAuthor').value || '';
-    const examDate   = document.getElementById('examDate').value   || '';
-    const sizeKey    = document.getElementById('bubbleSize').value;
-    const marginKey  = document.getElementById('pageMargin').value;
-
-    const ML = marginKey === 'narrow' ? 10 : 14;
-    const MR = ML;
-    const MT = 13, MB = 10;
-    const PW = 210, PH = 297;
-    const CW = PW - ML - MR;
-
-    const cfg = {
-      large:  { bubR:4.2, rowH_b:11,  rowH_5:9.5,  rowH_e:15, cols_b:3, cols_5:5, fs_q:8,   fs_b:6.5 },
-      medium: { bubR:3.5, rowH_b:9,   rowH_5:8,    rowH_e:13, cols_b:4, cols_5:6, fs_q:7.5, fs_b:6   },
-      small:  { bubR:2.8, rowH_b:7.5, rowH_5:6.5,  rowH_e:11, cols_b:5, cols_5:7, fs_q:6.5, fs_b:5.5 },
+    const ML=marginKey==='narrow'?10:14, MR=ML, MT=13, MB=10, PW=210, PH=297, CW=PW-ML-MR;
+    const cfg={
+      large: {bubR:4.2,rowH_b:11, rowH_5:9.5,rowH_e:15,cols_b:3,cols_5:5,fs_q:8,  fs_b:6.5},
+      medium:{bubR:3.5,rowH_b:9,  rowH_5:8,  rowH_e:13,cols_b:4,cols_5:6,fs_q:7.5,fs_b:6  },
+      small: {bubR:2.8,rowH_b:7.5,rowH_5:6.5,rowH_e:11,cols_b:5,cols_5:7,fs_q:6.5,fs_b:5.5},
     }[sizeKey];
 
-    const TEAL   = [99,91,255];
-    const BLACK  = [10,37,64];
-    const GRAY   = [130,152,170];
-    const LGRAY  = [227,232,239];
-    const XLGRAY = [246,249,252];
-    const SKY    = [14,165,233];
-    const GREEN  = [16,185,129];
-    const AMBER  = [245,158,11];
+    const GREEN=[29,185,84],BLACK=[10,37,64],GRAY=[130,152,170],
+          LGRAY=[227,232,239],XLGRAY=[246,249,252],SKY=[41,182,246],AMBER=[255,183,77];
 
-    let page = 1;
-    let y = MT;
-
-    function drawFooter() {
-      doc.setDrawColor(...TEAL);
-      doc.setLineWidth(0.5);
-      doc.line(ML, PH-MB, ML+CW, PH-MB);
-      doc.setFontSize(6);
-      doc.setFont('helvetica','normal');
-      doc.setTextColor(...GRAY);
-      doc.text('KKJ ENGLISH  ·  OMR Auto-Grading Answer Sheet', ML, PH-MB+4);
-      doc.text(`${page}`, PW-MR, PH-MB+4, {align:'right'});
+    let page=1, y=MT;
+    function drawFooter(){
+      doc.setDrawColor(...GREEN);doc.setLineWidth(0.5);doc.line(ML,PH-MB,ML+CW,PH-MB);
+      doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(...GRAY);
+      doc.text('KKJ ENGLISH  ·  OMR Auto-Grading Answer Sheet',ML,PH-MB+4);
+      doc.text(`${page}`,PW-MR,PH-MB+4,{align:'right'});
     }
+    function newPage(){doc.addPage();page++;y=MT;drawFooter();}
+    function checkY(n){if(y+n>PH-MB-8)newPage();}
 
-    function newPage() {
-      doc.addPage(); page++; y = MT; drawFooter();
-    }
+    doc.setFillColor(...GREEN);doc.rect(ML,y,CW,1.8,'F');y+=5;
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...BLACK);
+    doc.text(examTitle,PW/2,y+5,{align:'center'});y+=10;
+    const sub=[examGrade,examAuthor,examDate].filter(Boolean).join('  ·  ');
+    if(sub){doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GRAY);doc.text(sub,PW/2,y+2,{align:'center'});y+=6;}
+    y+=3;
 
-    function checkY(need) {
-      if (y + need > PH - MB - 8) newPage();
-    }
-
-    // ── HEADER ──────────────────────────────────────────
-    doc.setFillColor(...TEAL);
-    doc.rect(ML, y, CW, 1.8, 'F');
-    y += 5;
-
-    doc.setFontSize(13);
-    doc.setFont('helvetica','bold');
-    doc.setTextColor(...BLACK);
-    doc.text(examTitle, PW/2, y+5, {align:'center'});
-    y += 10;
-
-    const sub = [examGrade, examAuthor, examDate].filter(Boolean).join('  ·  ');
-    if (sub) {
-      doc.setFontSize(8); doc.setFont('helvetica','normal');
-      doc.setTextColor(...GRAY);
-      doc.text(sub, PW/2, y+2, {align:'center'});
-      y += 6;
-    }
-    y += 3;
-
-    // 정보 박스
-    doc.setDrawColor(...LGRAY); doc.setLineWidth(0.4);
-    doc.rect(ML, y, CW, 14);
-
-    const fields = [
-      ['Name', 0, 0.35], ['Class / No.', 0.35, 0.62],
-      ['Date', 0.62, 0.82], ['Score', 0.82, 1.0],
-    ];
-    fields.forEach(([label, s, e], i) => {
-      const x0 = ML + CW*s, x1 = ML + CW*e;
-      if (i > 0) doc.line(x0, y, x0, y+14);
-      doc.setFontSize(7); doc.setTextColor(...GRAY);
-      doc.setFont('helvetica','normal');
-      doc.text(label, x0+3, y+5.5);
-      if (i === 3) {
-        doc.setFontSize(11); doc.setFont('helvetica','bold');
-        doc.setTextColor(...BLACK);
-        doc.text('/', (x0+x1)/2, y+10, {align:'center'});
-      }
+    doc.setDrawColor(...LGRAY);doc.setLineWidth(0.4);doc.rect(ML,y,CW,14);
+    [['Name',0,.35],['Class / No.',.35,.62],['Date',.62,.82],['Score',.82,1]].forEach(([label,s,e],i)=>{
+      const x0=ML+CW*s,x1=ML+CW*e;
+      if(i>0)doc.line(x0,y,x0,y+14);
+      doc.setFontSize(7);doc.setTextColor(...GRAY);doc.setFont('helvetica','normal');
+      doc.text(label,x0+3,y+5.5);
+      if(i===3){doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(...BLACK);doc.text('/',(x0+x1)/2,y+10,{align:'center'});}
     });
-    y += 18;
+    y+=18;
+    doc.setFontSize(6.2);doc.setFont('helvetica','normal');doc.setTextColor(...GRAY);
+    doc.text('* Fill each bubble firmly and darkly  |  Write clearly in boxes  |  To correct: cross out with X and rewrite',ML,y);
+    y+=6;drawFooter();
 
-    doc.setFontSize(6.2); doc.setFont('helvetica','normal');
-    doc.setTextColor(...GRAY);
-    doc.text(
-      '* Fill each bubble firmly and darkly  |  Write answers clearly in boxes  |  To correct: cross out with X and rewrite next to it',
-      ML, y
-    );
-    y += 6;
-
-    drawFooter();
-
-    // ── SECTIONS ────────────────────────────────────────
-    const secColors = { bracket: SKY, five: GREEN, essay: AMBER };
-    const secLabels = {
-      bracket: (s) => `Q${s.from} - Q${s.to}   Bracket Choice  [ Left = L  /  Right = R ]  (B1 ~ B${s.maxBracket||8})`,
-      five:    (s) => `Q${s.from} - Q${s.to}   5-Choice  [ 1  2  3  4  5 ]`,
-      essay:   (s) => `Q${s.from} - Q${s.to}   Short Answer`,
+    const secColors={bracket:SKY,five:GREEN,essay:AMBER};
+    const secLabels={
+      bracket:s=>`Q${s.from} - Q${s.to}   Bracket Choice  [ Left = L  /  Right = R ]  (B1 ~ B${s.maxBracket||8})`,
+      five:   s=>`Q${s.from} - Q${s.to}   5-Choice  [ 1  2  3  4  5 ]`,
+      essay:  s=>`Q${s.from} - Q${s.to}   Short Answer`,
     };
 
-    for (const sec of active) {
-      const n = Math.max(0, sec.to - sec.from + 1);
-      if (n <= 0) continue;
-
-      const color = secColors[sec.type];
-      const rowH  = sec.type==='bracket' ? cfg.rowH_b : sec.type==='five' ? cfg.rowH_5 : cfg.rowH_e;
-      const cols  = sec.type==='bracket' ? cfg.cols_b : sec.type==='five' ? cfg.cols_5 : 2;
-
-      checkY(10 + rowH * 2);
-
-      // 섹션 헤더
-      doc.setFillColor(...color);
-      doc.rect(ML, y, CW, 9, 'F');
-      doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-      doc.setTextColor(255,255,255);
-      doc.text(secLabels[sec.type](sec), ML+4, y+6.2);
-      y += 9;
-
-      const colW = CW / cols;
-      let qIdx = 0;
-
-      while (qIdx < n) {
-        const rowsLeft  = Math.ceil((n - qIdx) / cols);
-        const spaceLeft = PH - MB - 8 - y;
-        const rowsFit   = Math.min(rowsLeft, Math.floor(spaceLeft / rowH));
-
-        if (rowsFit <= 0) { newPage(); continue; }
-
-        for (let ri = 0; ri < rowsFit; ri++) {
-          for (let ci = 0; ci < cols; ci++) {
-            if (qIdx >= n) break;
-            const qn = sec.from + qIdx;
-            const x0 = ML + ci * colW;
-            const y0 = y + ri * rowH;
-
-            // 배경
-            if ((ri * cols + ci) % 2 === 0) {
-              doc.setFillColor(...XLGRAY);
-              doc.rect(x0, y0, colW, rowH, 'F');
-            }
-
-            // Q번호
-            doc.setFontSize(cfg.fs_q); doc.setFont('helvetica','bold');
-            doc.setTextColor(...color);
-            doc.text(`Q${qn}`, x0+2, y0 + rowH*0.65);
-
-            // 버블
-            if (sec.type === 'bracket') {
-              const maxB   = sec.maxBracket || 8;
-              const startX = x0 + 14;
-              const step   = (colW - 16) / maxB;
-              for (let b = 0; b < maxB; b++) {
-                const bx = startX + b*step + step/2;
-                const cy = y0 + rowH/2;
-                // L
-                doc.setDrawColor(...LGRAY); doc.setFillColor(255,255,255); doc.setLineWidth(0.35);
-                doc.circle(bx - cfg.bubR*1.2, cy, cfg.bubR*0.88, 'FD');
-                doc.setFontSize(cfg.fs_b-1); doc.setFont('helvetica','bold');
-                doc.setTextColor(...GRAY);
-                doc.text('L', bx - cfg.bubR*1.2, cy + cfg.bubR*0.38, {align:'center'});
-                // R
-                doc.setFillColor(255,255,255);
-                doc.circle(bx + cfg.bubR*1.2, cy, cfg.bubR*0.88, 'FD');
-                doc.text('R', bx + cfg.bubR*1.2, cy + cfg.bubR*0.38, {align:'center'});
+    for(const sec of active){
+      const n=Math.max(0,sec.to-sec.from+1);if(n<=0)continue;
+      const color=secColors[sec.type];
+      const rowH=sec.type==='bracket'?cfg.rowH_b:sec.type==='five'?cfg.rowH_5:cfg.rowH_e;
+      const cols=sec.type==='bracket'?cfg.cols_b:sec.type==='five'?cfg.cols_5:2;
+      checkY(10+rowH*2);
+      doc.setFillColor(...color);doc.rect(ML,y,CW,9,'F');
+      doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+      doc.text(secLabels[sec.type](sec),ML+4,y+6.2);y+=9;
+      const colW=CW/cols;let qIdx=0;
+      while(qIdx<n){
+        const rowsLeft=Math.ceil((n-qIdx)/cols);
+        const spaceLeft=PH-MB-8-y;
+        const rowsFit=Math.min(rowsLeft,Math.floor(spaceLeft/rowH));
+        if(rowsFit<=0){newPage();continue;}
+        for(let ri=0;ri<rowsFit;ri++){
+          for(let ci=0;ci<cols;ci++){
+            if(qIdx>=n)break;
+            const qn=sec.from+qIdx,x0=ML+ci*colW,y0=y+ri*rowH;
+            if((ri*cols+ci)%2===0){doc.setFillColor(...XLGRAY);doc.rect(x0,y0,colW,rowH,'F');}
+            doc.setFontSize(cfg.fs_q);doc.setFont('helvetica','bold');doc.setTextColor(...color);
+            doc.text(`Q${qn}`,x0+2,y0+rowH*0.65);
+            if(sec.type==='bracket'){
+              const maxB=sec.maxBracket||8,startX=x0+14,step=(colW-16)/maxB;
+              for(let b=0;b<maxB;b++){
+                const bx=startX+b*step+step/2,cy=y0+rowH/2;
+                doc.setDrawColor(...LGRAY);doc.setFillColor(255,255,255);doc.setLineWidth(0.35);
+                doc.circle(bx-cfg.bubR*1.2,cy,cfg.bubR*0.88,'FD');
+                doc.setFontSize(cfg.fs_b-1);doc.setFont('helvetica','bold');doc.setTextColor(...GRAY);
+                doc.text('L',bx-cfg.bubR*1.2,cy+cfg.bubR*0.38,{align:'center'});
+                doc.setFillColor(255,255,255);doc.circle(bx+cfg.bubR*1.2,cy,cfg.bubR*0.88,'FD');
+                doc.text('R',bx+cfg.bubR*1.2,cy+cfg.bubR*0.38,{align:'center'});
               }
-            } else if (sec.type === 'five') {
-              const nums   = ['1','2','3','4','5'];
-              const startX = x0 + 13;
-              const step   = (colW - 15) / 5;
-              nums.forEach((num, j) => {
-                const bx = startX + j*step + step/2;
-                const cy = y0 + rowH/2;
-                doc.setDrawColor(...LGRAY); doc.setFillColor(255,255,255); doc.setLineWidth(0.4);
-                doc.circle(bx, cy, cfg.bubR, 'FD');
-                doc.setFontSize(cfg.fs_b); doc.setFont('helvetica','bold');
-                doc.setTextColor(...GRAY);
-                doc.text(num, bx, cy + cfg.bubR*0.38, {align:'center'});
+            }else if(sec.type==='five'){
+              const startX=x0+13,step=(colW-15)/5;
+              ['1','2','3','4','5'].forEach((num,j)=>{
+                const bx=startX+j*step+step/2,cy=y0+rowH/2;
+                doc.setDrawColor(...LGRAY);doc.setFillColor(255,255,255);doc.setLineWidth(0.4);
+                doc.circle(bx,cy,cfg.bubR,'FD');
+                doc.setFontSize(cfg.fs_b);doc.setFont('helvetica','bold');doc.setTextColor(...GRAY);
+                doc.text(num,bx,cy+cfg.bubR*0.38,{align:'center'});
               });
-            } else {
-              // 서술형
-              const ly = y0 + rowH - 3.5;
-              doc.setDrawColor(...LGRAY); doc.setLineWidth(0.3);
-              doc.line(x0+15, ly, x0+colW-2, ly);
+            }else{
+              doc.setDrawColor(...LGRAY);doc.setLineWidth(0.3);
+              doc.line(x0+15,y0+rowH-3.5,x0+colW-2,y0+rowH-3.5);
             }
-
-            // 셀 테두리
-            doc.setDrawColor(...LGRAY); doc.setLineWidth(0.2);
-            doc.rect(x0, y0, colW, rowH, 'S');
+            doc.setDrawColor(...LGRAY);doc.setLineWidth(0.2);doc.rect(x0,y0,colW,rowH,'S');
             qIdx++;
           }
         }
-
-        y += rowsFit * rowH;
-        if (qIdx < n) newPage();
+        y+=rowsFit*rowH;if(qIdx<n)newPage();
       }
-      y += 5;
+      y+=5;
     }
 
-    const fname = `KKJ_OMR_${(examTitle).replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/_+/g,'_')}.pdf`;
+    const fname=`KKJ_OMR_${examTitle.replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/_+/g,'_')}.pdf`;
     doc.save(fname);
-    showToast('PDF downloaded successfully ✓', 'success');
+    showToast('✓  PDF downloaded successfully','success');
 
-  } catch(e) {
+  }catch(e){
     console.error(e);
-    showToast('Error: ' + e.message, 'error');
+    showToast('Error: '+e.message,'error');
   }
 
-  btn.disabled = false;
-  document.getElementById('btnIcon').outerHTML = '<span id="btnIcon">↓</span>';
-  document.getElementById('btnText').textContent = 'OMR 답안지 PDF 생성';
+  btn.disabled=false;
+  document.getElementById('btnIcon').outerHTML='<span id="btnIcon" style="font-size:16px">↓</span>';
+  document.getElementById('btnText').textContent='OMR 답안지 PDF 생성';
 }
 
-function showToast(msg, type='') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast ' + type;
-  setTimeout(() => t.classList.add('show'), 10);
-  setTimeout(() => t.classList.remove('show'), 3200);
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type;
+  setTimeout(()=>t.classList.add('show'),10);
+  setTimeout(()=>t.classList.remove('show'),3200);
 }
 
-document.getElementById('bubbleSize').addEventListener('change', updateStats);
-document.getElementById('pageMargin').addEventListener('change', updateStats);
-
+document.getElementById('bubbleSize').addEventListener('change',updateStats);
+document.getElementById('pageMargin').addEventListener('change',updateStats);
 init();
 </script>
 </body>
