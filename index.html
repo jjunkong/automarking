@@ -1063,7 +1063,7 @@ function parseBulk() {
   const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
 
   tokens.forEach((arr, i) => { if (i < allQns.length) answerKey[allQns[i]] = arr; });
-  document.getElementById('bulkInput').value = '';
+  document.getElementById('bulkInput').value = raw; // 값 유지
   renderAnswerKey();
 
   const multi = tokens.filter(t=>t.length>1).length;
