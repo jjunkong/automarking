@@ -327,6 +327,63 @@ select option{background:#282828}
     <!-- TYPE C 단어시험 탭 -->
     <div id="tab-typec" class="screen">
 
+      <!-- ★ 정답 PDF 업로드 -->
+      <div class="card" style="border-color:rgba(206,147,216,.3)">
+        <div class="ch" style="background:rgba(206,147,216,.06)">
+          <div>
+            <div class="ct" style="color:#CE93D8">📎 정답 PDF 업로드</div>
+            <div class="cd">정답지 PDF를 올리면 AI가 자동으로 정답표를 완성해요</div>
+          </div>
+          <div id="pdfStatusBadge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--b3);color:var(--t2);border:1px solid var(--bo)">대기 중</div>
+        </div>
+        <div class="cb">
+
+          <!-- 업로드 영역 -->
+          <div id="pdfDropArea"
+            onclick="document.getElementById('pdfFileInput').click()"
+            style="background:var(--b2);border:2px dashed rgba(206,147,216,.3);border-radius:var(--r);
+              padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px"
+            onmouseover="this.style.borderColor='#CE93D8'" onmouseout="this.style.borderColor='rgba(206,147,216,.3)'">
+            <div style="font-size:32px;margin-bottom:8px">📄</div>
+            <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:4px">PDF 파일 선택</div>
+            <div style="font-size:12px;color:var(--t2)">문제+정답 형식의 PDF를 올려주세요</div>
+            <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="onPdfSelected(event)">
+          </div>
+
+          <!-- 파싱 진행 상태 -->
+          <div id="pdfProgress" style="display:none;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(206,147,216,.08);border-radius:var(--r);border:1px solid rgba(206,147,216,.2)">
+              <div id="pdfSpinner" style="width:18px;height:18px;border:2px solid rgba(206,147,216,.3);border-top-color:#CE93D8;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#CE93D8" id="pdfProgressText">AI가 정답을 읽는 중...</div>
+                <div style="font-size:11px;color:var(--t2);margin-top:2px" id="pdfProgressSub">잠시만 기다려 주세요</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 파싱 결과 미리보기 -->
+          <div id="pdfResultArea" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-size:12px;font-weight:700;color:#CE93D8" id="pdfResultTitle">정답 파싱 완료</div>
+              <div style="display:flex;gap:6px">
+                <button onclick="togglePdfPreview()" id="pdfPreviewToggle"
+                  style="height:26px;padding:0 10px;background:transparent;border:1px solid var(--bm);
+                    border-radius:13px;color:var(--t2);font-family:var(--f);font-size:11px;cursor:pointer">▾ 펼치기</button>
+                <button onclick="clearPdfResult()"
+                  style="height:26px;padding:0 10px;background:transparent;border:1px solid var(--bm);
+                    border-radius:13px;color:var(--t2);font-family:var(--f);font-size:11px;cursor:pointer"
+                  onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'"
+                  onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">초기화</button>
+              </div>
+            </div>
+            <div id="pdfPreviewList" style="display:none;max-height:300px;overflow-y:auto;
+              background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)">
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- 저장된 단어시험 설정 -->
       <div class="card">
         <div class="ch">
@@ -1543,12 +1600,14 @@ function saveVocabConfig() {
     lineH:     document.getElementById('vcLineH').value,
     cols:      document.getElementById('vcCols').value,
     types:     vcTypes.map(t=>({...t})),
+    answerMap: JSON.parse(JSON.stringify(vcAnswerMap)),
     savedAt:   new Date().toLocaleDateString('ko-KR'),
   };
   localStorage.setItem('kkj_vocab', JSON.stringify(saved));
   document.getElementById('saveVocabName').value='';
   renderSavedVocab();
-  showToast(`✓  "${name}" 저장 완료`,'ok');
+  const ansCount = Object.keys(vcAnswerMap).length;
+  showToast(`✓  "${name}" 저장 완료${ansCount>0?' (정답 '+ansCount+'개 포함)':''}`, 'ok');
 }
 
 function loadVocabConfig(name) {
@@ -1572,6 +1631,19 @@ function loadVocabConfig(name) {
   }
   vcTypes = (d.types||[]).map(t=>({...t, id:++vcTypeId}));
   renderVcTypes();
+
+  // 정답 복원
+  vcAnswerMap = JSON.parse(JSON.stringify(d.answerMap||{}));
+  const ansCount = Object.keys(vcAnswerMap).length;
+  if (ansCount > 0) {
+    document.getElementById('pdfResultArea').style.display='';
+    document.getElementById('pdfResultTitle').textContent=`✓ ${ansCount}개 정답 불러옴`;
+    document.getElementById('pdfStatusBadge').textContent=`${ansCount}개 완료`;
+    document.getElementById('pdfStatusBadge').style.cssText='font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(29,185,84,.1);color:var(--g);border:1px solid rgba(29,185,84,.3)';
+    const answers = Object.entries(vcAnswerMap).map(([num,v])=>({num:+num,word:v.word,meanings:v.meanings}));
+    answers.sort((a,b)=>a.num-b.num);
+    renderPdfPreview(answers);
+  }
   showToast(`✓  "${name}" 불러오기 완료`,'ok');
 }
 
@@ -1614,6 +1686,112 @@ function renderSavedVocab() {
   }).join('');
 }
 
+// ── TYPE C PDF 정답 파싱 ─────────────────────────────────
+let vcAnswerMap = {};
+
+function onPdfSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  parsePdfAnswers(file);
+}
+
+async function parsePdfAnswers(file) {
+  const b64 = await new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+
+  document.getElementById('pdfProgress').style.display='';
+  document.getElementById('pdfResultArea').style.display='none';
+  document.getElementById('pdfStatusBadge').textContent='AI 분석 중...';
+  document.getElementById('pdfStatusBadge').style.color='#CE93D8';
+
+  try {
+    const prompt=`이 PDF는 영어 단어시험의 정답지입니다.
+각 번호와 단어, 정답(한국어 뜻 또는 영어 스펠링)을 추출해주세요.
+한국어 뜻의 경우 여러 허용 답안이 있으면 모두 포함하세요.
+예: "번영하다, 성공하다, 번성하다" → 모두 포함
+
+반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
+{"total":120,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다","번성하다"]},{"num":2,"word":"region","meanings":["지역","지방","지대"]}]}`;
+
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:8000,
+        messages:[{role:'user',content:[
+          {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+
+    const data=await res.json();
+    const text=data.content?.find(b=>b.type==='text')?.text||'{}';
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    if(!parsed.answers?.length) throw new Error('정답을 찾지 못했어요');
+
+    // 저장
+    vcAnswerMap={};
+    parsed.answers.forEach(a=>{vcAnswerMap[a.num]={word:a.word,meanings:a.meanings};});
+
+    // 총 문항 수 자동 설정
+    const total=parsed.total||parsed.answers.length;
+    const sel=document.getElementById('vcTotal');
+    if([30,40,50,60,80,100,120].includes(total)) sel.value=String(total);
+    else{sel.value='custom';document.getElementById('vcCustomTotal').value=total;document.getElementById('vcCustomRow').style.display='';}
+
+    document.getElementById('pdfProgress').style.display='none';
+    document.getElementById('pdfResultArea').style.display='';
+    document.getElementById('pdfResultTitle').textContent=`✓ ${parsed.answers.length}개 정답 파싱 완료`;
+    document.getElementById('pdfStatusBadge').textContent=`${parsed.answers.length}개 완료`;
+    document.getElementById('pdfStatusBadge').style.cssText='font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(29,185,84,.1);color:var(--g);border:1px solid rgba(29,185,84,.3)';
+    renderPdfPreview(parsed.answers);
+    showToast(`✓ ${parsed.answers.length}개 정답 자동 완성`,'ok');
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('pdfProgress').style.display='none';
+    document.getElementById('pdfStatusBadge').textContent='오류';
+    document.getElementById('pdfStatusBadge').style.color='#ff6b6b';
+    showToast('오류: '+err.message,'err');
+  }
+  document.getElementById('pdfFileInput').value='';
+}
+
+function renderPdfPreview(answers) {
+  const list=document.getElementById('pdfPreviewList');
+  list.innerHTML=answers.map((a,i)=>`
+    <div style="display:flex;align-items:baseline;gap:10px;padding:7px 12px;
+      background:${i%2===0?'var(--b2)':'var(--b3)'};border-bottom:1px solid var(--bo)">
+      <span style="font-size:11px;font-weight:700;color:#CE93D8;min-width:26px;font-family:var(--m)">${a.num}.</span>
+      <span style="font-size:12px;font-weight:600;color:var(--t0);min-width:90px">${a.word||''}</span>
+      <span style="font-size:12px;color:var(--t1);flex:1">${(a.meanings||[]).join(' / ')}</span>
+    </div>`).join('');
+}
+
+function togglePdfPreview() {
+  const list=document.getElementById('pdfPreviewList');
+  const btn=document.getElementById('pdfPreviewToggle');
+  const hidden=list.style.display==='none';
+  list.style.display=hidden?'':'none';
+  btn.textContent=hidden?'▴ 접기':'▾ 펼치기';
+}
+
+function clearPdfResult() {
+  vcAnswerMap={};
+  document.getElementById('pdfResultArea').style.display='none';
+  document.getElementById('pdfStatusBadge').textContent='대기 중';
+  document.getElementById('pdfStatusBadge').style.cssText='font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--b3);color:var(--t2);border:1px solid var(--bo)';
+  document.getElementById('pdfFileInput').value='';
+  showToast('정답이 초기화됐습니다');
+}
+
+// ── TYPE C 총 문항 수 ─────────────────────────────────────
 function getVcTotal() {
   const sel = document.getElementById('vcTotal');
   if (!sel) return 60;
