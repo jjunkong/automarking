@@ -707,8 +707,14 @@ function gradeAnswers(extracted) {
 }
 
 function getVocabAnswerKey(keyData) {
-  // kkj_vocab에서 정답 로드
-  // 정답은 kkj_answer_keys에 별도 저장 (향후), 지금은 빈 맵
+  // answerMap이 저장된 경우 사용
+  if (keyData && keyData.answerMap) {
+    const map = {};
+    Object.entries(keyData.answerMap).forEach(([num, v]) => {
+      map[+num] = v.meanings || [];
+    });
+    return map;
+  }
   return {};
 }
 
