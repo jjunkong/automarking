@@ -101,6 +101,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true, deleted: code.toUpperCase() });
     }
 
+    // ── setApiKey: 학원 코드에 API 키 저장 (PC에서만 사용) ─
+    if (action === 'setApiKey') {
+      const { apiKey } = body;
+      if (typeof apiKey !== 'string') return res.status(400).json({ ok:false, error:'apiKey required' });
+      // 빈 문자열이면 삭제
+      const exists = await redis.exists(key);
+      if (!exists) return res.status(404).json({ ok:false, error:'code not found' });
+      if (!apiKey) {
+        await redis.hdel(key, 'apiKey');
+      } else {
+        if (apiKey.length > 500) return res.status(413).json({ ok:false, error:'apiKey too long' });
+        await redis.hset(key, { apiKey: apiKey });
+      }
+      await redis.expire(key, TTL_SECONDS);
+      return res.status(200).json({ ok:true });
+    }
+
+    // ── getApiKey: 학원 코드의 API 키 조회 (조교 폰에서 사용) ─
+    if (action === 'getApiKey') {
+      const apiKey = await redis.hget(key, 'apiKey');
+      if (apiKey == null) return res.status(404).json({ ok:false, error:'no api key set' });
+      return res.status(200).json({ ok:true, apiKey: apiKey });
+    }
+
     // ── ping: 코드 유효성만 확인 ─────────────────────────
     if (action === 'ping') {
       const meta = await redis.hget(key, 'meta');
@@ -155,7 +179,13 @@ export default async function handler(req, res) {
       const vocab = {};
       const akeys = {};
       let meta = null;
+      let hasApiKey = false;
       for (const [field, value] of Object.entries(all)) {
+        if (field === 'apiKey') {
+          // ⚠️ 보안: apiKey 값은 응답에 포함하지 않음. 존재 여부만 알림.
+          hasApiKey = !!value;
+          continue;
+        }
         const v = parseJson(value);
         if (field === 'meta') {
           meta = v;
@@ -171,7 +201,7 @@ export default async function handler(req, res) {
         await redis.hset(key, { meta: JSON.stringify(meta) });
         await redis.expire(key, TTL_SECONDS);
       }
-      return res.status(200).json({ ok:true, vocab, akeys, meta });
+      return res.status(200).json({ ok:true, vocab, akeys, meta, hasApiKey });
     }
 
     return res.status(400).json({ ok:false, error:'unknown action' });
