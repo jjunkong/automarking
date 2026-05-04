@@ -125,6 +125,76 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true, apiKey: apiKey });
     }
 
+    // ── addRecord: 채점 기록 추가 ──────────────────────────
+    if (action === 'addRecord') {
+      const { record } = body;
+      if (!record || typeof record !== 'object') {
+        return res.status(400).json({ ok:false, error:'record required' });
+      }
+      const exists = await redis.exists(key);
+      if (!exists) return res.status(404).json({ ok:false, error:'code not found' });
+
+      // 고유 ID 보장
+      const recId = record.id || (Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+      const recordWithId = { ...record, id: recId };
+      const field = `record:${recId}`;
+      const payload = JSON.stringify(recordWithId);
+      if (payload.length > 100_000) return res.status(413).json({ ok:false, error:'record too large' });
+
+      await redis.hset(key, { [field]: payload });
+      await redis.expire(key, TTL_SECONDS);
+      return res.status(200).json({ ok:true, id: recId });
+    }
+
+    // ── listRecords: 채점 기록 목록 조회 ───────────────────
+    if (action === 'listRecords') {
+      const { since, limit } = body; // since: ISO date string (선택), limit: 개수 (선택, 기본 500)
+      const all = await redis.hgetall(key);
+      if (!all || Object.keys(all).length === 0) {
+        return res.status(404).json({ ok:false, error:'code not found' });
+      }
+      const records = [];
+      for (const [field, value] of Object.entries(all)) {
+        if (!field.startsWith('record:')) continue;
+        const r = parseJson(value);
+        if (!r) continue;
+        if (since) {
+          // since 필터링 (record.savedAt 또는 record.id를 기준으로)
+          const rTime = r.savedAt || (r.id && /^\d+/.test(r.id) ? parseInt(r.id) : 0);
+          if (rTime && new Date(rTime) < new Date(since)) continue;
+        }
+        records.push(r);
+      }
+      // 최신순 정렬
+      records.sort((a, b) => {
+        const aT = a.savedAt || a.id || 0;
+        const bT = b.savedAt || b.id || 0;
+        return new Date(bT) - new Date(aT);
+      });
+      const max = Math.min(limit || 500, 1000);
+      return res.status(200).json({ ok:true, records: records.slice(0, max), total: records.length });
+    }
+
+    // ── deleteRecord: 개별 채점 기록 삭제 ──────────────────
+    if (action === 'deleteRecord') {
+      const { recordId } = body;
+      if (!recordId) return res.status(400).json({ ok:false, error:'recordId required' });
+      const field = `record:${recordId}`;
+      await redis.hdel(key, field);
+      return res.status(200).json({ ok:true });
+    }
+
+    // ── clearRecords: 모든 채점 기록 삭제 (원장 전용) ──────
+    if (action === 'clearRecords') {
+      const all = await redis.hgetall(key);
+      if (!all) return res.status(404).json({ ok:false, error:'code not found' });
+      const recordFields = Object.keys(all).filter(f => f.startsWith('record:'));
+      if (recordFields.length > 0) {
+        await redis.hdel(key, ...recordFields);
+      }
+      return res.status(200).json({ ok:true, deleted: recordFields.length });
+    }
+
     // ── ping: 코드 유효성만 확인 ─────────────────────────
     if (action === 'ping') {
       const meta = await redis.hget(key, 'meta');
