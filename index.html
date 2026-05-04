@@ -581,6 +581,14 @@ select option{background:#282828}
     <!-- 정답 관리 탭 -->
     <div id="tab-key" class="screen">
 
+      <!-- 정답 관리 타입 전환 -->
+      <div style="display:flex;gap:6px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);padding:5px">
+        <button id="keyTypeA" onclick="switchKeyType('A')"
+          style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:var(--b3);color:var(--t0);font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:all .2s">📄 TYPE A 정답</button>
+        <button id="keyTypeB" onclick="switchKeyType('B')"
+          style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:transparent;color:var(--t2);font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s">📋 TYPE B 정답</button>
+      </div>
+
       <!-- 저장된 정답 불러오기 -->
       <div class="card">
         <div class="ch">
@@ -596,6 +604,9 @@ select option{background:#282828}
           </div>
         </div>
       </div>
+
+      <!-- ═══════════ TYPE A 정답 영역 ═══════════ -->
+      <div id="keyTypeAArea">
 
       <!-- ① Bracket 정답 -->
       <div class="card">
@@ -660,7 +671,97 @@ select option{background:#282828}
       </div>
 
       <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
-    </div>
+      </div><!-- /keyTypeAArea -->
+
+      <!-- ═══════════ TYPE B 정답 영역 ═══════════ -->
+      <div id="keyTypeBArea" style="display:none">
+
+        <!-- 정답표 선택 (TYPE B 답안지) -->
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct">대상 답안지 선택</div><div class="cd">먼저 TYPE B 생성 탭에서 저장한 지문을 선택해주세요</div></div>
+          </div>
+          <div class="cb" style="padding:16px 22px">
+            <select id="typebPassageSelect" onchange="onTypebPassageSelected()" style="width:100%;height:42px">
+              <option value="">— 답안지를 선택하세요 —</option>
+            </select>
+            <div id="typebPassageInfo" style="font-size:11px;color:var(--t2);margin-top:8px;line-height:1.5">답안지 선택 시 자동으로 정답 입력 칸이 만들어져요.</div>
+          </div>
+        </div>
+
+        <!-- ① BLANK PART 정답 -->
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct" style="color:#29B6F6">① BLANK PART 정답</div><div class="cd">각 문장의 bracket마다 ①/② 중 정답 선택</div></div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button onclick="clearTypebBlank()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer">초기화</button>
+            </div>
+          </div>
+          <div class="cb" style="padding:16px 22px">
+            <div id="typebBlankGrid">
+              <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">답안지를 먼저 선택하세요</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ② QUESTION PART 정답 -->
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct" style="color:var(--g)">② QUESTION PART 정답</div><div class="cd">각 단답형 문항의 정답 (텍스트)</div></div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button onclick="clearTypebQuestion()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer">초기화</button>
+            </div>
+          </div>
+          <div class="cb" style="padding:16px 22px">
+            <div id="typebQuestionGrid">
+              <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">답안지를 먼저 선택하세요</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ SUBJECT 정답 -->
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct" style="color:var(--amb)">③ SUBJECT 정답</div><div class="cd">① ~ ⑤ 중 하나 선택</div></div>
+          </div>
+          <div class="cb" style="padding:16px 22px">
+            <div id="typebSubjectGrid" style="display:flex;gap:6px;justify-content:center"></div>
+          </div>
+        </div>
+
+        <!-- ④ TRUE or NOT 정답 -->
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct" style="color:#CE93D8">④ TRUE or NOT 정답</div><div class="cd">①~⑧ 각 문항마다 T 또는 N 선택</div></div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button onclick="clearTypebTN()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer">초기화</button>
+            </div>
+          </div>
+          <div class="cb" style="padding:16px 22px">
+            <div id="typebTNGrid" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+
+        <!-- ⑤ SUMMARY 정답 -->
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct" style="color:#FFB74D">⑤ SUMMARY 정답</div><div class="cd">(A) (B) 각각 ①~⑤ 중 선택</div></div>
+          </div>
+          <div class="cb" style="padding:16px 22px;display:flex;gap:20px;justify-content:center;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <div style="font-size:12px;font-weight:700;color:var(--t2)">(A)</div>
+              <div id="typebSummaryAGrid" style="display:flex;gap:6px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <div style="font-size:12px;font-weight:700;color:var(--t2)">(B)</div>
+              <div id="typebSummaryBGrid" style="display:flex;gap:6px"></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn secondary" onclick="switchTab('typeb')">← TYPE B 생성으로</button>
+      </div><!-- /keyTypeBArea -->
+    </div><!-- /tab-key -->
 
     <!-- TYPE B 워크북 탭 -->
     <div id="tab-typeb" class="screen">
@@ -1497,7 +1598,11 @@ function switchTab(t) {
   const mainEl  = document.querySelector('main');
   if (sidebar) sidebar.style.display = t==='omr' ? '' : 'none';
   if (mainEl)  mainEl.style.gridTemplateColumns = t==='omr' ? '1fr 320px' : '1fr';
-  if (t==='key')   { renderAnswerKey(); renderBracketKey(); renderEssayKey(); }
+  if (t==='key')   {
+    renderAnswerKey(); renderBracketKey(); renderEssayKey();
+    populateTypebPassageSelect();
+    if (currentKeyType === 'B') renderTypebAll();
+  }
   if (t==='typeb') { renderSentences(); renderSavedPassages(); }
   if (t==='typec') { renderVcTypes(); renderSavedVocab(); }
 }
@@ -1839,13 +1944,51 @@ function getSavedKeys() {
 function saveAnswerKey() {
   const name = document.getElementById('saveKeyName').value.trim();
   if (!name) { showToast('정답 이름을 입력해 주세요','err'); return; }
-  const fives = sections.filter(s=>s.active&&s.type==='five');
-  const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
-  const filled = allQns.filter(q=>answerKey[q]>0).length;
-  if (!filled) { showToast('입력된 정답이 없습니다','err'); return; }
 
   const saved = getSavedKeys();
-  const config = { key:JSON.parse(JSON.stringify(answerKey)), bracketKey:JSON.parse(JSON.stringify(bracketAnswers)), essayKey:JSON.parse(JSON.stringify(essayAnswers)), count:filled, date:new Date().toLocaleDateString('ko-KR'), total:allQns.length };
+  let config;
+
+  if (currentKeyType === 'B') {
+    // TYPE B 저장
+    const passageName = document.getElementById('typebPassageSelect').value;
+    if (!passageName) {
+      showToast('답안지를 먼저 선택해주세요','err');
+      return;
+    }
+    const totalAnswers = countTypebAnswers();
+    if (totalAnswers === 0) {
+      showToast('입력된 정답이 없어요','err');
+      return;
+    }
+    config = {
+      type: 'B',
+      passageName: passageName,
+      blank: JSON.parse(JSON.stringify(typebAnswers.blank)),
+      question: JSON.parse(JSON.stringify(typebAnswers.question)),
+      subject: typebAnswers.subject,
+      tn: JSON.parse(JSON.stringify(typebAnswers.tn)),
+      summaryA: typebAnswers.summaryA,
+      summaryB: typebAnswers.summaryB,
+      count: totalAnswers,
+      date: new Date().toLocaleDateString('ko-KR'),
+    };
+  } else {
+    // TYPE A 저장 (기존 로직)
+    const fives = sections.filter(s=>s.active&&s.type==='five');
+    const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+    const filled = allQns.filter(q=>answerKey[q]>0).length;
+    if (!filled) { showToast('입력된 정답이 없습니다','err'); return; }
+    config = {
+      type: 'A',
+      key: JSON.parse(JSON.stringify(answerKey)),
+      bracketKey: JSON.parse(JSON.stringify(bracketAnswers)),
+      essayKey: JSON.parse(JSON.stringify(essayAnswers)),
+      count: filled,
+      date: new Date().toLocaleDateString('ko-KR'),
+      total: allQns.length,
+    };
+  }
+
   saved[name] = config;
   localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
   document.getElementById('saveKeyName').value = '';
@@ -1866,10 +2009,32 @@ function saveAnswerKey() {
 function loadAnswerKey(name) {
   const saved = getSavedKeys();
   if (!saved[name]) return;
-  answerKey = JSON.parse(JSON.stringify(saved[name].key||{}));
-  bracketAnswers = JSON.parse(JSON.stringify(saved[name].bracketKey||{}));
-  essayAnswers = JSON.parse(JSON.stringify(saved[name].essayKey||{}));
-  renderAnswerKey(); renderBracketKey(); renderEssayKey();
+  const config = saved[name];
+
+  if (config.type === 'B') {
+    // TYPE B 불러오기
+    switchKeyType('B');
+    // 답안지 선택
+    if (config.passageName) {
+      document.getElementById('typebPassageSelect').value = config.passageName;
+      onTypebPassageSelected();
+    }
+    // 정답 복원
+    typebAnswers.blank    = JSON.parse(JSON.stringify(config.blank||{}));
+    typebAnswers.question = JSON.parse(JSON.stringify(config.question||{}));
+    typebAnswers.subject  = config.subject || 0;
+    typebAnswers.tn       = JSON.parse(JSON.stringify(config.tn||{}));
+    typebAnswers.summaryA = config.summaryA || 0;
+    typebAnswers.summaryB = config.summaryB || 0;
+    renderTypebAll();
+  } else {
+    // TYPE A 불러오기 (기존)
+    switchKeyType('A');
+    answerKey = JSON.parse(JSON.stringify(config.key||{}));
+    bracketAnswers = JSON.parse(JSON.stringify(config.bracketKey||{}));
+    essayAnswers = JSON.parse(JSON.stringify(config.essayKey||{}));
+    renderAnswerKey(); renderBracketKey(); renderEssayKey();
+  }
   showToast(`✓  "${name}" 불러오기 완료`,'ok');
 }
 
@@ -1883,6 +2048,269 @@ function deleteAnswerKey(name) {
   if (getAcademyCode()) cloudDelete('akeys', name);
   showToast(`"${name}" 삭제됨`);
 }
+
+// ══ TYPE B 정답 관리 ════════════════════════════════════════
+let currentKeyType = 'A'; // 'A' | 'B'
+let typebAnswers = {
+  blank: {},     // {Q1_B1: 1, Q1_B2: 2, ...}  값 1 또는 2
+  question: {},  // {1: '답', 2: '답', ...}
+  subject: 0,    // 1~5
+  tn: {},        // {1:'T', 2:'N', ...}  1~8
+  summaryA: 0,   // 1~5
+  summaryB: 0,   // 1~5
+};
+
+function switchKeyType(type) {
+  currentKeyType = type;
+  const aBtn = document.getElementById('keyTypeA');
+  const bBtn = document.getElementById('keyTypeB');
+  const aArea = document.getElementById('keyTypeAArea');
+  const bArea = document.getElementById('keyTypeBArea');
+  if (type === 'B') {
+    if (bBtn) { bBtn.style.background='var(--b3)'; bBtn.style.color='var(--t0)'; bBtn.style.fontWeight='700'; bBtn.style.boxShadow='0 1px 4px rgba(0,0,0,.3)'; }
+    if (aBtn) { aBtn.style.background='transparent'; aBtn.style.color='var(--t2)'; aBtn.style.fontWeight='600'; aBtn.style.boxShadow='none'; }
+    if (aArea) aArea.style.display = 'none';
+    if (bArea) bArea.style.display = '';
+    populateTypebPassageSelect();
+  } else {
+    if (aBtn) { aBtn.style.background='var(--b3)'; aBtn.style.color='var(--t0)'; aBtn.style.fontWeight='700'; aBtn.style.boxShadow='0 1px 4px rgba(0,0,0,.3)'; }
+    if (bBtn) { bBtn.style.background='transparent'; bBtn.style.color='var(--t2)'; bBtn.style.fontWeight='600'; bBtn.style.boxShadow='none'; }
+    if (aArea) aArea.style.display = '';
+    if (bArea) bArea.style.display = 'none';
+  }
+}
+
+// TYPE B 답안지 선택 드롭다운 채우기
+function populateTypebPassageSelect() {
+  const select = document.getElementById('typebPassageSelect');
+  if (!select) return;
+  const passages = getSavedPassages();
+  const names = Object.keys(passages);
+  const cur = select.value;
+  select.innerHTML = '<option value="">— 답안지를 선택하세요 —</option>' +
+    names.map(n => `<option value="${escapeHtmlPC(n)}">${escapeHtmlPC(n)}</option>`).join('');
+  if (cur && names.includes(cur)) select.value = cur;
+}
+
+function onTypebPassageSelected() {
+  const select = document.getElementById('typebPassageSelect');
+  const name = select.value;
+  const info = document.getElementById('typebPassageInfo');
+  if (!name) {
+    info.textContent = '답안지 선택 시 자동으로 정답 입력 칸이 만들어져요.';
+    return;
+  }
+  const passages = getSavedPassages();
+  const passage = passages[name];
+  if (!passage) return;
+  const sentenceCount = (passage.sentences || []).length;
+  const bracketTotal = (passage.sentences || []).reduce((s,sent)=>s+(sent.brackets?sent.brackets.length:0), 0);
+  const qCount = passage.qCount || 8;
+  info.innerHTML = `📋 <strong>${escapeHtmlPC(name)}</strong> · 문장 ${sentenceCount}개 · BLANK ${bracketTotal}개 · QUESTION ${qCount}개 · SUBJECT 1개 · T/N 8개 · SUMMARY 2개 (총 ${bracketTotal + qCount + 1 + 8 + 2}개 정답)`;
+  renderTypebAll();
+}
+
+function renderTypebAll() {
+  renderTypebBlank();
+  renderTypebQuestion();
+  renderTypebSubject();
+  renderTypebTN();
+  renderTypebSummary();
+}
+
+// ① BLANK PART
+function renderTypebBlank() {
+  const grid = document.getElementById('typebBlankGrid');
+  if (!grid) return;
+  const name = document.getElementById('typebPassageSelect').value;
+  if (!name) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">답안지를 먼저 선택하세요</div>';
+    return;
+  }
+  const passages = getSavedPassages();
+  const passage = passages[name];
+  if (!passage || !passage.sentences) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">문장 정보 없음</div>';
+    return;
+  }
+  let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+  passage.sentences.forEach((sent, sIdx) => {
+    const qn = sIdx + 1;
+    const brackets = sent.brackets || [];
+    if (brackets.length === 0) return;
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">`;
+    html += `<div style="width:60px;font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0">문장 ${String(qn).padStart(2,'0')}</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:6px;flex:1">`;
+    brackets.forEach((_, bIdx) => {
+      const bn = bIdx + 1;
+      const key = `Q${qn}_B${bn}`;
+      const cur = typebAnswers.blank[key] || 0;
+      html += `<div style="display:flex;align-items:center;gap:3px">
+        <span style="font-size:11px;color:var(--t2);margin-right:2px">B${bn}:</span>
+        <button onclick="setTypebBlank('${key}', 1)" style="width:30px;height:30px;border-radius:50%;border:1px solid ${cur===1?'#29B6F6':'var(--bm)'};background:${cur===1?'rgba(41,182,246,.15)':'transparent'};color:${cur===1?'#29B6F6':'var(--t2)'};font-weight:700;cursor:pointer;font-size:12px">①</button>
+        <button onclick="setTypebBlank('${key}', 2)" style="width:30px;height:30px;border-radius:50%;border:1px solid ${cur===2?'#29B6F6':'var(--bm)'};background:${cur===2?'rgba(41,182,246,.15)':'transparent'};color:${cur===2?'#29B6F6':'var(--t2)'};font-weight:700;cursor:pointer;font-size:12px">②</button>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+function setTypebBlank(key, val) {
+  if (typebAnswers.blank[key] === val) {
+    delete typebAnswers.blank[key]; // 같은 값 다시 누르면 해제
+  } else {
+    typebAnswers.blank[key] = val;
+  }
+  renderTypebBlank();
+}
+
+function clearTypebBlank() {
+  if (!confirm('BLANK PART 정답을 모두 초기화할까요?')) return;
+  typebAnswers.blank = {};
+  renderTypebBlank();
+}
+
+// ② QUESTION PART
+function renderTypebQuestion() {
+  const grid = document.getElementById('typebQuestionGrid');
+  if (!grid) return;
+  const name = document.getElementById('typebPassageSelect').value;
+  if (!name) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">답안지를 먼저 선택하세요</div>';
+    return;
+  }
+  const passages = getSavedPassages();
+  const passage = passages[name];
+  const qCount = (passage && passage.qCount) || 8;
+  let html = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
+  for (let i = 1; i <= qCount; i++) {
+    const cur = typebAnswers.question[i] || '';
+    html += `<div style="display:flex;align-items:center;gap:8px">
+      <div style="width:30px;font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0;text-align:center">${i}.</div>
+      <input type="text" value="${escapeHtmlPC(cur)}" placeholder="정답"
+        onchange="setTypebQuestion(${i}, this.value)"
+        style="flex:1;height:36px;padding:0 12px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);font-size:13px;font-family:var(--f);outline:none">
+    </div>`;
+  }
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+function setTypebQuestion(num, val) {
+  const v = String(val).trim();
+  if (!v) {
+    delete typebAnswers.question[num];
+  } else {
+    typebAnswers.question[num] = v;
+  }
+}
+
+function clearTypebQuestion() {
+  if (!confirm('QUESTION PART 정답을 모두 초기화할까요?')) return;
+  typebAnswers.question = {};
+  renderTypebQuestion();
+}
+
+// ③ SUBJECT
+function renderTypebSubject() {
+  const grid = document.getElementById('typebSubjectGrid');
+  if (!grid) return;
+  const cur = typebAnswers.subject || 0;
+  let html = '';
+  const symbols = ['①','②','③','④','⑤'];
+  for (let i = 1; i <= 5; i++) {
+    const isActive = cur === i;
+    html += `<button onclick="setTypebSubject(${i})"
+      style="width:48px;height:48px;border-radius:50%;border:1px solid ${isActive?'var(--amb)':'var(--bm)'};background:${isActive?'rgba(255,166,77,.15)':'transparent'};color:${isActive?'var(--amb)':'var(--t2)'};font-weight:700;cursor:pointer;font-size:18px">${symbols[i-1]}</button>`;
+  }
+  grid.innerHTML = html;
+}
+
+function setTypebSubject(val) {
+  typebAnswers.subject = (typebAnswers.subject === val) ? 0 : val;
+  renderTypebSubject();
+}
+
+// ④ TRUE or NOT
+function renderTypebTN() {
+  const grid = document.getElementById('typebTNGrid');
+  if (!grid) return;
+  const symbols = ['①','②','③','④','⑤','⑥','⑦','⑧'];
+  let html = '';
+  for (let i = 1; i <= 8; i++) {
+    const cur = typebAnswers.tn[i] || '';
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
+      <div style="width:30px;font-size:14px;font-weight:700;color:var(--t2);flex-shrink:0;text-align:center">${symbols[i-1]}</div>
+      <button onclick="setTypebTN(${i}, 'T')"
+        style="flex:1;height:34px;border-radius:var(--r);border:1px solid ${cur==='T'?'#29B6F6':'var(--bm)'};background:${cur==='T'?'rgba(41,182,246,.15)':'transparent'};color:${cur==='T'?'#29B6F6':'var(--t2)'};font-weight:700;cursor:pointer">T (참)</button>
+      <button onclick="setTypebTN(${i}, 'N')"
+        style="flex:1;height:34px;border-radius:var(--r);border:1px solid ${cur==='N'?'#ff6b6b':'var(--bm)'};background:${cur==='N'?'rgba(255,107,107,.15)':'transparent'};color:${cur==='N'?'#ff6b6b':'var(--t2)'};font-weight:700;cursor:pointer">N (거짓)</button>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function setTypebTN(num, val) {
+  if (typebAnswers.tn[num] === val) {
+    delete typebAnswers.tn[num];
+  } else {
+    typebAnswers.tn[num] = val;
+  }
+  renderTypebTN();
+}
+
+function clearTypebTN() {
+  if (!confirm('TRUE or NOT 정답을 모두 초기화할까요?')) return;
+  typebAnswers.tn = {};
+  renderTypebTN();
+}
+
+// ⑤ SUMMARY
+function renderTypebSummary() {
+  const symbols = ['①','②','③','④','⑤'];
+  ['A','B'].forEach(letter => {
+    const grid = document.getElementById('typebSummary' + letter + 'Grid');
+    if (!grid) return;
+    const cur = typebAnswers['summary' + letter] || 0;
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+      const isActive = cur === i;
+      const colorBorder = isActive ? '#FFB74D' : 'var(--bm)';
+      const colorBg = isActive ? 'rgba(255,183,77,.15)' : 'transparent';
+      const colorTxt = isActive ? '#FFB74D' : 'var(--t2)';
+      html += `<button onclick="setTypebSummary('${letter}', ${i})"
+        style="width:42px;height:42px;border-radius:50%;border:1px solid ${colorBorder};background:${colorBg};color:${colorTxt};font-weight:700;cursor:pointer;font-size:16px">${symbols[i-1]}</button>`;
+    }
+    grid.innerHTML = html;
+  });
+}
+
+function setTypebSummary(letter, val) {
+  const k = 'summary' + letter;
+  typebAnswers[k] = (typebAnswers[k] === val) ? 0 : val;
+  renderTypebSummary();
+}
+
+function countTypebAnswers() {
+  let count = 0;
+  count += Object.keys(typebAnswers.blank).length;
+  count += Object.keys(typebAnswers.question).length;
+  if (typebAnswers.subject > 0) count++;
+  count += Object.keys(typebAnswers.tn).length;
+  if (typebAnswers.summaryA > 0) count++;
+  if (typebAnswers.summaryB > 0) count++;
+  return count;
+}
+
+// 초기화 (TYPE B 새로 시작 시)
+function resetTypebAnswers() {
+  typebAnswers = {
+    blank: {}, question: {}, subject: 0, tn: {}, summaryA: 0, summaryB: 0,
+  };
+}
+// ════════════════════════════════════════════════════════════
 
 function renderSavedKeys() {
   const saved = getSavedKeys();
