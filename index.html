@@ -820,15 +820,16 @@ select option{background:#282828}
     <div style="font-size:16px;font-weight:700;margin-bottom:6px">🔑 Anthropic API 키 설정</div>
     <div style="font-size:13px;color:var(--t2);margin-bottom:20px;line-height:1.6">
       AI 채점 기능을 사용하려면 Anthropic API 키가 필요해요.<br>
-      키는 브라우저에만 저장되며 외부로 전송되지 않아요.
+      <strong style="color:var(--g)">학원 코드가 있으면 클라우드에 저장</strong>되어 조교 폰에서도 자동으로 사용돼요.
     </div>
     <div style="margin-bottom:6px">
       <label style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;display:block;margin-bottom:6px">API Key</label>
       <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." style="width:100%;height:44px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--m);font-size:13px;color:var(--t0);outline:none">
     </div>
-    <div style="font-size:11px;color:var(--t2);margin-bottom:20px">
+    <div style="font-size:11px;color:var(--t2);margin-bottom:14px">
       API 키는 <a href="https://console.anthropic.com" target="_blank" style="color:var(--g)">console.anthropic.com</a> 에서 발급받을 수 있어요.
     </div>
+    <div id="apiKeyCloudStatus" style="font-size:11px;color:var(--t2);margin-bottom:14px;padding:8px 10px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);display:none"></div>
     <div style="display:flex;gap:8px">
       <button onclick="saveApiKey()" style="flex:1;height:44px;background:var(--g);border:none;border-radius:22px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">저장</button>
       <button onclick="closeApiKeyModal()" id="apiKeyCancelBtn" style="height:44px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:22px;color:var(--t1);font-family:var(--f);font-size:14px;cursor:pointer">취소</button>
@@ -1144,10 +1145,17 @@ async function uploadAllLocalToCloud() {
       if (r.ok) count++; else failed++;
     }
   } catch(e){}
+  // API 키도 동기화
+  let apiKeyMsg = '';
+  const apiKey = getApiKey();
+  if (apiKey) {
+    const r = await cloudSync('setApiKey', { code, apiKey });
+    apiKeyMsg = r.ok ? ' · API 키 동기화됨' : ' · API 키 동기화 실패';
+  }
   if (status) {
     status.textContent = count > 0
-      ? `✓ ${count}개 항목 클라우드에 업로드됨${failed?` (${failed}개 실패)`:''}`
-      : '✓ 동기화 준비 완료 (업로드할 데이터 없음)';
+      ? `✓ ${count}개 항목 업로드됨${failed?` (${failed}개 실패)`:''}${apiKeyMsg}`
+      : `✓ 동기화 준비 완료${apiKeyMsg||' (업로드할 데이터 없음)'}`;
   }
 }
 
@@ -2139,19 +2147,62 @@ function openApiKeyModal() {
   document.getElementById('apiKeyModal').style.display = 'flex';
   // 키가 없으면 취소 버튼 숨김
   document.getElementById('apiKeyCancelBtn').style.display = getApiKey() ? '' : 'none';
+  // 클라우드 동기화 상태 표시
+  updateApiKeyCloudStatus();
 }
 function closeApiKeyModal() {
   document.getElementById('apiKeyModal').style.display = 'none';
 }
-function saveApiKey() {
+
+function updateApiKeyCloudStatus() {
+  const status = document.getElementById('apiKeyCloudStatus');
+  if (!status) return;
+  const code = getAcademyCode();
+  if (!code) {
+    status.style.display = '';
+    status.innerHTML = '⚠ <strong>학원 코드 없음</strong> — API 키가 이 PC에만 저장돼요.<br>조교 폰에서도 사용하려면 먼저 학원 코드를 발급해주세요.';
+    status.style.color = 'var(--warn)';
+    status.style.borderColor = 'rgba(255,166,77,.3)';
+  } else {
+    status.style.display = '';
+    status.innerHTML = `☁ <strong>학원 코드: ${code}</strong> — 저장하면 클라우드에 자동 연동되어 조교 폰에서도 채점이 가능해요.`;
+    status.style.color = '#CE93D8';
+    status.style.borderColor = 'rgba(206,147,216,.3)';
+  }
+}
+
+async function saveApiKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key.startsWith('sk-ant-')) { showToast('올바른 API 키 형식이 아니에요 (sk-ant-로 시작)','err'); return; }
   localStorage.setItem('kkj_api_key', key);
   document.getElementById('apiKeyBtn').style.borderColor = 'rgba(29,185,84,.4)';
   document.getElementById('apiKeyBtn').style.color = 'var(--g)';
   document.getElementById('apiKeyBtn').textContent = '🔑 API 키 ✓';
-  closeApiKeyModal();
-  showToast('API 키가 저장됐어요','ok');
+
+  // 클라우드 동기화 시도
+  const code = getAcademyCode();
+  if (code) {
+    showToast('💾 API 키 저장 + ☁ 클라우드 동기화 중...', '');
+    const r = await cloudSync('setApiKey', { code, apiKey: key });
+    if (r.ok) {
+      closeApiKeyModal();
+      showToast('✓ API 키 저장됨 (☁ 조교 폰에서도 자동 사용 가능)', 'ok');
+    } else {
+      closeApiKeyModal();
+      showToast(`✓ 로컬 저장됨 (☁ 동기화 실패: ${r.error || '서버 오류'})`, '');
+    }
+  } else {
+    closeApiKeyModal();
+    showToast('✓ API 키가 이 PC에 저장됐어요\n💡 학원 코드를 발급하면 조교 폰과 연동돼요', 'ok');
+  }
+}
+
+// 학원 코드 발급/입력 직후 → 기존 API 키도 클라우드에 자동 업로드
+async function syncApiKeyToCloud() {
+  const code = getAcademyCode();
+  const key  = getApiKey();
+  if (!code || !key) return;
+  await cloudSync('setApiKey', { code, apiKey: key });
 }
 // 페이지 로드 시 키 상태 반영
 document.addEventListener('DOMContentLoaded', ()=>{
