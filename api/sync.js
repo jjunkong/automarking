@@ -146,6 +146,38 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true, id: recId });
     }
 
+    // ── updateRecord: 채점 기록 수정 ───────────────────────
+    if (action === 'updateRecord') {
+      const { recordId, updates } = body;
+      if (!recordId) return res.status(400).json({ ok:false, error:'recordId required' });
+      if (!updates || typeof updates !== 'object') {
+        return res.status(400).json({ ok:false, error:'updates required' });
+      }
+      const field = `record:${recordId}`;
+      const existing = await redis.hget(key, field);
+      if (!existing) return res.status(404).json({ ok:false, error:'record not found' });
+
+      const current = parseJson(existing);
+      if (!current) return res.status(500).json({ ok:false, error:'record corrupt' });
+
+      // updates의 허용 필드만 병합 (보안 — 임의 필드 삽입 방지)
+      const allowedFields = ['student', 'score', 'total', 'passed', 'passRate', 'results', 'keyName'];
+      const merged = { ...current };
+      for (const k of allowedFields) {
+        if (k in updates) merged[k] = updates[k];
+      }
+      // 메타데이터
+      merged.editedAt = new Date().toISOString();
+      merged.editCount = (current.editCount || 0) + 1;
+
+      const payload = JSON.stringify(merged);
+      if (payload.length > 100_000) return res.status(413).json({ ok:false, error:'record too large' });
+
+      await redis.hset(key, { [field]: payload });
+      await redis.expire(key, TTL_SECONDS);
+      return res.status(200).json({ ok:true, record: merged });
+    }
+
     // ── listRecords: 채점 기록 목록 조회 ───────────────────
     if (action === 'listRecords') {
       const { since, limit } = body; // since: ISO date string (선택), limit: 개수 (선택, 기본 500)
