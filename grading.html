@@ -331,6 +331,24 @@ body{padding-bottom:52px}
         <input type="text" id="studentName" placeholder="비워두면 사진에서 자동 인식">
         <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">💡 답안지에 이름이 적혀 있으면 비워두세요. AI가 자동으로 읽어줘요.</div>
       </div>
+
+      <!-- AI 정확도 모드 -->
+      <div>
+        <label>AI 정확도 모드</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button type="button" id="modeNormalBtn" onclick="setAccuracyMode('normal')"
+            style="padding:10px 8px;background:var(--b3);border:2px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer;text-align:left;transition:all .15s">
+            <div style="font-weight:700;font-size:13px;margin-bottom:2px">⚡ 빠른 모드</div>
+            <div style="font-size:10px;color:var(--t2);line-height:1.4">Sonnet · 빠르고 저렴<br>인쇄답·또렷한 답안</div>
+          </button>
+          <button type="button" id="modeAccurateBtn" onclick="setAccuracyMode('accurate')"
+            style="padding:10px 8px;background:var(--b3);border:2px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer;text-align:left;transition:all .15s">
+            <div style="font-weight:700;font-size:13px;margin-bottom:2px">🎯 정확 모드</div>
+            <div style="font-size:10px;color:var(--t2);line-height:1.4">Opus · 한글 손글씨에<br>강력 · 비용 5배</div>
+          </button>
+        </div>
+        <div style="font-size:10px;color:var(--t2);margin-top:6px;line-height:1.5">💡 한글 손글씨가 흐리거나 다양하면 <strong style="color:#CE93D8">정확 모드</strong> 추천</div>
+      </div>
     </div>
   </div>
   <button class="btn btn-g" id="toPhotoBtn" onclick="goToPhoto()" disabled>
@@ -510,11 +528,43 @@ let state = {
   keyData: null,
   studentName: '',
   photos: [],        // [{b64, mime, dataUrl}] — 여러 장 지원
+  accuracyMode: 'normal', // 'normal' | 'accurate'
   results: [],       // [{num, student, correct, auto, status:'ok'|'err'|'unc'}]
   history: [],
 };
 
 const MAX_PHOTOS = 5;
+const ACCURACY_LS_KEY = 'kkj_accuracy_mode';
+
+// AI 정확도 모드 (이전 선택 기억)
+function getAccuracyMode() {
+  return localStorage.getItem(ACCURACY_LS_KEY) || 'normal';
+}
+function setAccuracyMode(mode) {
+  if (mode !== 'normal' && mode !== 'accurate') mode = 'normal';
+  state.accuracyMode = mode;
+  localStorage.setItem(ACCURACY_LS_KEY, mode);
+  // UI 업데이트
+  const normalBtn = document.getElementById('modeNormalBtn');
+  const accurateBtn = document.getElementById('modeAccurateBtn');
+  if (normalBtn && accurateBtn) {
+    if (mode === 'accurate') {
+      accurateBtn.style.borderColor = '#CE93D8';
+      accurateBtn.style.background = 'rgba(206,147,216,.1)';
+      accurateBtn.style.color = '#CE93D8';
+      normalBtn.style.borderColor = 'var(--bm)';
+      normalBtn.style.background = 'var(--b3)';
+      normalBtn.style.color = 'var(--t1)';
+    } else {
+      normalBtn.style.borderColor = 'var(--g)';
+      normalBtn.style.background = 'rgba(29,185,84,.1)';
+      normalBtn.style.color = 'var(--g)';
+      accurateBtn.style.borderColor = 'var(--bm)';
+      accurateBtn.style.background = 'var(--b3)';
+      accurateBtn.style.color = 'var(--t1)';
+    }
+  }
+}
 
 // ══ 학원 코드 + 클라우드 동기화 ═════════════════════════════
 const ACADEMY_LS_KEY = 'kkj_academy_code';
@@ -700,6 +750,8 @@ async function goToSetup() {
   loadAnswerKeys();
   document.getElementById('studentName').value = '';
   document.getElementById('toPhotoBtn').disabled = true;
+  // 정확도 모드 초기화 (이전 선택 복원)
+  setAccuracyMode(getAccuracyMode());
   const titles = { typec:'단어시험 설정', typea:'TYPE A 설정', typeb:'TYPE B 설정' };
   document.getElementById('setupTitle').textContent = titles[state.type]||'시험 설정';
   showScreen('setup', titles[state.type]);
@@ -957,6 +1009,73 @@ function getApiKey() {
   return localStorage.getItem('kkj_api_key') || '';
 }
 
+// ── 정답 힌트 블록 생성 (AI에게 전달) ─────────────────────
+// AI가 정답을 알면 흐릿한 손글씨를 정확히 읽을 수 있음.
+// 단, "학생이 쓴 그대로 읽으세요"라고 명시해서 정답 베끼기 방지.
+function buildAnswerHintBlock() {
+  const keyData = state.keyData;
+  if (!keyData || !keyData.answerMap) return '';
+
+  const types = keyData.types || [];
+  const total = keyData.total || 60;
+  const lines = [];
+
+  // 문항별 정답 1개 (첫 번째 정답만, 짧게)
+  for (let n = 1; n <= total; n++) {
+    const answers = keyData.answerMap[n];
+    if (!answers || !answers.length) continue;
+    // 첫 번째 정답만 표시 (전체 표시는 너무 길어짐)
+    const correct = answers[0];
+    if (!correct || typeof correct !== 'string') continue;
+    lines.push(`Q${n}: ${correct.slice(0, 30)}`); // 너무 긴 답은 자름
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n【 채점 참고 — 정답 ${lines.length}개 】
+이 시험의 정답은 다음과 같습니다. 학생 답안을 정답과 비교해서
+흐릿한 손글씨도 정확히 판독하는 데에만 사용하세요.
+※ 절대 정답을 그대로 베껴 쓰지 말고, 학생이 실제로 사진에 쓴 글자를 읽으세요.
+
+${lines.join('\n')}
+`;
+}
+
+// ── 편집 거리 (오타 허용 채점용) ─────────────────────────
+// Levenshtein distance — 두 문자열의 차이가 몇 글자인지 계산
+function editDistance(a, b) {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const m = a.length, n = b.length;
+  // 1차원 배열로 메모리 절약
+  let prev = new Array(n+1);
+  let curr = new Array(n+1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,        // 삭제
+        curr[j-1] + 1,      // 삽입
+        prev[j-1] + cost    // 교체
+      );
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+// 학생 답이 정답에 얼마나 가까운지 — 0(정답)/1(거의 맞음)/2+(오답)
+function answerSimilarity(student, correct) {
+  if (!student || !correct) return 99;
+  const s = String(student).trim().toLowerCase().replace(/\s/g, '');
+  const c = String(correct).trim().toLowerCase().replace(/\s/g, '');
+  if (s === c) return 0;
+  return editDistance(s, c);
+}
+
 // ── Claude Vision API 호출 ────────────────────────────────
 async function extractAnswers() {
   const total    = state.keyData?.total || 60;
@@ -976,17 +1095,37 @@ async function extractAnswers() {
     ? `\n⚠ 답안지가 ${photoCount}장으로 나뉘어 있습니다. 모든 사진을 함께 보고 1번부터 ${total}번까지 모든 문항의 답을 추출해주세요. 같은 학생의 답안지입니다.\n`
     : '';
 
+  // ★ 핵심 개선 1: 정답을 AI에게 미리 알려주기 (인식 가이드용)
+  // 이렇게 하면 흐릿한 손글씨도 정답과 비교해서 정확히 읽음
+  const answerHint = buildAnswerHintBlock();
+
   const prompt = `이것은 영어 단어시험 답안지 사진${isMultiPage?'들':''}입니다.
 시험 구성: ${typeDesc}
 총 ${total}문항입니다.${multiPagePrompt}
+${answerHint}
 
-각 번호의 학생이 쓴 답을 읽어주세요.
-빈칸이거나 읽을 수 없으면 null로 표시하세요.${namePrompt}
+【 작업 】
+각 번호의 학생이 쓴 답을 사진에서 그대로 읽어주세요.
 
-반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
+【 한글 손글씨 읽기 가이드 】
+한국 학생들의 손글씨는 다양해요. 다음 사항에 유의해서 읽어주세요:
+- 비슷한 글자 헷갈리지 않도록 주의: 으/오, 사/시, 라/러, ㅁ/ㅇ, ㅂ/ㅍ, ㄷ/ㅌ
+- 받침이 흐릿해도 단어 의미를 보고 정확히 판독
+- 흘림체나 빨리 쓴 글씨도 학생이 의도한 글자를 추정
+- 위쪽 정답 힌트가 있으면 학생 답이 그것과 비슷한지 비교해서 확신 있게 판독
+  (학생 답이 정답과 매우 비슷 → 정답으로 읽음)
+  (학생 답이 정답과 명백히 다름 → 학생이 쓴 그대로 읽음)
+- 절대 정답을 그대로 베끼지 말 것 — 학생이 실제로 쓴 답을 읽어야 함
+
+【 빈칸 처리 】
+- 학생이 아예 안 쓴 칸은 null
+- "X" 또는 "?" 또는 "모름"이라고 쓰면 그대로 읽기
+
+【 응답 형식 】
+반드시 아래 JSON 형식만 응답 (다른 텍스트 절대 없이):
 ${userProvidedName
-  ? '{"answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}'
-  : '{"student_name":"홍길동","answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null},...]}'}`;
+  ? '{"answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null}]}'
+  : '{"student_name":"홍길동","answers":[{"num":1,"answer":"학생답"},{"num":2,"answer":null}]}'}`;
 
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -1006,22 +1145,53 @@ ${userProvidedName
   });
   content.push({ type: 'text', text: prompt });
 
-  console.log('[ai] sending', photoCount, 'photo(s) to Claude');
+  // ★ 핵심 개선 2: 모드에 따라 모델 선택
+  const accuracyMode = state.accuracyMode || getAccuracyMode();
+  const model = accuracyMode === 'accurate'
+    ? 'claude-opus-4-6'    // 정확 모드 — 한글 OCR 우수, $5/$25 per 1M tokens
+    : 'claude-sonnet-4-6'; // 빠른 모드 — 균형, $3/$15 per 1M tokens
 
-  const res = await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:4000,
-      messages:[{role:'user',content}]
-    })
-  });
+  console.log('[ai] sending', photoCount, 'photo(s) to Claude with model:', model);
+
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body:JSON.stringify({
+        model: model,
+        max_tokens: 4000,
+        messages:[{role:'user',content}]
+      })
+    });
+  } catch (err) {
+    throw new Error(`네트워크 오류: ${err.message}`);
+  }
+
+  // 정확 모드 실패 시 → 빠른 모드로 자동 폴백
+  if (!res.ok && accuracyMode === 'accurate') {
+    console.warn('[ai] Opus failed, falling back to Sonnet');
+    showToast('정확 모드 실패 → 빠른 모드로 재시도', '');
+    res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens: 4000,
+        messages:[{role:'user',content}]
+      })
+    });
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(()=>'unknown');
@@ -1075,8 +1245,20 @@ function gradeAnswers(extracted) {
 
     if (info.type==='eng') {
       // 스펠링: 대소문자 무시 정확 비교
-      const ok = info.corrects.some(c=>c.trim().toLowerCase()===ans.trim().toLowerCase());
-      results.push({num, student:ans, correct:ok, auto:true, status:ok?'ok':'err', corrects:info.corrects});
+      const studentLower = ans.trim().toLowerCase();
+      const exactOk = info.corrects.some(c=>c.trim().toLowerCase()===studentLower);
+      if (exactOk) {
+        results.push({num, student:ans, correct:true, auto:true, status:'ok', corrects:info.corrects});
+      } else {
+        // ★ 오타 허용: 1글자 차이면 미확인 처리 (조교가 결정)
+        const minDist = Math.min(...info.corrects.map(c=>answerSimilarity(ans, c)));
+        if (minDist === 1) {
+          // 1글자만 차이 — 미확인으로 두어 조교가 판단
+          results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'1글자 차이'});
+        } else {
+          results.push({num, student:ans, correct:false, auto:true, status:'err', corrects:info.corrects});
+        }
+      }
     } else {
       // 뜻쓰기: 핵심어 포함 여부 (간단 체크)
       const studentClean = ans.trim().replace(/\s/g,'');
@@ -1085,10 +1267,15 @@ function gradeAnswers(extracted) {
         return studentClean.includes(clean) || clean.includes(studentClean) ||
                studentClean.toLowerCase()===clean.toLowerCase();
       });
-      // 부분 일치면 uncertain
-      const close = !ok && info.corrects.some(c=>similarity(ans,c)>0.6);
+      // 부분 일치면 uncertain (편집 거리 또는 similarity)
+      let close = !ok && info.corrects.some(c=>similarity(ans,c)>0.6);
+      // ★ 오타 허용: 1글자 차이도 미확인 (한글에서 받침 빼먹기 등)
+      if (!ok && !close) {
+        const minDist = Math.min(...info.corrects.map(c=>answerSimilarity(ans, c)));
+        if (minDist === 1) close = true;
+      }
       if (close) {
-        results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects});
+        results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'정답에 가까움'});
       } else {
         results.push({num, student:ans, correct:ok, auto:true, status:ok?'ok':'err', corrects:info.corrects});
       }
