@@ -609,10 +609,9 @@ async function refreshFromCloud(opts = {}) {
   const code = getAcademyCode();
   if (!code) return { ok:false, error:'no code' };
 
-  if (!silent) showToast('☁ 클라우드에서 시험 목록 가져오는 중...', '');
+  if (!silent) showToast('☁ 클라우드 동기화 중...', '');
   const r = await cloudSync('getAll', { code });
   if (!r.ok) {
-    // 코드가 무효 (재발급되었거나 삭제됨) → 강제 로그아웃
     if (r.status === 404) {
       handleCodeInvalidated();
       return r;
@@ -620,25 +619,36 @@ async function refreshFromCloud(opts = {}) {
     if (!silent) showToast('⚠ 동기화 실패: ' + (r.error || '서버 오류'), 'err');
     return r;
   }
-  // 클라우드 데이터를 localStorage에 반영 (클라우드가 source of truth)
+  // 클라우드 데이터를 localStorage에 반영
   localStorage.setItem('kkj_vocab', JSON.stringify(r.vocab || {}));
   localStorage.setItem('kkj_answer_keys', JSON.stringify(r.akeys || {}));
 
-  // ★ API 키도 자동 동기화 (클라우드에 있으면 폰에 저장)
+  // API 키 자동 동기화
   if (r.hasApiKey) {
     const keyResp = await cloudSync('getApiKey', { code });
     if (keyResp.ok && keyResp.apiKey) {
       localStorage.setItem('kkj_api_key', keyResp.apiKey);
     }
-  } else {
-    // 클라우드에 키가 없으면 로컬 캐시도 제거 (그래야 "키 없음" 메시지가 정상)
-    // 단, PC에서 직접 입력했을 가능성도 있으니 신중하게 처리
-    // → 일단 로컬 키는 유지 (PC에서 입력했을 수 있음)
+  }
+
+  // ★ 채점 기록도 동기화 (모든 조교 + 본인이 본 기록 통합)
+  const recResp = await cloudSync('listRecords', { code, limit: 200 });
+  let recordsCount = 0;
+  if (recResp.ok && Array.isArray(recResp.records)) {
+    localStorage.setItem('kkj_grading_hist', JSON.stringify(recResp.records));
+    recordsCount = recResp.records.length;
+    // 홈 화면이 표시 중이면 즉시 갱신
+    if (typeof updateHome === 'function') updateHome();
   }
 
   const total = Object.keys(r.vocab||{}).length + Object.keys(r.akeys||{}).length;
-  if (!silent) showToast(`✓ ${total}개 시험 동기화됨${r.hasApiKey?' · API 키 ☁':''}`, 'ok');
-  return { ...r, total };
+  if (!silent) {
+    const parts = [`${total}개 시험`];
+    if (r.hasApiKey) parts.push('API 키');
+    if (recordsCount > 0) parts.push(`${recordsCount}개 채점 기록`);
+    showToast(`✓ ${parts.join(' · ')} 동기화됨`, 'ok');
+  }
+  return { ...r, total, recordsCount };
 }
 
 // ── 학원 코드 입력 화면 ─────────────────────────────────
@@ -1413,7 +1423,7 @@ function toggleAutoList() {
 }
 
 // ── 채점 확정 ─────────────────────────────────────────────
-function confirmResult() {
+async function confirmResult() {
   // 이름 입력 필드에서 최종 이름 가져오기 (AI 추출 + 수동 편집 결과)
   const nameInput = document.getElementById('reviewNameInput');
   const finalName = (nameInput.value || '').trim();
@@ -1433,10 +1443,12 @@ function confirmResult() {
   const passNum  = Math.ceil(total*passRate/100);
   const passed   = okCount >= passNum;
 
+  const now = Date.now();
   const record = {
-    id: Date.now(),
-    date: new Date().toLocaleDateString('ko-KR'),
-    time: new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
+    id: now + '_' + Math.random().toString(36).slice(2, 8), // 더 고유한 ID
+    savedAt: new Date(now).toISOString(),
+    date: new Date(now).toLocaleDateString('ko-KR'),
+    time: new Date(now).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
     student: finalName,
     keyName: state.keyName,
     type: state.type,
@@ -1447,13 +1459,28 @@ function confirmResult() {
     results: results.map(r=>({num:r.num,student:r.student,correct:r.correct})),
   };
 
-  // 저장
+  // 1. 로컬 저장 (즉시)
   const hist = getHistory();
   hist.unshift(record);
   localStorage.setItem('kkj_grading_hist', JSON.stringify(hist.slice(0,200)));
 
-  // 결과 화면
+  // 2. 결과 화면 먼저 표시 (UX — 사용자 대기 X)
   renderResult(record);
+
+  // 3. 클라우드 업로드 (비동기, 백그라운드)
+  if (getAcademyCode()) {
+    cloudSync('addRecord', { code: getAcademyCode(), record }).then(r => {
+      if (r.ok) {
+        console.log('[record] uploaded to cloud:', r.id);
+      } else if (r.status === 404) {
+        // 학원 코드 무효화 → 로그아웃
+        handleCodeInvalidated();
+      } else {
+        console.warn('[record] cloud upload failed:', r.error);
+        // 실패해도 로컬엔 저장됐으니 사용 흐름 안 끊음
+      }
+    });
+  }
 }
 
 function renderResult(r) {
@@ -1533,7 +1560,7 @@ function updateHome() {
         <div class="hist-score" style="color:${r.passed?'var(--ok)':'var(--err)'}">${r.score}/${r.total}</div>
         <div class="hist-verdict ${r.passed?'pass':'fail'}">${r.passed?'통과':'재시험'}</div>
       </div>
-      <button onclick="deleteHistoryItem(${r.id})" title="삭제"
+      <button onclick="deleteHistoryItem('${r.id}')" title="삭제"
         style="width:28px;height:28px;flex-shrink:0;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
         onmouseover="this.style.borderColor='var(--err)';this.style.color='var(--err)'"
         onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">✕</button>
@@ -1546,16 +1573,22 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// 개별 채점 기록 삭제
-function deleteHistoryItem(id) {
+// 개별 채점 기록 삭제 (로컬 + 클라우드)
+async function deleteHistoryItem(id) {
   const hist = getHistory();
-  const item = hist.find(h => h.id === id);
+  // ID 비교 시 문자열/숫자 둘 다 처리
+  const item = hist.find(h => String(h.id) === String(id));
   if (!item) return;
   if (!confirm(`"${item.student}" (${item.score}/${item.total}) 기록을 삭제할까요?`)) return;
-  const filtered = hist.filter(h => h.id !== id);
+  // 로컬에서 즉시 제거
+  const filtered = hist.filter(h => String(h.id) !== String(id));
   localStorage.setItem('kkj_grading_hist', JSON.stringify(filtered));
   updateHome();
   showToast('기록이 삭제됐습니다');
+  // 클라우드에서도 제거
+  if (getAcademyCode()) {
+    cloudSync('deleteRecord', { code: getAcademyCode(), recordId: String(id) });
+  }
 }
 
 function getHistory() {
@@ -1563,11 +1596,22 @@ function getHistory() {
   catch(e) { return []; }
 }
 
-function clearHistory() {
-  if (!confirm('채점 기록을 모두 삭제할까요?')) return;
+async function clearHistory() {
+  if (!confirm('⚠ 학원 전체 채점 기록을 모두 삭제할까요?\n\n이 작업은 모든 조교 폰의 기록도 삭제하며, 되돌릴 수 없습니다.')) return;
+  // 로컬 삭제
   localStorage.removeItem('kkj_grading_hist');
   updateHome();
-  showToast('기록이 삭제됐습니다');
+  // 클라우드 삭제
+  if (getAcademyCode()) {
+    const r = await cloudSync('clearRecords', { code: getAcademyCode() });
+    if (r.ok) {
+      showToast(`✓ ${r.deleted || 0}개 기록 삭제됨 (모든 기기)`, 'ok');
+    } else {
+      showToast('로컬만 삭제됨 (클라우드 삭제 실패)', 'err');
+    }
+  } else {
+    showToast('기록이 삭제됐습니다');
+  }
 }
 
 // ── 토스트 ────────────────────────────────────────────────
