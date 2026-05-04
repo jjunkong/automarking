@@ -35,6 +35,11 @@ header{
 .hdr-bottom{
   max-width:1160px;margin:0 auto;
   padding:12px 20px 12px;
+  display:grid;grid-template-columns:1fr 320px;gap:20px;
+}
+.hdr-bottom .tabs-wrap{min-width:0}
+@media(max-width:800px){
+  .hdr-bottom{grid-template-columns:1fr}
 }
 .logo{display:flex;align-items:center;gap:12px}
 .logo-mark{
@@ -307,14 +312,17 @@ select option{background:#282828}
     </div>
   </div>
 
-  <!-- 하단 줄: 탭 (main과 좌우 정렬 일치) -->
+  <!-- 하단 줄: 탭 (시험 기본 정보 카드와 좌우 정렬 일치) -->
   <div class="hdr-bottom">
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
-      <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
-      <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
-      <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
+    <div class="tabs-wrap">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
+        <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
+        <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
+        <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
+      </div>
     </div>
+    <div></div>
   </div>
 </header>
 
