@@ -25,9 +25,16 @@ body{min-height:100vh;padding-bottom:64px}
 header{
   background:rgba(18,18,18,.96);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--bo);
-  padding:0 28px;height:64px;
-  display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:100;
+}
+.hdr-top{
+  max-width:1160px;margin:0 auto;
+  padding:14px 20px 0;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.hdr-bottom{
+  max-width:1160px;margin:0 auto;
+  padding:12px 20px 12px;
 }
 .logo{display:flex;align-items:center;gap:12px}
 .logo-mark{
@@ -42,7 +49,7 @@ header{
 .vbadge{font-size:11px;font-weight:600;background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.25);padding:4px 12px;border-radius:20px}
 
 /* ── TABS ── */
-.tabs{display:flex;gap:4px;background:var(--b2);border-radius:10px;padding:4px}
+.tabs{display:inline-flex;gap:4px;background:var(--b2);border-radius:10px;padding:4px}
 .tab{
   padding:8px 20px;border-radius:7px;border:none;cursor:pointer;
   font-family:var(--f);font-size:13px;font-weight:600;
@@ -52,7 +59,7 @@ header{
 .tab:hover:not(.active){color:var(--t1)}
 
 /* ── MAIN ── */
-main{max-width:1160px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:1fr 320px;gap:20px}
+main{max-width:1160px;margin:0 auto;padding:20px 20px 24px;display:grid;grid-template-columns:1fr 320px;gap:20px}
 .left{display:flex;flex-direction:column;gap:16px}
 .screen{display:none}.screen.active{display:flex;flex-direction:column;gap:16px}
 
@@ -248,62 +255,64 @@ select option{background:#282828}
 <body>
 
 <header>
-  <div class="logo">
-    <div class="logo-mark">KKJ</div>
-    <div>
-      <div class="logo-name">김기준영어학원</div>
-      <div class="logo-sub">OMR 자동 생성기</div>
+  <!-- 상단 줄: 로고 · 채점 시스템 · 설정 -->
+  <div class="hdr-top">
+    <div class="logo">
+      <div class="logo-mark">KKJ</div>
+      <div>
+        <div class="logo-name">김기준영어학원</div>
+        <div class="logo-sub">OMR 자동 생성기</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap">
+      <!-- 채점 시스템 그룹 -->
+      <div style="display:flex;align-items:center;background:var(--b2);border:1px solid var(--bm);border-radius:18px;padding:3px;gap:1px;flex-shrink:0">
+        <button onclick="openAcademyModal()" id="academyBtn"
+          title="학원 코드 관리"
+          style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
+          onmouseover="this.style.background='rgba(206,147,216,.15)';this.style.color='#CE93D8'"
+          onmouseout="this.style.background='transparent';this.style.color=academyBtnActiveColor()">
+          <span>🏫</span><span id="academyBtnLabel">코드</span>
+        </button>
+        <div style="width:1px;height:16px;background:var(--bo)"></div>
+        <button onclick="openDashboard()" id="dashboardBtn"
+          title="채점 현황 대시보드"
+          style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
+          onmouseover="this.style.background='rgba(255,183,77,.15)';this.style.color='#FFB74D'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--t2)'">
+          <span>📊</span><span>현황</span>
+        </button>
+        <div style="width:1px;height:16px;background:var(--bo)"></div>
+        <a href="/grading" target="_blank"
+          title="채점 프로그램 (조교용)"
+          style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
+          onmouseover="this.style.background='rgba(29,185,84,.15)'"
+          onmouseout="this.style.background='transparent'">
+          <span>📷</span><span>채점 →</span>
+        </a>
+      </div>
+
+      <!-- 설정 (API 키) -->
+      <button onclick="openApiKeyModal()" id="apiKeyBtn"
+        title="API 키 설정"
+        style="width:32px;height:32px;padding:0;background:var(--b2);border:1px solid var(--bm);
+          border-radius:50%;color:var(--t2);font-family:var(--f);font-size:13px;font-weight:600;
+          cursor:pointer;transition:all .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center"
+        onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
+        onmouseout="this.style.borderColor=apiKeyBtnBorderColor();this.style.color=apiKeyBtnColor()">⚙</button>
+
+      <div class="vbadge">v2.0</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap">
-    <!-- 생성 작업 탭 -->
+
+  <!-- 하단 줄: 탭 (main과 좌우 정렬 일치) -->
+  <div class="hdr-bottom">
     <div class="tabs">
       <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
       <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
       <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
       <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
     </div>
-
-    <!-- 구분선 -->
-    <div style="width:1px;height:22px;background:var(--bo);flex-shrink:0"></div>
-
-    <!-- 채점 시스템 그룹 (3개를 하나의 시각적 단위로) -->
-    <div style="display:flex;align-items:center;background:var(--b2);border:1px solid var(--bm);border-radius:18px;padding:3px;gap:1px;flex-shrink:0">
-      <button onclick="openAcademyModal()" id="academyBtn"
-        title="학원 코드 관리"
-        style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
-        onmouseover="this.style.background='rgba(206,147,216,.15)';this.style.color='#CE93D8'"
-        onmouseout="this.style.background='transparent';this.style.color=academyBtnActiveColor()">
-        <span>🏫</span><span id="academyBtnLabel">코드</span>
-      </button>
-      <div style="width:1px;height:16px;background:var(--bo)"></div>
-      <button onclick="openDashboard()" id="dashboardBtn"
-        title="채점 현황 대시보드"
-        style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
-        onmouseover="this.style.background='rgba(255,183,77,.15)';this.style.color='#FFB74D'"
-        onmouseout="this.style.background='transparent';this.style.color='var(--t2)'">
-        <span>📊</span><span>현황</span>
-      </button>
-      <div style="width:1px;height:16px;background:var(--bo)"></div>
-      <a href="/grading" target="_blank"
-        title="채점 프로그램 (조교용)"
-        style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
-        onmouseover="this.style.background='rgba(29,185,84,.15)'"
-        onmouseout="this.style.background='transparent'">
-        <span>📷</span><span>채점 →</span>
-      </a>
-    </div>
-
-    <!-- 설정 (API 키 — 자주 안 누름) -->
-    <button onclick="openApiKeyModal()" id="apiKeyBtn"
-      title="API 키 설정"
-      style="width:32px;height:32px;padding:0;background:var(--b2);border:1px solid var(--bm);
-        border-radius:50%;color:var(--t2);font-family:var(--f);font-size:13px;font-weight:600;
-        cursor:pointer;transition:all .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center"
-      onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
-      onmouseout="this.style.borderColor=apiKeyBtnBorderColor();this.style.color=apiKeyBtnColor()">⚙</button>
-
-    <div class="vbadge">v2.0</div>
   </div>
 </header>
 
