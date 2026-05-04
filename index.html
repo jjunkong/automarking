@@ -49,14 +49,16 @@ header{
 .vbadge{font-size:11px;font-weight:600;background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.25);padding:4px 12px;border-radius:20px}
 
 /* ── TABS ── */
-.tabs{display:inline-flex;gap:4px;background:var(--b2);border-radius:10px;padding:4px}
+.tabs{display:flex;gap:4px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);padding:4px;width:100%}
 .tab{
-  padding:8px 20px;border-radius:7px;border:none;cursor:pointer;
+  flex:1;
+  padding:10px 20px;border-radius:8px;border:none;cursor:pointer;
   font-family:var(--f);font-size:13px;font-weight:600;
   color:var(--t2);background:transparent;transition:all .2s;
+  white-space:nowrap;
 }
 .tab.active{background:var(--b3);color:var(--t0);box-shadow:0 1px 4px rgba(0,0,0,.3)}
-.tab:hover:not(.active){color:var(--t1)}
+.tab:hover:not(.active){color:var(--t1);background:rgba(255,255,255,.02)}
 
 /* ── MAIN ── */
 main{max-width:1160px;margin:0 auto;padding:20px 20px 24px;display:grid;grid-template-columns:1fr 320px;gap:20px}
