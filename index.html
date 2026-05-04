@@ -843,6 +843,44 @@ select option{background:#282828}
   </div>
 </div>
 
+<!-- 채점 기록 수정 모달 -->
+<div id="editRecordModal" style="display:none;position:fixed;inset:0;z-index:210;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:680px;width:100%;max-height:92vh;overflow:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">✎ 채점 기록 수정</div>
+        <div id="editRecordMeta" style="font-size:12px;color:var(--t2)"></div>
+      </div>
+      <button onclick="closeEditRecord()"
+        style="height:32px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer">취소</button>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;display:block;margin-bottom:6px">학생 이름</label>
+      <input type="text" id="editRecordName" placeholder="학생 이름"
+        style="width:100%;height:42px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--f);font-size:14px;color:var(--t0);outline:none">
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);margin-bottom:14px">
+      <div style="font-size:12px;color:var(--t2)">현재 점수 (자동 재계산됨)</div>
+      <div id="editRecordScore" style="font-family:var(--m);font-size:18px;font-weight:800"></div>
+    </div>
+
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px;line-height:1.5">
+      💡 <strong style="color:var(--g)">O</strong> / <strong style="color:#ff6b6b">X</strong> 버튼을 클릭하면 채점 결과를 수정할 수 있어요. 수정하면 모든 기기에 자동 반영됩니다.
+    </div>
+
+    <div id="editRecordList" style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto;margin-bottom:18px;padding:6px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)"></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeEditRecord()"
+        style="height:42px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:21px;color:var(--t1);font-family:var(--f);font-size:13px;cursor:pointer">취소</button>
+      <button onclick="saveEditRecordPC()" id="editRecordSaveBtn"
+        style="height:42px;padding:0 24px;background:var(--g);border:none;border-radius:21px;color:#000;font-family:var(--f);font-size:13px;font-weight:800;cursor:pointer">✓ 저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 채점 현황 대시보드 모달 -->
 <div id="dashboardModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;overflow:auto">
   <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:960px;width:100%;max-height:92vh;overflow:auto">
@@ -2434,9 +2472,12 @@ function renderDashboard() {
     failEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">재시험 대상자 없음 ✓</div>';
   } else {
     failEl.innerHTML = failList.map(r => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='rgba(255,183,77,.08)'"
+        onmouseout="this.style.background='var(--b3)'"
+        onclick="openEditRecordPC('${r.id}')" title="클릭하여 수정">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700">${escapeHtmlPC(r.student||'(이름 없음)')}</div>
+          <div style="font-size:13px;font-weight:700">${escapeHtmlPC(r.student||'(이름 없음)')}${r.editedAt ? ' <span style="font-size:9px;color:var(--t2);font-weight:500">✎</span>' : ''}</div>
           <div style="font-size:10px;color:var(--t2);margin-top:2px">${escapeHtmlPC(r.keyName||'')} · ${r.date} ${r.time||''}</div>
         </div>
         <div style="font-family:var(--m);font-size:13px;font-weight:700;color:#ff6b6b">${r.score}/${r.total}</div>
@@ -2449,9 +2490,12 @@ function renderDashboard() {
     allEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">데이터 없음</div>';
   } else {
     allEl.innerHTML = filtered.slice(0, 200).map(r => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='rgba(255,183,77,.08)'"
+        onmouseout="this.style.background='var(--b3)'"
+        onclick="openEditRecordPC('${r.id}')" title="클릭하여 수정">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600">${escapeHtmlPC(r.student||'(이름 없음)')}</div>
+          <div style="font-size:13px;font-weight:600">${escapeHtmlPC(r.student||'(이름 없음)')}${r.editedAt ? ' <span style="font-size:9px;color:var(--t2);font-weight:500">✎</span>' : ''}</div>
           <div style="font-size:10px;color:var(--t2);margin-top:2px">${escapeHtmlPC(r.keyName||'')} · ${r.date} ${r.time||''}</div>
         </div>
         <div style="text-align:right">
@@ -2525,6 +2569,142 @@ async function clearAllDashboardRecords() {
     showToast('삭제 실패: ' + (r.error || '서버 오류'), 'err');
   }
 }
+
+// ══ PC 채점 기록 수정 ════════════════════════════════════════
+let editRecordPCState = { recordId: null, record: null };
+
+function openEditRecordPC(id) {
+  const rec = (dashboardState.records || []).find(r => String(r.id) === String(id));
+  if (!rec) {
+    showToast('기록을 찾을 수 없어요', 'err');
+    return;
+  }
+  // 깊은 복사 (취소 시 원본 보존)
+  editRecordPCState.recordId = id;
+  editRecordPCState.record = JSON.parse(JSON.stringify(rec));
+  renderEditRecordPC();
+  document.getElementById('editRecordModal').style.display = 'flex';
+}
+
+function closeEditRecord() {
+  document.getElementById('editRecordModal').style.display = 'none';
+  editRecordPCState = { recordId: null, record: null };
+}
+
+function renderEditRecordPC() {
+  const r = editRecordPCState.record;
+  if (!r) return;
+  document.getElementById('editRecordMeta').textContent = `${r.keyName || ''} · ${r.date || ''} ${r.time || ''}`;
+  document.getElementById('editRecordName').value = r.student || '';
+  updateEditRecordScorePC();
+  const list = document.getElementById('editRecordList');
+  if (!r.results || r.results.length === 0) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">상세 결과가 없어요</div>';
+    return;
+  }
+  list.innerHTML = r.results.map((row, i) => renderEditRowPC(row, i)).join('');
+}
+
+function renderEditRowPC(row, idx) {
+  const status = row.correct === true ? 'ok' : row.correct === false ? 'err' : 'unc';
+  const statusBg = status === 'ok' ? 'rgba(29,185,84,.08)' : status === 'err' ? 'rgba(255,107,107,.08)' : 'var(--b3)';
+  const statusBorder = status === 'ok' ? 'rgba(29,185,84,.3)' : status === 'err' ? 'rgba(255,107,107,.3)' : 'var(--bo)';
+  return `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${statusBg};border:1px solid ${statusBorder};border-radius:6px">
+      <div style="width:36px;font-family:var(--m);font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0">${row.num}.</div>
+      <div style="flex:1;min-width:0;font-size:13px;${row.student ? '' : 'color:var(--t2);font-style:italic'}">${row.student ? escapeHtmlPC(row.student) : '(빈칸)'}</div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button onclick="setRowResultPC(${idx}, true)"
+          style="width:32px;height:32px;border-radius:50%;border:1px solid ${row.correct===true?'var(--g)':'var(--bm)'};background:${row.correct===true?'var(--g)':'transparent'};color:${row.correct===true?'#000':'var(--t2)'};font-weight:700;cursor:pointer;font-size:13px">O</button>
+        <button onclick="setRowResultPC(${idx}, false)"
+          style="width:32px;height:32px;border-radius:50%;border:1px solid ${row.correct===false?'#ff6b6b':'var(--bm)'};background:${row.correct===false?'#ff6b6b':'transparent'};color:${row.correct===false?'#fff':'var(--t2)'};font-weight:700;cursor:pointer;font-size:13px">X</button>
+      </div>
+    </div>`;
+}
+
+function setRowResultPC(idx, correct) {
+  const r = editRecordPCState.record;
+  if (!r || !r.results || !r.results[idx]) return;
+  // 같은 값 다시 누르면 토글 해제
+  if (r.results[idx].correct === correct) {
+    r.results[idx].correct = null;
+  } else {
+    r.results[idx].correct = correct;
+  }
+  recalculateRecordScore(r);
+  document.getElementById('editRecordList').innerHTML =
+    r.results.map((row, i) => renderEditRowPC(row, i)).join('');
+  updateEditRecordScorePC();
+}
+
+function recalculateRecordScore(r) {
+  if (!r || !r.results) return;
+  const okCount = r.results.filter(x => x.correct === true).length;
+  r.score = okCount;
+  const passNum = Math.ceil((r.total || r.results.length) * (r.passRate || 90) / 100);
+  r.passed = okCount >= passNum;
+}
+
+function updateEditRecordScorePC() {
+  const r = editRecordPCState.record;
+  if (!r) return;
+  const pct = r.total > 0 ? Math.round(r.score / r.total * 100) : 0;
+  const verdict = r.passed ? '통과' : '재시험';
+  const color = r.passed ? 'var(--g)' : '#ff6b6b';
+  document.getElementById('editRecordScore').innerHTML =
+    `<span style="color:${color}">${r.score}/${r.total} · ${pct}% · ${verdict}</span>`;
+}
+
+async function saveEditRecordPC() {
+  const newName = document.getElementById('editRecordName').value.trim();
+  if (!newName) {
+    showToast('학생 이름을 입력해 주세요', 'err');
+    return;
+  }
+  const r = editRecordPCState.record;
+  r.student = newName;
+  recalculateRecordScore(r);
+
+  const btn = document.getElementById('editRecordSaveBtn');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = '⏳ 저장 중...';
+
+  const updates = {
+    student: r.student,
+    score: r.score,
+    passed: r.passed,
+    results: r.results,
+  };
+  const resp = await cloudSync('updateRecord', {
+    code: getAcademyCode(),
+    recordId: String(editRecordPCState.recordId),
+    updates: updates
+  });
+
+  btn.disabled = false;
+  btn.textContent = oldText;
+
+  if (!resp.ok) {
+    if (resp.status === 404) {
+      showToast('서버에 기록이 없어요. 새로고침 후 다시 시도해주세요.', 'err');
+    } else {
+      showToast('저장 실패: ' + (resp.error || '서버 오류'), 'err');
+    }
+    return;
+  }
+
+  // 대시보드 상태도 업데이트
+  const idx = dashboardState.records.findIndex(x => String(x.id) === String(editRecordPCState.recordId));
+  if (idx !== -1) {
+    dashboardState.records[idx] = { ...dashboardState.records[idx], ...resp.record };
+  }
+
+  closeEditRecord();
+  renderDashboard();
+  showToast('✓ 수정 완료 (모든 기기에 반영)', 'ok');
+}
+// ════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════
 // 페이지 로드 시 키 상태 반영
 document.addEventListener('DOMContentLoaded', ()=>{
