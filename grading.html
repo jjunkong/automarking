@@ -394,6 +394,16 @@ body{padding-bottom:52px}
     </div>
   </div>
 
+  <details style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:10px 14px">
+    <summary style="font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;user-select:none">📱 아이폰에서 사진 안 올라가면? (HEIC 형식)</summary>
+    <div style="font-size:12px;color:var(--t1);line-height:1.7;margin-top:10px;padding-top:10px;border-top:1px dashed var(--bo)">
+      iPhone 기본 설정은 HEIC 형식이라 브라우저에서 못 읽는 경우가 있어요.<br><br>
+      <strong style="color:var(--g)">한 번만 설정하면 끝:</strong><br>
+      <span style="color:var(--t2)">설정 앱 → 카메라 → 포맷 → <strong style="color:var(--g)">"호환성 우선"</strong> 선택</span><br><br>
+      이렇게 하면 새로 찍는 사진은 모두 JPEG로 저장돼서 잘 올라가요.
+    </div>
+  </details>
+
   <button class="btn btn-g" id="gradeBtn" onclick="startGrading()" disabled>
     <span style="font-size:18px">⚡</span> AI 채점 시작
   </button>
@@ -747,45 +757,126 @@ function checkSetupReady() {
 }
 
 // ── 사진 선택 ─────────────────────────────────────────────
+// 갤럭시/아이폰 모두 호환되도록 Canvas 기반으로 처리.
+// 어떤 형식이든 JPEG로 자동 변환해서 API에 전송.
 function onPhotoSelected(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files && e.target.files[0];
+  if (!file) {
+    showToast('파일이 선택되지 않았어요', 'err');
+    return;
+  }
 
-  // 파일 크기 검증 (10MB 이하)
-  if (file.size > 10 * 1024 * 1024) {
-    showToast('사진이 너무 커요. 10MB 이하 사진을 사용해주세요.', 'err');
+  // 디버그 정보
+  console.log('[photo] selected:', {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    sizeMB: (file.size / (1024*1024)).toFixed(2)
+  });
+
+  // 파일 검증
+  if (file.size === 0) {
+    showToast('빈 파일이에요. 다른 사진을 선택해주세요.', 'err');
+    return;
+  }
+  if (file.size > 30 * 1024 * 1024) {
+    const mb = (file.size / (1024*1024)).toFixed(1);
+    showToast(`사진이 너무 커요 (${mb}MB). 30MB 이하 사진을 사용해주세요.`, 'err');
+    return;
+  }
+  // image/* 인지 확인 (HEIC도 image/heic 으로 옴)
+  if (file.type && !file.type.startsWith('image/')) {
+    showToast(`이미지 파일만 가능해요 (현재: ${file.type})`, 'err');
     return;
   }
 
   state.photoFile = file;
-  state.photoMime = file.type || 'image/jpeg';
+  showToast('📷 사진 처리 중...', '');
 
-  const reader = new FileReader();
-  reader.onload = r => {
+  // URL.createObjectURL — FileReader보다 안정적
+  let objectUrl;
+  try {
+    objectUrl = URL.createObjectURL(file);
+  } catch (err) {
+    console.error('[photo] createObjectURL failed:', err);
+    showToast('사진을 읽을 수 없어요: ' + err.message, 'err');
+    return;
+  }
+
+  // 임시 Image 객체로 디코딩 시도
+  const img = new Image();
+
+  img.onload = () => {
+    console.log('[photo] image decoded:', img.naturalWidth, 'x', img.naturalHeight);
     try {
-      const b64full = r.result;
-      if (!b64full || typeof b64full !== 'string') {
-        showToast('사진을 읽을 수 없어요. 다시 시도해주세요.', 'err');
+      // 큰 사진은 자동 리사이즈 (긴 변 1600px 제한 — API 비용 절감 + 속도)
+      const MAX_DIM = 1600;
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+        else       { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+      }
+
+      // Canvas로 JPEG 변환 (어떤 형식이든 통일)
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        showToast('Canvas 사용 불가. 다른 브라우저를 시도해주세요.', 'err');
+        URL.revokeObjectURL(objectUrl);
         return;
       }
-      state.photoB64 = b64full.split(',')[1];
+      ctx.drawImage(img, 0, 0, w, h);
 
-      const img = document.getElementById('photoPreview');
-      img.src = b64full;
+      // JPEG로 변환 (품질 88% — AI 인식엔 충분, 용량 절약)
+      const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      if (!jpegDataUrl || !jpegDataUrl.startsWith('data:image/jpeg')) {
+        showToast('사진 변환 실패. 다른 사진을 시도해주세요.', 'err');
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+
+      // base64 추출
+      const commaIdx = jpegDataUrl.indexOf(',');
+      state.photoB64 = jpegDataUrl.substring(commaIdx + 1);
+      state.photoMime = 'image/jpeg';
+      console.log('[photo] converted to JPEG, base64 length:', state.photoB64.length);
+
+      // 미리보기 표시
+      const preview = document.getElementById('photoPreview');
+      preview.src = jpegDataUrl;
       document.getElementById('photoArea').style.display = '';
       document.getElementById('photoArea').classList.add('has-photo');
       document.getElementById('photoButtons').style.display = 'none';
       document.getElementById('retakeBtn').style.display = 'block';
       document.getElementById('gradeBtn').disabled = false;
+
+      // 메모리 해제
+      URL.revokeObjectURL(objectUrl);
       showToast('✓ 사진이 준비됐어요', 'ok');
     } catch (err) {
+      console.error('[photo] canvas processing error:', err);
       showToast('사진 처리 실패: ' + err.message, 'err');
+      URL.revokeObjectURL(objectUrl);
     }
   };
-  reader.onerror = () => {
-    showToast('사진을 읽는 중 오류가 났어요.', 'err');
+
+  img.onerror = (err) => {
+    console.error('[photo] image decode failed:', err);
+    URL.revokeObjectURL(objectUrl);
+    // HEIC 등 브라우저가 못 디코딩하는 형식
+    const isLikelyHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
+                         /\.heic$|\.heif$/i.test(file.name || '');
+    if (isLikelyHeic) {
+      showToast('HEIC 형식은 일부 브라우저에서 안 읽혀요. 아이폰 설정 → 카메라 → 포맷 → "호환성 우선"으로 변경해주세요.', 'err');
+    } else {
+      showToast(`사진을 디코딩할 수 없어요 (${file.type || '알 수 없음'}). 다른 사진을 시도해주세요.`, 'err');
+    }
   };
-  reader.readAsDataURL(file);
+
+  img.src = objectUrl;
 }
 
 function retakePhoto() {
