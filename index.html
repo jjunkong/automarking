@@ -274,6 +274,12 @@ select option{background:#282828}
         cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
       onmouseover="this.style.borderColor='#CE93D8';this.style.color='#CE93D8'"
       onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">🏫 학원 코드</button>
+    <button onclick="openDashboard()" id="dashboardBtn"
+      style="height:32px;padding:0 12px;background:var(--b2);border:1px solid var(--bm);
+        border-radius:16px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;
+        cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
+      onmouseover="this.style.borderColor='#FFB74D';this.style.color='#FFB74D'"
+      onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">📊 채점 현황</button>
     <a href="/grading" target="_blank"
       style="height:32px;padding:0 14px;background:rgba(29,185,84,.1);border:1px solid rgba(29,185,84,.4);
         border-radius:16px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;
@@ -834,6 +840,93 @@ select option{background:#282828}
       <button onclick="saveApiKey()" style="flex:1;height:44px;background:var(--g);border:none;border-radius:22px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">저장</button>
       <button onclick="closeApiKeyModal()" id="apiKeyCancelBtn" style="height:44px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:22px;color:var(--t1);font-family:var(--f);font-size:14px;cursor:pointer">취소</button>
     </div>
+  </div>
+</div>
+
+<!-- 채점 현황 대시보드 모달 -->
+<div id="dashboardModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:960px;width:100%;max-height:92vh;overflow:auto">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:4px">📊 채점 현황 대시보드</div>
+        <div id="dashboardSub" style="font-size:12px;color:var(--t2)">전체 채점 기록을 한눈에</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="refreshDashboard()" id="dashboardRefreshBtn"
+          style="height:34px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:17px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer">🔄 새로고침</button>
+        <button onclick="closeDashboard()"
+          style="height:34px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:17px;color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer">닫기</button>
+      </div>
+    </div>
+
+    <!-- 기간 필터 -->
+    <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap">
+      <button onclick="setDashboardPeriod('today')" data-period="today" class="dash-period"
+        style="height:34px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:17px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer">오늘</button>
+      <button onclick="setDashboardPeriod('week')" data-period="week" class="dash-period"
+        style="height:34px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:17px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer">이번 주</button>
+      <button onclick="setDashboardPeriod('month')" data-period="month" class="dash-period"
+        style="height:34px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:17px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer">이번 달</button>
+      <button onclick="setDashboardPeriod('all')" data-period="all" class="dash-period"
+        style="height:34px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:17px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer">전체</button>
+      <div style="flex:1"></div>
+      <button onclick="downloadDashboardCsv()"
+        style="height:34px;padding:0 14px;background:rgba(29,185,84,.1);border:1px solid rgba(29,185,84,.4);border-radius:17px;color:var(--g);font-family:var(--f);font-size:12px;font-weight:700;cursor:pointer">📥 CSV 다운로드</button>
+    </div>
+
+    <!-- 요약 통계 -->
+    <div id="dashboardStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+      <div style="padding:14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
+        <div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">총 채점</div>
+        <div id="statTotal" style="font-size:24px;font-weight:800;font-family:var(--m)">0</div>
+      </div>
+      <div style="padding:14px;background:var(--b2);border:1px solid rgba(29,185,84,.3);border-radius:var(--r)">
+        <div style="font-size:10px;color:var(--g);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">통과</div>
+        <div id="statPass" style="font-size:24px;font-weight:800;font-family:var(--m);color:var(--g)">0</div>
+        <div id="statPassRate" style="font-size:10px;color:var(--t2);margin-top:2px">0%</div>
+      </div>
+      <div style="padding:14px;background:var(--b2);border:1px solid rgba(255,107,107,.3);border-radius:var(--r)">
+        <div style="font-size:10px;color:#ff6b6b;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">재시험</div>
+        <div id="statFail" style="font-size:24px;font-weight:800;font-family:var(--m);color:#ff6b6b">0</div>
+        <div id="statFailRate" style="font-size:10px;color:var(--t2);margin-top:2px">0%</div>
+      </div>
+      <div style="padding:14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
+        <div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">평균 점수</div>
+        <div id="statAvg" style="font-size:24px;font-weight:800;font-family:var(--m)">-</div>
+      </div>
+    </div>
+
+    <!-- 시험별 통계 -->
+    <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px">시험별 통과율</div>
+      <div id="dashboardByExam" style="display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">데이터 없음</div>
+      </div>
+    </div>
+
+    <!-- 재시험 명단 -->
+    <div style="background:var(--b2);border:1px solid rgba(255,107,107,.2);border-radius:var(--r);padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#ff6b6b;letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px">📋 재시험 대상자</div>
+      <div id="dashboardFailList" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto">
+        <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">없음</div>
+      </div>
+    </div>
+
+    <!-- 전체 기록 -->
+    <details style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:14px">
+      <summary style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase;cursor:pointer;user-select:none">📚 전체 채점 기록 (펼치기)</summary>
+      <div id="dashboardAllRecords" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px dashed var(--bo)">
+        <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">데이터 없음</div>
+      </div>
+    </details>
+
+    <!-- 위험 영역 -->
+    <div style="margin-top:18px;padding:12px;background:rgba(255,107,107,.05);border:1px dashed rgba(255,107,107,.3);border-radius:var(--r);display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="font-size:11px;color:var(--t2);line-height:1.5">⚠ 모든 기록을 영구 삭제합니다. 모든 조교 폰에서도 삭제됩니다.</div>
+      <button onclick="clearAllDashboardRecords()" style="height:32px;padding:0 14px;background:transparent;border:1px solid rgba(255,107,107,.4);border-radius:16px;color:#ff6b6b;font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🗑 전체 삭제</button>
+    </div>
+
   </div>
 </div>
 
@@ -2204,6 +2297,235 @@ async function syncApiKeyToCloud() {
   if (!code || !key) return;
   await cloudSync('setApiKey', { code, apiKey: key });
 }
+
+// ══ 채점 현황 대시보드 ═══════════════════════════════════════
+let dashboardState = {
+  records: [],
+  period: 'today', // 'today' | 'week' | 'month' | 'all'
+};
+
+function openDashboard() {
+  if (!getAcademyCode()) {
+    if (confirm('학원 코드가 없어요. 코드를 먼저 발급할까요?')) {
+      openAcademyModal();
+    }
+    return;
+  }
+  document.getElementById('dashboardModal').style.display = 'flex';
+  setDashboardPeriod(dashboardState.period || 'today');
+  refreshDashboard();
+}
+function closeDashboard() {
+  document.getElementById('dashboardModal').style.display = 'none';
+}
+
+function setDashboardPeriod(period) {
+  dashboardState.period = period;
+  // 버튼 활성화 표시
+  document.querySelectorAll('.dash-period').forEach(b => {
+    if (b.dataset.period === period) {
+      b.style.background = 'rgba(255,183,77,.15)';
+      b.style.borderColor = '#FFB74D';
+      b.style.color = '#FFB74D';
+    } else {
+      b.style.background = 'var(--b3)';
+      b.style.borderColor = 'var(--bm)';
+      b.style.color = 'var(--t1)';
+    }
+  });
+  renderDashboard();
+}
+
+async function refreshDashboard() {
+  const code = getAcademyCode();
+  if (!code) return;
+  const btn = document.getElementById('dashboardRefreshBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 불러오는 중...'; }
+  const r = await cloudSync('listRecords', { code, limit: 1000 });
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
+  if (!r.ok) {
+    if (r.status === 404) {
+      showToast('학원 코드가 무효해요. 다시 확인해주세요.', 'err');
+      return;
+    }
+    showToast('불러오기 실패: ' + (r.error || '서버 오류'), 'err');
+    return;
+  }
+  dashboardState.records = r.records || [];
+  document.getElementById('dashboardSub').textContent =
+    `학원 전체 기록 ${dashboardState.records.length}건 · 마지막 업데이트: ${new Date().toLocaleTimeString('ko-KR')}`;
+  renderDashboard();
+}
+
+function getDashboardFilteredRecords() {
+  const records = dashboardState.records || [];
+  const period = dashboardState.period || 'today';
+  const now = new Date();
+  let cutoff = null;
+  if (period === 'today') {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === 'week') {
+    cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - 7);
+  } else if (period === 'month') {
+    cutoff = new Date(now);
+    cutoff.setMonth(now.getMonth() - 1);
+  }
+  if (!cutoff) return records;
+  return records.filter(r => {
+    const t = r.savedAt ? new Date(r.savedAt) : (r.id && /^\d+/.test(String(r.id)) ? new Date(parseInt(r.id)) : null);
+    return t && t >= cutoff;
+  });
+}
+
+function renderDashboard() {
+  const filtered = getDashboardFilteredRecords();
+  const total = filtered.length;
+  const passed = filtered.filter(r => r.passed).length;
+  const failed = total - passed;
+  const passRate = total > 0 ? Math.round(passed / total * 100) : 0;
+  const failRate = total > 0 ? 100 - passRate : 0;
+  const avgScore = total > 0
+    ? (filtered.reduce((s,r) => s + (r.score / r.total * 100), 0) / total).toFixed(1)
+    : '-';
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statPass').textContent = passed;
+  document.getElementById('statPassRate').textContent = passRate + '%';
+  document.getElementById('statFail').textContent = failed;
+  document.getElementById('statFailRate').textContent = failRate + '%';
+  document.getElementById('statAvg').textContent = avgScore !== '-' ? avgScore + '%' : '-';
+
+  // 시험별 통과율
+  const byExam = {};
+  filtered.forEach(r => {
+    const k = r.keyName || '(이름 없음)';
+    if (!byExam[k]) byExam[k] = { total:0, pass:0, sum:0 };
+    byExam[k].total++;
+    if (r.passed) byExam[k].pass++;
+    byExam[k].sum += (r.score / r.total * 100);
+  });
+  const examEntries = Object.entries(byExam).sort((a,b) => b[1].total - a[1].total);
+  const examEl = document.getElementById('dashboardByExam');
+  if (examEntries.length === 0) {
+    examEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">데이터 없음</div>';
+  } else {
+    examEl.innerHTML = examEntries.map(([k, v]) => {
+      const rate = Math.round(v.pass / v.total * 100);
+      const color = rate >= 80 ? 'var(--g)' : rate >= 60 ? '#FFB74D' : '#ff6b6b';
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtmlPC(k)}</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:2px">${v.total}명 응시 · 평균 ${(v.sum/v.total).toFixed(1)}%</div>
+        </div>
+        <div style="font-family:var(--m);font-size:14px;font-weight:700;color:${color};white-space:nowrap">${rate}%</div>
+        <div style="width:80px;height:6px;background:var(--b2);border-radius:3px;overflow:hidden;flex-shrink:0">
+          <div style="width:${rate}%;height:100%;background:${color}"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // 재시험 명단
+  const failList = filtered.filter(r => !r.passed);
+  const failEl = document.getElementById('dashboardFailList');
+  if (failList.length === 0) {
+    failEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">재시험 대상자 없음 ✓</div>';
+  } else {
+    failEl.innerHTML = failList.map(r => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700">${escapeHtmlPC(r.student||'(이름 없음)')}</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:2px">${escapeHtmlPC(r.keyName||'')} · ${r.date} ${r.time||''}</div>
+        </div>
+        <div style="font-family:var(--m);font-size:13px;font-weight:700;color:#ff6b6b">${r.score}/${r.total}</div>
+      </div>`).join('');
+  }
+
+  // 전체 기록
+  const allEl = document.getElementById('dashboardAllRecords');
+  if (filtered.length === 0) {
+    allEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">데이터 없음</div>';
+  } else {
+    allEl.innerHTML = filtered.slice(0, 200).map(r => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${escapeHtmlPC(r.student||'(이름 없음)')}</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:2px">${escapeHtmlPC(r.keyName||'')} · ${r.date} ${r.time||''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--m);font-size:13px;font-weight:700;color:${r.passed?'var(--g)':'#ff6b6b'}">${r.score}/${r.total}</div>
+          <div style="font-size:10px;color:${r.passed?'var(--g)':'#ff6b6b'}">${r.passed?'통과':'재시험'}</div>
+        </div>
+      </div>`).join('') + (filtered.length > 200 ? '<div style="font-size:11px;color:var(--t2);text-align:center;padding:10px">더 많은 기록은 CSV로 다운로드해주세요</div>' : '');
+  }
+}
+
+function escapeHtmlPC(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function downloadDashboardCsv() {
+  const filtered = getDashboardFilteredRecords();
+  if (filtered.length === 0) { showToast('내보낼 데이터가 없어요', 'err'); return; }
+
+  const rows = [
+    ['날짜', '시간', '학생', '시험', '점수', '총점', '백분율', '판정']
+  ];
+  filtered.forEach(r => {
+    const pct = r.total > 0 ? Math.round(r.score / r.total * 100) + '%' : '';
+    rows.push([
+      r.date || '',
+      r.time || '',
+      r.student || '',
+      r.keyName || '',
+      r.score ?? '',
+      r.total ?? '',
+      pct,
+      r.passed ? '통과' : '재시험'
+    ]);
+  });
+  // CSV 생성 (BOM 추가 → 엑셀 한글 호환)
+  const csv = '\uFEFF' + rows.map(row =>
+    row.map(cell => {
+      const s = String(cell);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(',')
+  ).join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const today = new Date().toISOString().slice(0,10);
+  a.download = `채점기록_${dashboardState.period}_${today}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`✓ ${filtered.length}건 다운로드됨`, 'ok');
+}
+
+async function clearAllDashboardRecords() {
+  if (!confirm('⚠ 학원 전체 채점 기록을 모두 영구 삭제할까요?\n\n이 작업은 되돌릴 수 없으며, 모든 조교 폰에서도 자동으로 삭제됩니다.')) return;
+  const code = getAcademyCode();
+  if (!code) return;
+  const r = await cloudSync('clearRecords', { code });
+  if (r.ok) {
+    dashboardState.records = [];
+    renderDashboard();
+    document.getElementById('dashboardSub').textContent = '학원 전체 기록 0건 · 모두 삭제됨';
+    showToast(`✓ ${r.deleted || 0}개 기록 영구 삭제됨`, 'ok');
+  } else {
+    showToast('삭제 실패: ' + (r.error || '서버 오류'), 'err');
+  }
+}
+// ════════════════════════════════════════════════════════════
 // 페이지 로드 시 키 상태 반영
 document.addEventListener('DOMContentLoaded', ()=>{
   if (getApiKey()) {
