@@ -347,20 +347,41 @@ body{padding-bottom:52px}
       <div class="cd" id="photoDesc">답안지 전체가 나오도록 수직으로 촬영해 주세요</div>
     </div>
     <div class="cb">
-      <div class="photo-area" id="photoArea" onclick="document.getElementById('photoInput').click()">
-        <div id="photoPlaceholder">
-          <div class="photo-icon">📸</div>
-          <div class="photo-text">탭하여 사진 촬영</div>
-          <div class="photo-sub">카메라 또는 갤러리에서 선택</div>
-        </div>
-        <img id="photoPreview" style="display:none;width:100%;border-radius:8px">
+      <!-- 사진 미리보기 영역 (사진 선택 후 표시) -->
+      <div class="photo-area" id="photoArea" style="display:none">
+        <img id="photoPreview" style="width:100%;border-radius:8px;display:block">
       </div>
-      <input type="file" id="photoInput" accept="image/*" capture="environment"
+
+      <!-- 사진 선택 버튼 2개 (카메라 / 갤러리) -->
+      <div id="photoButtons" style="display:flex;gap:10px">
+        <button onclick="document.getElementById('cameraInput').click()"
+          style="flex:1;height:120px;background:var(--b2);border:2px dashed var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:all .15s"
+          onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
+          onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'"
+          ontouchstart="this.style.borderColor='var(--g)'">
+          <span style="font-size:32px">📸</span>
+          <span style="font-size:13px;font-weight:700">카메라로 촬영</span>
+        </button>
+        <button onclick="document.getElementById('galleryInput').click()"
+          style="flex:1;height:120px;background:var(--b2);border:2px dashed var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:all .15s"
+          onmouseover="this.style.borderColor='#CE93D8';this.style.color='#CE93D8'"
+          onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'"
+          ontouchstart="this.style.borderColor='#CE93D8'">
+          <span style="font-size:32px">🖼</span>
+          <span style="font-size:13px;font-weight:700">갤러리에서 선택</span>
+        </button>
+      </div>
+
+      <!-- 숨겨진 file input 2개 -->
+      <input type="file" id="cameraInput" accept="image/*" capture="environment"
         style="display:none" onchange="onPhotoSelected(event)">
+      <input type="file" id="galleryInput" accept="image/*"
+        style="display:none" onchange="onPhotoSelected(event)">
+
       <button id="retakeBtn" onclick="retakePhoto()"
         style="display:none;margin-top:10px;width:100%;height:38px;background:transparent;
           border:1px solid var(--bm);border-radius:19px;color:var(--t2);font-family:var(--f);
-          font-size:13px;cursor:pointer">다시 찍기</button>
+          font-size:13px;cursor:pointer">📷 다른 사진 선택</button>
     </div>
   </div>
 
@@ -687,12 +708,16 @@ function goToPhoto() {
   }
   // 사진 초기화
   state.photoFile = null; state.photoB64 = null;
-  document.getElementById('photoPreview').style.display='none';
-  document.getElementById('photoPlaceholder').style.display='';
+  document.getElementById('photoArea').style.display='none';
+  document.getElementById('photoPreview').src = '';
+  document.getElementById('photoButtons').style.display='flex';
   document.getElementById('retakeBtn').style.display='none';
   document.getElementById('gradeBtn').disabled=true;
   document.getElementById('photoArea').classList.remove('has-photo');
-  showScreen('photo', `${name} — 사진 촬영`);
+  // input 값 초기화 (같은 사진 재선택 가능하도록)
+  document.getElementById('cameraInput').value = '';
+  document.getElementById('galleryInput').value = '';
+  showScreen('photo', name ? `${name} — 사진 촬영` : '사진 촬영');
 }
 function goBack() {
   const cur = document.querySelector('.screen.active').id;
@@ -725,30 +750,55 @@ function checkSetupReady() {
 function onPhotoSelected(e) {
   const file = e.target.files[0];
   if (!file) return;
+
+  // 파일 크기 검증 (10MB 이하)
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('사진이 너무 커요. 10MB 이하 사진을 사용해주세요.', 'err');
+    return;
+  }
+
   state.photoFile = file;
-  state.photoMime = file.type||'image/jpeg';
+  state.photoMime = file.type || 'image/jpeg';
+
   const reader = new FileReader();
   reader.onload = r => {
-    const b64full = r.result;
-    state.photoB64 = b64full.split(',')[1];
-    const img = document.getElementById('photoPreview');
-    img.src = b64full; img.style.display='block';
-    document.getElementById('photoPlaceholder').style.display='none';
-    document.getElementById('retakeBtn').style.display='block';
-    document.getElementById('gradeBtn').disabled=false;
-    document.getElementById('photoArea').classList.add('has-photo');
+    try {
+      const b64full = r.result;
+      if (!b64full || typeof b64full !== 'string') {
+        showToast('사진을 읽을 수 없어요. 다시 시도해주세요.', 'err');
+        return;
+      }
+      state.photoB64 = b64full.split(',')[1];
+
+      const img = document.getElementById('photoPreview');
+      img.src = b64full;
+      document.getElementById('photoArea').style.display = '';
+      document.getElementById('photoArea').classList.add('has-photo');
+      document.getElementById('photoButtons').style.display = 'none';
+      document.getElementById('retakeBtn').style.display = 'block';
+      document.getElementById('gradeBtn').disabled = false;
+      showToast('✓ 사진이 준비됐어요', 'ok');
+    } catch (err) {
+      showToast('사진 처리 실패: ' + err.message, 'err');
+    }
+  };
+  reader.onerror = () => {
+    showToast('사진을 읽는 중 오류가 났어요.', 'err');
   };
   reader.readAsDataURL(file);
 }
 
 function retakePhoto() {
-  document.getElementById('photoInput').value='';
-  document.getElementById('photoPreview').style.display='none';
-  document.getElementById('photoPlaceholder').style.display='';
-  document.getElementById('retakeBtn').style.display='none';
-  document.getElementById('gradeBtn').disabled=true;
+  document.getElementById('cameraInput').value = '';
+  document.getElementById('galleryInput').value = '';
+  document.getElementById('photoArea').style.display = 'none';
+  document.getElementById('photoPreview').src = '';
+  document.getElementById('photoButtons').style.display = 'flex';
+  document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('gradeBtn').disabled = true;
   document.getElementById('photoArea').classList.remove('has-photo');
-  state.photoB64=null;
+  state.photoB64 = null;
+  state.photoFile = null;
 }
 
 // ── AI 채점 시작 ──────────────────────────────────────────
