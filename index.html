@@ -51,7 +51,7 @@ header{
 .logo-mark:hover{box-shadow:0 0 0 6px var(--gg)}
 .logo-name{font-size:15px;font-weight:700;letter-spacing:-.3px}
 .logo-sub{font-size:11px;color:var(--t2);margin-top:1px}
-.vbadge{font-size:11px;font-weight:600;background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.25);padding:4px 12px;border-radius:20px}
+.vbadge{font-size:9px;font-weight:700;background:var(--gl);color:var(--g);border:1px solid rgba(29,185,84,.25);padding:2px 8px;border-radius:10px;letter-spacing:.3px}
 
 /* ── TABS ── */
 .tabs{display:flex;gap:4px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);padding:4px;width:100%}
@@ -267,7 +267,10 @@ select option{background:#282828}
     <div class="logo">
       <div class="logo-mark">KKJ</div>
       <div>
-        <div class="logo-name">김기준영어학원</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="logo-name">김기준영어학원</div>
+          <div class="vbadge">v2.0</div>
+        </div>
         <div class="logo-sub">OMR 자동 생성기</div>
       </div>
     </div>
@@ -307,8 +310,6 @@ select option{background:#282828}
           cursor:pointer;transition:all .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center"
         onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
         onmouseout="this.style.borderColor=apiKeyBtnBorderColor();this.style.color=apiKeyBtnColor()">⚙</button>
-
-      <div class="vbadge">v2.0</div>
     </div>
   </div>
 
