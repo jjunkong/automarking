@@ -2133,23 +2133,34 @@ function renderTypebBlank() {
     grid.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">문장 정보 없음</div>';
     return;
   }
-  let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+  const symbols = ['①','②','③','④','⑤'];
+  let html = `
+    <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5;padding:8px 12px;background:var(--b3);border-radius:6px;border:1px solid var(--bo)">
+      💡 <strong style="color:#29B6F6">복수 정답 가능</strong> — 한 bracket에 여러 개 클릭하면 모두 정답으로 처리돼요.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">`;
   passage.sentences.forEach((sent, sIdx) => {
     const qn = sIdx + 1;
     const brackets = sent.brackets || [];
     if (brackets.length === 0) return;
-    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">`;
-    html += `<div style="width:60px;font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0">문장 ${String(qn).padStart(2,'0')}</div>`;
-    html += `<div style="display:flex;flex-wrap:wrap;gap:6px;flex:1">`;
-    brackets.forEach((_, bIdx) => {
+    html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">`;
+    html += `<div style="width:60px;font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0;padding-top:5px">문장 ${String(qn).padStart(2,'0')}</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:10px 14px;flex:1">`;
+    brackets.forEach((choiceCount, bIdx) => {
       const bn = bIdx + 1;
       const key = `Q${qn}_B${bn}`;
-      const cur = typebAnswers.blank[key] || 0;
-      html += `<div style="display:flex;align-items:center;gap:3px">
-        <span style="font-size:11px;color:var(--t2);margin-right:2px">B${bn}:</span>
-        <button onclick="setTypebBlank('${key}', 1)" style="width:30px;height:30px;border-radius:50%;border:1px solid ${cur===1?'#29B6F6':'var(--bm)'};background:${cur===1?'rgba(41,182,246,.15)':'transparent'};color:${cur===1?'#29B6F6':'var(--t2)'};font-weight:700;cursor:pointer;font-size:12px">①</button>
-        <button onclick="setTypebBlank('${key}', 2)" style="width:30px;height:30px;border-radius:50%;border:1px solid ${cur===2?'#29B6F6':'var(--bm)'};background:${cur===2?'rgba(41,182,246,.15)':'transparent'};color:${cur===2?'#29B6F6':'var(--t2)'};font-weight:700;cursor:pointer;font-size:12px">②</button>
-      </div>`;
+      // 정답은 배열로 (복수 정답 지원)
+      const cur = Array.isArray(typebAnswers.blank[key]) ? typebAnswers.blank[key] : (typebAnswers.blank[key] ? [typebAnswers.blank[key]] : []);
+      // 실제 선택지 개수만큼 버튼 생성
+      const numChoices = Math.max(2, Math.min(5, choiceCount || 2));
+      html += `<div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:11px;color:var(--t2);margin-right:2px;font-weight:600">B${bn}:</span>`;
+      for (let ci = 1; ci <= numChoices; ci++) {
+        const isActive = cur.includes(ci);
+        html += `<button onclick="toggleTypebBlank('${key}', ${ci})"
+          style="width:30px;height:30px;border-radius:50%;border:1px solid ${isActive?'#29B6F6':'var(--bm)'};background:${isActive?'rgba(41,182,246,.15)':'transparent'};color:${isActive?'#29B6F6':'var(--t2)'};font-weight:700;cursor:pointer;font-size:12px">${symbols[ci-1]}</button>`;
+      }
+      html += `</div>`;
     });
     html += `</div></div>`;
   });
@@ -2157,13 +2168,31 @@ function renderTypebBlank() {
   grid.innerHTML = html;
 }
 
-function setTypebBlank(key, val) {
-  if (typebAnswers.blank[key] === val) {
-    delete typebAnswers.blank[key]; // 같은 값 다시 누르면 해제
+// 토글: 누르면 정답에 추가, 다시 누르면 해제 (복수 정답 가능)
+function toggleTypebBlank(key, val) {
+  let arr = typebAnswers.blank[key];
+  // 기존 단일 값이면 배열로 변환
+  if (!Array.isArray(arr)) {
+    arr = arr ? [arr] : [];
+  }
+  const idx = arr.indexOf(val);
+  if (idx >= 0) {
+    arr.splice(idx, 1); // 이미 있으면 제거
   } else {
-    typebAnswers.blank[key] = val;
+    arr.push(val);
+    arr.sort();
+  }
+  if (arr.length === 0) {
+    delete typebAnswers.blank[key];
+  } else {
+    typebAnswers.blank[key] = arr;
   }
   renderTypebBlank();
+}
+
+// 호환성을 위해 setTypebBlank도 유지 (기존 호출이 있을 경우)
+function setTypebBlank(key, val) {
+  toggleTypebBlank(key, val);
 }
 
 function clearTypebBlank() {
