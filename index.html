@@ -255,38 +255,54 @@ select option{background:#282828}
       <div class="logo-sub">OMR 자동 생성기</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap">
+    <!-- 생성 작업 탭 -->
     <div class="tabs">
       <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
       <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
       <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
       <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
     </div>
+
+    <!-- 구분선 -->
+    <div style="width:1px;height:22px;background:var(--bo);flex-shrink:0"></div>
+
+    <!-- 채점 시스템 그룹 (3개를 하나의 시각적 단위로) -->
+    <div style="display:flex;align-items:center;background:var(--b2);border:1px solid var(--bm);border-radius:18px;padding:3px;gap:1px;flex-shrink:0">
+      <button onclick="openAcademyModal()" id="academyBtn"
+        title="학원 코드 관리"
+        style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
+        onmouseover="this.style.background='rgba(206,147,216,.15)';this.style.color='#CE93D8'"
+        onmouseout="this.style.background='transparent';this.style.color=academyBtnActiveColor()">
+        <span>🏫</span><span id="academyBtnLabel">코드</span>
+      </button>
+      <div style="width:1px;height:16px;background:var(--bo)"></div>
+      <button onclick="openDashboard()" id="dashboardBtn"
+        title="채점 현황 대시보드"
+        style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
+        onmouseover="this.style.background='rgba(255,183,77,.15)';this.style.color='#FFB74D'"
+        onmouseout="this.style.background='transparent';this.style.color='var(--t2)'">
+        <span>📊</span><span>현황</span>
+      </button>
+      <div style="width:1px;height:16px;background:var(--bo)"></div>
+      <a href="/grading" target="_blank"
+        title="채점 프로그램 (조교용)"
+        style="height:30px;padding:0 12px;background:transparent;border:none;border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:5px"
+        onmouseover="this.style.background='rgba(29,185,84,.15)'"
+        onmouseout="this.style.background='transparent'">
+        <span>📷</span><span>채점 →</span>
+      </a>
+    </div>
+
+    <!-- 설정 (API 키 — 자주 안 누름) -->
     <button onclick="openApiKeyModal()" id="apiKeyBtn"
-      style="height:32px;padding:0 12px;background:var(--b2);border:1px solid var(--bm);
-        border-radius:16px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;
-        cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
+      title="API 키 설정"
+      style="width:32px;height:32px;padding:0;background:var(--b2);border:1px solid var(--bm);
+        border-radius:50%;color:var(--t2);font-family:var(--f);font-size:13px;font-weight:600;
+        cursor:pointer;transition:all .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center"
       onmouseover="this.style.borderColor='var(--g)';this.style.color='var(--g)'"
-      onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">🔑 API 키</button>
-    <button onclick="openAcademyModal()" id="academyBtn"
-      style="height:32px;padding:0 12px;background:var(--b2);border:1px solid var(--bm);
-        border-radius:16px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;
-        cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
-      onmouseover="this.style.borderColor='#CE93D8';this.style.color='#CE93D8'"
-      onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">🏫 학원 코드</button>
-    <button onclick="openDashboard()" id="dashboardBtn"
-      style="height:32px;padding:0 12px;background:var(--b2);border:1px solid var(--bm);
-        border-radius:16px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;
-        cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0"
-      onmouseover="this.style.borderColor='#FFB74D';this.style.color='#FFB74D'"
-      onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">📊 채점 현황</button>
-    <a href="/grading" target="_blank"
-      style="height:32px;padding:0 14px;background:rgba(29,185,84,.1);border:1px solid rgba(29,185,84,.4);
-        border-radius:16px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;
-        text-decoration:none;display:inline-flex;align-items:center;gap:4px;
-        white-space:nowrap;transition:all .2s;flex-shrink:0"
-      onmouseover="this.style.background='rgba(29,185,84,.2)'"
-      onmouseout="this.style.background='rgba(29,185,84,.1)'">📷 채점 프로그램 →</a>
+      onmouseout="this.style.borderColor=apiKeyBtnBorderColor();this.style.color=apiKeyBtnColor()">⚙</button>
+
     <div class="vbadge">v2.0</div>
   </div>
 </header>
@@ -1091,26 +1107,32 @@ function updateAcademyUI() {
   const code = getAcademyCode();
   const cur = document.getElementById('academyCurrentArea');
   const empty = document.getElementById('academyEmptyArea');
+  const label = document.getElementById('academyBtnLabel');
   const btn = document.getElementById('academyBtn');
-  if (!cur) return;
-  if (code) {
-    cur.style.display = '';
-    empty.style.display = 'none';
-    document.getElementById('academyCurrentCode').textContent = code;
-    if (btn) {
-      btn.textContent = '🏫 ' + code;
-      btn.style.borderColor = 'rgba(206,147,216,.5)';
-      btn.style.color = '#CE93D8';
-    }
-  } else {
-    cur.style.display = 'none';
-    empty.style.display = '';
-    if (btn) {
-      btn.textContent = '🏫 학원 코드';
-      btn.style.borderColor = '';
-      btn.style.color = '';
+  if (cur) {
+    if (code) {
+      cur.style.display = '';
+      empty.style.display = 'none';
+      const codeEl = document.getElementById('academyCurrentCode');
+      if (codeEl) codeEl.textContent = code;
+    } else {
+      cur.style.display = 'none';
+      empty.style.display = '';
     }
   }
+  // 헤더 버튼 라벨 — 코드 있으면 코드 표시, 없으면 "코드"
+  if (label) {
+    label.textContent = code ? code.replace('KKJ-', '') : '코드';
+  }
+  // 코드 있으면 항상 보라색으로 표시
+  if (btn) {
+    btn.style.color = code ? '#CE93D8' : 'var(--t2)';
+  }
+}
+
+// 학원 버튼의 활성 상태 색상 (코드 있으면 보라, 없으면 회색)
+function academyBtnActiveColor() {
+  return getAcademyCode() ? '#CE93D8' : 'var(--t2)';
 }
 
 async function createAcademyCode() {
@@ -2306,9 +2328,7 @@ async function saveApiKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key.startsWith('sk-ant-')) { showToast('올바른 API 키 형식이 아니에요 (sk-ant-로 시작)','err'); return; }
   localStorage.setItem('kkj_api_key', key);
-  document.getElementById('apiKeyBtn').style.borderColor = 'rgba(29,185,84,.4)';
-  document.getElementById('apiKeyBtn').style.color = 'var(--g)';
-  document.getElementById('apiKeyBtn').textContent = '🔑 API 키 ✓';
+  updateApiKeyBtnUI();
 
   // 클라우드 동기화 시도
   const code = getAcademyCode();
@@ -2326,6 +2346,27 @@ async function saveApiKey() {
     closeApiKeyModal();
     showToast('✓ API 키가 이 PC에 저장됐어요\n💡 학원 코드를 발급하면 조교 폰과 연동돼요', 'ok');
   }
+}
+
+// API 키 버튼 UI 업데이트 (있으면 초록색 ⚙, 없으면 회색 ⚙)
+function updateApiKeyBtnUI() {
+  const btn = document.getElementById('apiKeyBtn');
+  if (!btn) return;
+  if (getApiKey()) {
+    btn.style.borderColor = 'rgba(29,185,84,.5)';
+    btn.style.color = 'var(--g)';
+  } else {
+    btn.style.borderColor = '';
+    btn.style.color = '';
+  }
+}
+
+// onmouseout에서 사용
+function apiKeyBtnBorderColor() {
+  return getApiKey() ? 'rgba(29,185,84,.5)' : 'var(--bm)';
+}
+function apiKeyBtnColor() {
+  return getApiKey() ? 'var(--g)' : 'var(--t2)';
 }
 
 // 학원 코드 발급/입력 직후 → 기존 API 키도 클라우드에 자동 업로드
@@ -2708,10 +2749,8 @@ async function saveEditRecordPC() {
 // ════════════════════════════════════════════════════════════
 // 페이지 로드 시 키 상태 반영
 document.addEventListener('DOMContentLoaded', ()=>{
-  if (getApiKey()) {
-    document.getElementById('apiKeyBtn').style.color = 'var(--g)';
-    document.getElementById('apiKeyBtn').textContent = '🔑 API 키 ✓';
-  } else {
+  updateApiKeyBtnUI();
+  if (!getApiKey()) {
     // 키 없으면 모달 자동 표시
     setTimeout(()=>openApiKeyModal(), 500);
   }
