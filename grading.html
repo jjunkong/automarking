@@ -344,13 +344,11 @@ body{padding-bottom:52px}
   <div class="card">
     <div class="ch">
       <div class="ct">답안지 사진 촬영</div>
-      <div class="cd" id="photoDesc">답안지 전체가 나오도록 수직으로 촬영해 주세요</div>
+      <div class="cd" id="photoDesc">답안지가 여러 장이면 모두 추가하세요. 같은 학생의 답안만 함께 묶어주세요.</div>
     </div>
     <div class="cb">
-      <!-- 사진 미리보기 영역 (사진 선택 후 표시) -->
-      <div class="photo-area" id="photoArea" style="display:none">
-        <img id="photoPreview" style="width:100%;border-radius:8px;display:block">
-      </div>
+      <!-- 추가된 사진 목록 -->
+      <div id="photoList" style="display:none;flex-direction:column;gap:8px;margin-bottom:12px"></div>
 
       <!-- 사진 선택 버튼 2개 (카메라 / 갤러리) -->
       <div id="photoButtons" style="display:flex;gap:10px">
@@ -360,7 +358,7 @@ body{padding-bottom:52px}
           onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'"
           ontouchstart="this.style.borderColor='var(--g)'">
           <span style="font-size:32px">📸</span>
-          <span style="font-size:13px;font-weight:700">카메라로 촬영</span>
+          <span style="font-size:13px;font-weight:700" id="cameraBtnLabel">카메라로 촬영</span>
         </button>
         <button onclick="document.getElementById('galleryInput').click()"
           style="flex:1;height:120px;background:var(--b2);border:2px dashed var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:all .15s"
@@ -368,20 +366,15 @@ body{padding-bottom:52px}
           onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'"
           ontouchstart="this.style.borderColor='#CE93D8'">
           <span style="font-size:32px">🖼</span>
-          <span style="font-size:13px;font-weight:700">갤러리에서 선택</span>
+          <span style="font-size:13px;font-weight:700" id="galleryBtnLabel">갤러리에서 선택</span>
         </button>
       </div>
 
-      <!-- 숨겨진 file input 2개 -->
+      <!-- 숨겨진 file input 2개 — multiple 추가 (갤러리에서만 다중 선택) -->
       <input type="file" id="cameraInput" accept="image/*" capture="environment"
         style="display:none" onchange="onPhotoSelected(event)">
-      <input type="file" id="galleryInput" accept="image/*"
+      <input type="file" id="galleryInput" accept="image/*" multiple
         style="display:none" onchange="onPhotoSelected(event)">
-
-      <button id="retakeBtn" onclick="retakePhoto()"
-        style="display:none;margin-top:10px;width:100%;height:38px;background:transparent;
-          border:1px solid var(--bm);border-radius:19px;color:var(--t2);font-family:var(--f);
-          font-size:13px;cursor:pointer">📷 다른 사진 선택</button>
     </div>
   </div>
 
@@ -391,6 +384,7 @@ body{padding-bottom:52px}
       <div style="display:flex;gap:8px"><span>✓</span><span>답안지 전체가 프레임에 들어오도록</span></div>
       <div style="display:flex;gap:8px"><span>✓</span><span>밝은 조명, 그림자 없이</span></div>
       <div style="display:flex;gap:8px"><span>✓</span><span>수직으로 정면에서 촬영</span></div>
+      <div style="display:flex;gap:8px"><span>📑</span><span><strong>답안지가 여러 장이면</strong> 1장씩 추가 가능 (최대 5장)</span></div>
     </div>
   </div>
 
@@ -515,12 +509,12 @@ let state = {
   keyName: null,
   keyData: null,
   studentName: '',
-  photoFile: null,
-  photoB64: null,
-  photoMime: null,
+  photos: [],        // [{b64, mime, dataUrl}] — 여러 장 지원
   results: [],       // [{num, student, correct, auto, status:'ok'|'err'|'unc'}]
   history: [],
 };
+
+const MAX_PHOTOS = 5;
 
 // ══ 학원 코드 + 클라우드 동기화 ═════════════════════════════
 const ACADEMY_LS_KEY = 'kkj_academy_code';
@@ -731,16 +725,12 @@ function goToPhoto() {
     state.keyData = null;
   }
   // 사진 초기화
-  state.photoFile = null; state.photoB64 = null;
-  document.getElementById('photoArea').style.display='none';
-  document.getElementById('photoPreview').src = '';
+  state.photos = [];
   document.getElementById('photoButtons').style.display='flex';
-  document.getElementById('retakeBtn').style.display='none';
-  document.getElementById('gradeBtn').disabled=true;
-  document.getElementById('photoArea').classList.remove('has-photo');
-  // input 값 초기화 (같은 사진 재선택 가능하도록)
+  document.getElementById('gradeBtn').disabled = true;
   document.getElementById('cameraInput').value = '';
   document.getElementById('galleryInput').value = '';
+  renderPhotoList();
   showScreen('photo', name ? `${name} — 사진 촬영` : '사진 촬영');
 }
 function goBack() {
@@ -770,145 +760,170 @@ function checkSetupReady() {
   document.getElementById('toPhotoBtn').disabled = !ok;
 }
 
-// ── 사진 선택 ─────────────────────────────────────────────
+// ── 사진 선택 (다중 지원) ─────────────────────────────────
 // 갤럭시/아이폰 모두 호환되도록 Canvas 기반으로 처리.
 // 어떤 형식이든 JPEG로 자동 변환해서 API에 전송.
-function onPhotoSelected(e) {
-  const file = e.target.files && e.target.files[0];
-  if (!file) {
+// 갤러리에서는 여러 장 한 번에 선택 가능, 카메라는 한 장씩 추가.
+async function onPhotoSelected(e) {
+  const files = e.target.files;
+  if (!files || files.length === 0) {
     showToast('파일이 선택되지 않았어요', 'err');
     return;
   }
 
-  // 디버그 정보
-  console.log('[photo] selected:', {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    sizeMB: (file.size / (1024*1024)).toFixed(2)
-  });
+  // 한 번에 여러 장 선택 가능 (갤러리)
+  const fileList = Array.from(files);
 
-  // 파일 검증
-  if (file.size === 0) {
-    showToast('빈 파일이에요. 다른 사진을 선택해주세요.', 'err');
+  // 최대 장수 검증
+  const remaining = MAX_PHOTOS - state.photos.length;
+  if (remaining <= 0) {
+    showToast(`최대 ${MAX_PHOTOS}장까지만 추가할 수 있어요`, 'err');
+    e.target.value = '';
     return;
   }
-  if (file.size > 30 * 1024 * 1024) {
-    const mb = (file.size / (1024*1024)).toFixed(1);
-    showToast(`사진이 너무 커요 (${mb}MB). 30MB 이하 사진을 사용해주세요.`, 'err');
-    return;
-  }
-  // image/* 인지 확인 (HEIC도 image/heic 으로 옴)
-  if (file.type && !file.type.startsWith('image/')) {
-    showToast(`이미지 파일만 가능해요 (현재: ${file.type})`, 'err');
-    return;
+  const filesToProcess = fileList.slice(0, remaining);
+  if (fileList.length > remaining) {
+    showToast(`${remaining}장만 추가됩니다 (최대 ${MAX_PHOTOS}장)`, 'err');
   }
 
-  state.photoFile = file;
-  showToast('📷 사진 처리 중...', '');
+  showToast(`📷 ${filesToProcess.length}장 처리 중...`, '');
 
-  // URL.createObjectURL — FileReader보다 안정적
-  let objectUrl;
-  try {
-    objectUrl = URL.createObjectURL(file);
-  } catch (err) {
-    console.error('[photo] createObjectURL failed:', err);
-    showToast('사진을 읽을 수 없어요: ' + err.message, 'err');
-    return;
-  }
-
-  // 임시 Image 객체로 디코딩 시도
-  const img = new Image();
-
-  img.onload = () => {
-    console.log('[photo] image decoded:', img.naturalWidth, 'x', img.naturalHeight);
+  let added = 0, failed = 0;
+  for (const file of filesToProcess) {
     try {
-      // 큰 사진은 자동 리사이즈 (긴 변 1600px 제한 — API 비용 절감 + 속도)
-      const MAX_DIM = 1600;
-      let w = img.naturalWidth;
-      let h = img.naturalHeight;
-      if (w > MAX_DIM || h > MAX_DIM) {
-        if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
-        else       { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
-      }
-
-      // Canvas로 JPEG 변환 (어떤 형식이든 통일)
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        showToast('Canvas 사용 불가. 다른 브라우저를 시도해주세요.', 'err');
-        URL.revokeObjectURL(objectUrl);
-        return;
-      }
-      ctx.drawImage(img, 0, 0, w, h);
-
-      // JPEG로 변환 (품질 88% — AI 인식엔 충분, 용량 절약)
-      const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.88);
-      if (!jpegDataUrl || !jpegDataUrl.startsWith('data:image/jpeg')) {
-        showToast('사진 변환 실패. 다른 사진을 시도해주세요.', 'err');
-        URL.revokeObjectURL(objectUrl);
-        return;
-      }
-
-      // base64 추출
-      const commaIdx = jpegDataUrl.indexOf(',');
-      state.photoB64 = jpegDataUrl.substring(commaIdx + 1);
-      state.photoMime = 'image/jpeg';
-      console.log('[photo] converted to JPEG, base64 length:', state.photoB64.length);
-
-      // 미리보기 표시
-      const preview = document.getElementById('photoPreview');
-      preview.src = jpegDataUrl;
-      document.getElementById('photoArea').style.display = '';
-      document.getElementById('photoArea').classList.add('has-photo');
-      document.getElementById('photoButtons').style.display = 'none';
-      document.getElementById('retakeBtn').style.display = 'block';
-      document.getElementById('gradeBtn').disabled = false;
-
-      // 메모리 해제
-      URL.revokeObjectURL(objectUrl);
-      showToast('✓ 사진이 준비됐어요', 'ok');
+      await addOnePhoto(file);
+      added++;
     } catch (err) {
-      console.error('[photo] canvas processing error:', err);
-      showToast('사진 처리 실패: ' + err.message, 'err');
-      URL.revokeObjectURL(objectUrl);
+      console.error('[photo] add failed:', err);
+      failed++;
     }
-  };
+  }
 
-  img.onerror = (err) => {
-    console.error('[photo] image decode failed:', err);
-    URL.revokeObjectURL(objectUrl);
-    // HEIC 등 브라우저가 못 디코딩하는 형식
-    const isLikelyHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
-                         /\.heic$|\.heif$/i.test(file.name || '');
-    if (isLikelyHeic) {
-      showToast('HEIC 형식은 일부 브라우저에서 안 읽혀요. 아이폰 설정 → 카메라 → 포맷 → "호환성 우선"으로 변경해주세요.', 'err');
-    } else {
-      showToast(`사진을 디코딩할 수 없어요 (${file.type || '알 수 없음'}). 다른 사진을 시도해주세요.`, 'err');
-    }
-  };
+  // 입력값 초기화 (같은 파일 재선택 가능)
+  e.target.value = '';
 
-  img.src = objectUrl;
+  // 결과 안내
+  if (added > 0) {
+    showToast(`✓ ${added}장 추가됨${failed?` (${failed}장 실패)`:''} · 총 ${state.photos.length}장`, 'ok');
+  } else if (failed > 0) {
+    showToast(`사진 추가 실패 (${failed}장)`, 'err');
+  }
+  renderPhotoList();
+  document.getElementById('gradeBtn').disabled = state.photos.length === 0;
 }
 
-function retakePhoto() {
-  document.getElementById('cameraInput').value = '';
-  document.getElementById('galleryInput').value = '';
-  document.getElementById('photoArea').style.display = 'none';
-  document.getElementById('photoPreview').src = '';
-  document.getElementById('photoButtons').style.display = 'flex';
-  document.getElementById('retakeBtn').style.display = 'none';
-  document.getElementById('gradeBtn').disabled = true;
-  document.getElementById('photoArea').classList.remove('has-photo');
-  state.photoB64 = null;
-  state.photoFile = null;
+// 한 장 사진을 처리하고 state.photos에 추가 (Promise 반환)
+function addOnePhoto(file) {
+  return new Promise((resolve, reject) => {
+    // 검증
+    if (file.size === 0) return reject(new Error('빈 파일'));
+    if (file.size > 30 * 1024 * 1024) return reject(new Error('파일 너무 큼'));
+    if (file.type && !file.type.startsWith('image/')) return reject(new Error('이미지 아님'));
+
+    let objectUrl;
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch (err) {
+      return reject(err);
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const MAX_DIM = 1600;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > MAX_DIM || h > MAX_DIM) {
+          if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+          else       { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl);
+          return reject(new Error('Canvas 사용 불가'));
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        if (!jpegDataUrl || !jpegDataUrl.startsWith('data:image/jpeg')) {
+          URL.revokeObjectURL(objectUrl);
+          return reject(new Error('JPEG 변환 실패'));
+        }
+        const commaIdx = jpegDataUrl.indexOf(',');
+        const b64 = jpegDataUrl.substring(commaIdx + 1);
+        state.photos.push({
+          b64: b64,
+          mime: 'image/jpeg',
+          dataUrl: jpegDataUrl,
+        });
+        URL.revokeObjectURL(objectUrl);
+        resolve();
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      const isLikelyHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
+                           /\.heic$|\.heif$/i.test(file.name || '');
+      reject(new Error(isLikelyHeic ? 'HEIC 형식 미지원' : '디코딩 실패'));
+    };
+    img.src = objectUrl;
+  });
+}
+
+// 사진 목록 화면 렌더링
+function renderPhotoList() {
+  const list = document.getElementById('photoList');
+  const cameraLabel = document.getElementById('cameraBtnLabel');
+  const galleryLabel = document.getElementById('galleryBtnLabel');
+
+  if (!state.photos || state.photos.length === 0) {
+    list.style.display = 'none';
+    if (cameraLabel) cameraLabel.textContent = '카메라로 촬영';
+    if (galleryLabel) galleryLabel.textContent = '갤러리에서 선택';
+    return;
+  }
+
+  // 사진이 1장 이상이면 버튼 라벨에 "추가" 표시
+  if (cameraLabel) cameraLabel.textContent = '📷 추가 촬영';
+  if (galleryLabel) galleryLabel.textContent = '🖼 추가 선택';
+
+  list.style.display = 'flex';
+  list.innerHTML = state.photos.map((p, i) => `
+    <div style="display:flex;gap:10px;padding:8px;background:var(--b2);border:1px solid rgba(29,185,84,.2);border-radius:var(--r);align-items:center">
+      <img src="${p.dataUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--bo);flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:var(--g)">📄 ${i+1}쪽</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">JPEG · ${Math.round(p.b64.length * 0.75 / 1024)}KB</div>
+      </div>
+      <button onclick="removePhoto(${i})" title="삭제"
+        style="width:32px;height:32px;flex-shrink:0;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center"
+        onmouseover="this.style.borderColor='var(--err)';this.style.color='var(--err)'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">✕</button>
+    </div>`).join('') +
+    (state.photos.length > 1
+      ? `<div style="font-size:11px;color:var(--t2);text-align:center;margin-top:4px">📑 총 ${state.photos.length}장 · 모두 같은 학생의 답안지여야 해요</div>`
+      : '');
+}
+
+// 사진 삭제
+function removePhoto(index) {
+  state.photos.splice(index, 1);
+  renderPhotoList();
+  document.getElementById('gradeBtn').disabled = state.photos.length === 0;
+  showToast('사진이 삭제됐어요', '');
 }
 
 // ── AI 채점 시작 ──────────────────────────────────────────
 async function startGrading() {
-  if (!state.photoB64) { showToast('사진을 먼저 촬영해 주세요','err'); return; }
+  if (!state.photos || state.photos.length === 0) {
+    showToast('사진을 먼저 추가해 주세요','err');
+    return;
+  }
   showScreen('proc','AI 채점 중...');
 
   try {
@@ -948,15 +963,22 @@ async function extractAnswers() {
   const types    = state.keyData?.types || [{type:'kor',from:1,to:total,label:'영→한 뜻쓰기'}];
   const typeDesc = types.map(t=>`Q${t.from}~Q${t.to}: ${t.type==='kor'?'한국어 뜻쓰기(Korean meaning)':'영어 스펠링(English spelling)'}`).join(', ');
 
+  const photoCount = state.photos.length;
+  const isMultiPage = photoCount > 1;
+
   // 사용자가 이름을 직접 입력했으면 AI에게 추출시키지 않음
   const userProvidedName = state.studentName && state.studentName.trim();
   const namePrompt = userProvidedName
     ? '' // 이름 추출 불필요
     : `\n또한 답안지 상단의 "학생 이름" 또는 "이름" 칸에 적힌 학생 이름을 읽어주세요. 한글/영문 모두 OK. 빈칸이면 null.\n`;
 
-  const prompt = `이것은 영어 단어시험 답안지 사진입니다.
+  const multiPagePrompt = isMultiPage
+    ? `\n⚠ 답안지가 ${photoCount}장으로 나뉘어 있습니다. 모든 사진을 함께 보고 1번부터 ${total}번까지 모든 문항의 답을 추출해주세요. 같은 학생의 답안지입니다.\n`
+    : '';
+
+  const prompt = `이것은 영어 단어시험 답안지 사진${isMultiPage?'들':''}입니다.
 시험 구성: ${typeDesc}
-총 ${total}문항입니다.
+총 ${total}문항입니다.${multiPagePrompt}
 
 각 번호의 학생이 쓴 답을 읽어주세요.
 빈칸이거나 읽을 수 없으면 null로 표시하세요.${namePrompt}
@@ -971,6 +993,21 @@ ${userProvidedName
     throw new Error('API 키가 설정되지 않았어요. 학원 원장님께 문의해주세요.\n(원장님이 PC에서 API 키 저장 후 폰에서 🔄 새로고침)');
   }
 
+  // 모든 사진을 message content에 추가
+  const content = [];
+  state.photos.forEach((p, i) => {
+    if (isMultiPage) {
+      content.push({ type: 'text', text: `[${i+1}쪽 / ${photoCount}쪽]` });
+    }
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: p.mime, data: p.b64 }
+    });
+  });
+  content.push({ type: 'text', text: prompt });
+
+  console.log('[ai] sending', photoCount, 'photo(s) to Claude');
+
   const res = await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{
@@ -982,12 +1019,15 @@ ${userProvidedName
     body:JSON.stringify({
       model:'claude-sonnet-4-20250514',
       max_tokens:4000,
-      messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:state.photoMime,data:state.photoB64}},
-        {type:'text',text:prompt}
-      ]}]
+      messages:[{role:'user',content}]
     })
   });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(()=>'unknown');
+    throw new Error(`API 호출 실패 (${res.status}): ${errText.slice(0,200)}`);
+  }
+
   const data = await res.json();
   const text = data.content?.find(b=>b.type==='text')?.text||'{}';
   const json = JSON.parse(text.replace(/```json|```/g,'').trim());
