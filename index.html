@@ -1029,30 +1029,18 @@ select option{background:#282828}
       <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">💡 한 학생이라도 틀린 문제는 모두 포함됩니다. 정답이 있는 문제만 추출돼요.</div>
     </div>
 
-    <!-- 재시험지 형식 선택 -->
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">⚙ 답안지 형식</div>
-      <div style="display:flex;gap:8px">
-        <label style="flex:1;display:flex;align-items:flex-start;gap:10px;padding:12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);cursor:pointer;transition:all .15s" id="retestModeCompressLabel">
-          <input type="radio" name="retestMode" value="compress" checked onchange="updateRetestMode()" style="margin-top:2px">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:700;color:var(--t0)">📝 압축형 (추천)</div>
-            <div style="font-size:11px;color:var(--t2);margin-top:3px;line-height:1.4">번호를 1, 2, 3...으로 새로 매김. 각 칸에 "원본 #5" 표시.<br>종이 절약, 깔끔</div>
-          </div>
-        </label>
-        <label style="flex:1;display:flex;align-items:flex-start;gap:10px;padding:12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);cursor:pointer;transition:all .15s" id="retestModePreserveLabel">
-          <input type="radio" name="retestMode" value="preserve" onchange="updateRetestMode()" style="margin-top:2px">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:700;color:var(--t0)">📋 원본 유지</div>
-            <div style="font-size:11px;color:var(--t2);margin-top:3px;line-height:1.4">원본 5, 8, 12번 그대로. 안 본 번호는 빈 칸.<br>학생 헷갈림 없음</div>
-          </div>
-        </label>
-      </div>
+    <!-- 안내 -->
+    <div style="background:rgba(255,183,77,.05);border:1px solid rgba(255,183,77,.3);border-radius:var(--r);padding:14px;margin-bottom:18px;line-height:1.6;font-size:12px;color:var(--t1)">
+      <div style="font-weight:700;color:#FFB74D;margin-bottom:6px">📝 재시험지 형식</div>
+      재시험지에는 <strong>단어와 뜻이 같이 인쇄</strong>되어 학생이 그대로 시험을 볼 수 있어요.<br>
+      ・ 영→한 문항: <span style="font-family:var(--m)">apple ___________</span> (학생은 뜻 작성)<br>
+      ・ 한→영 문항: <span style="font-family:var(--m)">사과 ___________</span> (학생은 단어 작성)<br>
+      번호는 <strong>원본 그대로</strong> 유지돼요 (예: 3번, 6번 → 그대로 3, 6번).
     </div>
 
-    <!-- 안내 -->
+    <!-- 안내 (TYPE C 이동) -->
     <div style="background:rgba(29,185,84,.05);border:1px solid rgba(29,185,84,.2);border-radius:var(--r);padding:12px 14px;margin-bottom:18px;line-height:1.6;font-size:12px;color:var(--t1)">
-      💡 [재시험지 만들기] 클릭 시 → TYPE C 단어시험 화면으로 이동해서 시험지가 자동으로 만들어져요. 시험 정보 확인 후 PDF로 인쇄하시면 됩니다.
+      💡 [재시험지 만들기] 클릭 시 → TYPE C 화면으로 이동해서 시험지가 자동 생성돼요. 정보 확인 후 PDF로 인쇄하세요.
     </div>
 
     <!-- 버튼 -->
@@ -2775,6 +2763,9 @@ function saveVocabConfig() {
 function loadVocabConfig(name) {
   const saved = getSavedVocab();
   const d = saved[name]; if (!d) return;
+  // ★ 일반 시험 불러오기 — 재시험 모드 해제
+  window._isRetestMode = false;
+  window._retestWrongNums = null;
   document.getElementById('vcExamTitle').value = d.examTitle||'';
   document.getElementById('vcGrade').value     = d.grade||'';
   document.getElementById('vcAuthor').value    = d.author||'';
@@ -3303,24 +3294,9 @@ function renderRetestModal() {
   }
 }
 
-// 재시험 모드 토글 시각 효과
+// 재시험 모드 시각 효과 (단일 모드라 빈 함수)
 function updateRetestMode() {
-  const mode = document.querySelector('input[name="retestMode"]:checked')?.value || 'compress';
-  const compLabel = document.getElementById('retestModeCompressLabel');
-  const presLabel = document.getElementById('retestModePreserveLabel');
-  if (compLabel && presLabel) {
-    if (mode === 'compress') {
-      compLabel.style.background = 'rgba(29,185,84,.08)';
-      compLabel.style.borderColor = 'rgba(29,185,84,.4)';
-      presLabel.style.background = 'var(--b2)';
-      presLabel.style.borderColor = 'var(--bo)';
-    } else {
-      presLabel.style.background = 'rgba(29,185,84,.08)';
-      presLabel.style.borderColor = 'rgba(29,185,84,.4)';
-      compLabel.style.background = 'var(--b2)';
-      compLabel.style.borderColor = 'var(--bo)';
-    }
-  }
+  // 더 이상 토글 없음 — 호환성 위해 빈 함수
 }
 
 // 재시험지 자동 생성 → TYPE C 화면으로 이동
@@ -3337,23 +3313,13 @@ function buildRetestExam() {
     return;
   }
 
-  // 모드 가져오기
-  const mode = document.querySelector('input[name="retestMode"]:checked')?.value || 'compress';
-
   // TYPE C 탭으로 전환
   switchTab('typec');
 
   // 1) 시험 정보 자동 입력
   const today = new Date().toLocaleDateString('ko-KR');
   const newName = `${retestState.examName} 재시험`;
-  // 압축형이면 시험 제목에 매핑 정보를 한 줄로 (학생이 잠깐 보고 안내받게)
-  let examTitle = newName;
-  if (mode === 'compress') {
-    examTitle = `${newName} (재시험 ${wrongNums.length}문항)`;
-  } else {
-    examTitle = `${newName} (틀린 문제만 — 원본 번호 유지)`;
-  }
-  document.getElementById('vcExamTitle').value = examTitle;
+  document.getElementById('vcExamTitle').value = `${newName} (${wrongNums.length}문항)`;
   document.getElementById('vcGrade').value     = config.grade || '';
   document.getElementById('vcAuthor').value    = config.author || '';
   document.getElementById('vcDate').value      = today;
@@ -3362,54 +3328,30 @@ function buildRetestExam() {
   document.getElementById('vcLineH').value     = config.lineH || 'medium';
   document.getElementById('vcCols').value      = config.cols || '2';
 
-  // 2) 모드에 따라 문항 수와 정답 맵 다르게 처리
+  // 2) 문항 수 = 원본 그대로 (틀린 번호만 표시되지만 번호 체계는 원본)
+  const origTotal = config.total || Math.max(...wrongNums);
+  setTotalSafely(origTotal);
+
+  // 3) 시험 유형 — 원본 그대로 (영→한, 한→영 구간 보존)
+  vcTypes = (config.types || [{from:1, to:origTotal, type:'kor'}]).map(t => ({...t}));
+  renderVcTypes();
+
+  // 4) 정답 맵 — 틀린 번호만 채움 + ★ 재시험 플래그
   const answerMap = config.answerMap || {};
   vcAnswerMap = {};
+  wrongNums.forEach(origNum => {
+    const orig = answerMap[origNum];
+    if (orig) {
+      vcAnswerMap[origNum] = {
+        word: orig.word || '',
+        meanings: [...(orig.meanings || [])],
+      };
+    }
+  });
 
-  if (mode === 'compress') {
-    // 압축형: 1, 2, 3... 새 번호
-    const newTotal = wrongNums.length;
-    setTotalSafely(newTotal);
-
-    // 시험 유형 — 원본 typeMap에서 각 문항의 type 추출 + 새 번호로 매핑
-    const origTypes = config.types || [{from:1, to:newTotal, type:'kor'}];
-    const newTypes = mapTypesCompressed(origTypes, wrongNums);
-    vcTypes = newTypes;
-    renderVcTypes();
-
-    // 정답 매핑: 새 번호 1, 2, 3... ← 원본 5, 8, 12...
-    wrongNums.forEach((origNum, idx) => {
-      const newNum = idx + 1;
-      const orig = answerMap[origNum];
-      if (orig) {
-        vcAnswerMap[newNum] = {
-          word: orig.word || '',
-          meanings: [...(orig.meanings || [])],
-          // ★ 원본 번호 보존 (PDF 답안지 옆에 표시 용)
-          origNum: origNum,
-        };
-      }
-    });
-  } else {
-    // 원본 유지: 원본 총 문항 수 그대로, 틀린 문제 외에는 정답 비움
-    const origTotal = config.total || Math.max(...wrongNums);
-    setTotalSafely(origTotal);
-
-    // 시험 유형 — 원본 그대로
-    vcTypes = (config.types || [{from:1, to:origTotal, type:'kor'}]).map(t => ({...t}));
-    renderVcTypes();
-
-    // 정답 매핑: 틀린 번호만 채우고 나머지는 빈 칸
-    wrongNums.forEach(origNum => {
-      const orig = answerMap[origNum];
-      if (orig) {
-        vcAnswerMap[origNum] = {
-          word: orig.word || '',
-          meanings: [...(orig.meanings || [])],
-        };
-      }
-    });
-  }
+  // 5) ★ 재시험 모드 활성화 — 답안지 렌더링 시 이걸 체크
+  window._isRetestMode = true;
+  window._retestWrongNums = new Set(wrongNums);
 
   // 정답 미리보기 표시
   const ansCount = Object.keys(vcAnswerMap).length;
@@ -3419,16 +3361,12 @@ function buildRetestExam() {
       pdfResultArea.style.display = '';
       const titleEl = document.getElementById('pdfResultTitle');
       const badgeEl = document.getElementById('pdfStatusBadge');
-      if (titleEl) {
-        titleEl.textContent = mode === 'compress'
-          ? `✓ ${ansCount}개 정답 자동 추출됨 (압축형 재시험)`
-          : `✓ ${ansCount}개 정답 자동 추출됨 (원본 번호 유지)`;
-      }
+      if (titleEl) titleEl.textContent = `✓ ${ansCount}개 재시험 문항 자동 추출됨`;
       if (badgeEl) {
         badgeEl.textContent = `${ansCount}개 완료`;
         badgeEl.style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,183,77,.1);color:#FFB74D;border:1px solid rgba(255,183,77,.3)';
       }
-      const answers = Object.entries(vcAnswerMap).map(([num,v])=>({num:+num, word:v.word, meanings:v.meanings, origNum:v.origNum}));
+      const answers = Object.entries(vcAnswerMap).map(([num,v])=>({num:+num, word:v.word, meanings:v.meanings}));
       answers.sort((a,b) => a.num - b.num);
       if (typeof renderPdfPreview === 'function') renderPdfPreview(answers);
     }
@@ -3438,11 +3376,7 @@ function buildRetestExam() {
   closeRetestModal();
   closeDashboard();
 
-  // 안내 토스트
-  const guideMsg = mode === 'compress'
-    ? `✓ "${newName}" 압축형 ${wrongNums.length}문항 — 답안지 ①=원본 ${wrongNums[0]}번, ②=원본 ${wrongNums[1]||'-'}번...`
-    : `✓ "${newName}" 원본 번호 유지 — ${wrongNums.length}문항만 정답 있음, 나머지는 빈 칸`;
-  showToast(guideMsg, 'ok');
+  showToast(`✓ "${newName}" ${wrongNums.length}문항 — 단어/뜻 인쇄 시험지로 만들어져요. 미리보기 클릭`, 'ok');
 }
 
 // 헬퍼: 표준 문항수 또는 직접 입력으로 vcTotal 설정
@@ -3457,32 +3391,6 @@ function setTotalSafely(n) {
     document.getElementById('vcCustomRow').style.display = '';
     document.getElementById('vcCustomTotal').value = String(n);
   }
-}
-
-// 헬퍼: 압축형에서 시험 유형 매핑
-// 원본 types: [{from:1, to:30, type:'kor'}, {from:31, to:60, type:'eng'}]
-// wrongNums: [5, 12, 35, 40] → 새 번호 1=5(kor), 2=12(kor), 3=35(eng), 4=40(eng)
-// 결과: [{from:1, to:2, type:'kor'}, {from:3, to:4, type:'eng'}]
-function mapTypesCompressed(origTypes, wrongNums) {
-  // 각 원본 번호에 대해 type 찾기
-  const newTypeOfNewIdx = wrongNums.map(orig => {
-    const t = origTypes.find(x => orig >= x.from && orig <= x.to);
-    return t ? t.type : 'kor';
-  });
-  // 연속된 같은 type을 그룹화
-  const result = [];
-  let curStart = 1;
-  let curType = newTypeOfNewIdx[0];
-  for (let i = 1; i <= newTypeOfNewIdx.length; i++) {
-    if (i === newTypeOfNewIdx.length || newTypeOfNewIdx[i] !== curType) {
-      result.push({ from: curStart, to: i, type: curType });
-      if (i < newTypeOfNewIdx.length) {
-        curStart = i + 1;
-        curType = newTypeOfNewIdx[i];
-      }
-    }
-  }
-  return result.length > 0 ? result : [{from:1, to:wrongNums.length, type:'kor'}];
 }
 // ════════════════════════════════════════════════════════════
 
@@ -3848,12 +3756,29 @@ function showVocabPreview() {
         const idx = ci*perCol+ri;
         if (idx>=n) break;
         const num = t.from+idx;
+        // ★ 재시험 모드: 틀린 번호가 아니면 건너뛰기
+        if (window._isRetestMode && window._retestWrongNums && !window._retestWrongNums.has(num)) {
+          continue;
+        }
         const shade = idx%2===0?'#f8fafc':'#fff';
-        // ★ 재시험 압축형: vcAnswerMap에 origNum이 있으면 옆에 작게 표시
-        const ansData = vcAnswerMap[num];
-        const origMark = (ansData && ansData.origNum)
-          ? `<span style="font-size:${Math.max(8,fs-3)}px;color:#999;font-weight:500;margin-left:2px;font-family:monospace">(원본 ${ansData.origNum}번)</span>`
-          : '';
+        // ★ 재시험 모드: 단어/뜻 인쇄
+        let promptHTML = '';
+        if (window._isRetestMode) {
+          const ans = vcAnswerMap[num];
+          if (ans) {
+            // 영→한(kor): 영단어 보여주고 뜻 빈칸
+            // 한→영(eng): 한국어 뜻 보여주고 단어 빈칸
+            if (t.type === 'kor') {
+              const word = ans.word || '';
+              promptHTML = `<span style="font-size:${fs}px;font-weight:600;color:#0a2540;
+                min-width:90px;flex-shrink:0">${escapeHtmlPC(word)}</span>`;
+            } else if (t.type === 'eng') {
+              const meaning = (ans.meanings && ans.meanings[0]) || '';
+              promptHTML = `<span style="font-size:${fs}px;font-weight:600;color:#0a2540;
+                min-width:90px;flex-shrink:0">${escapeHtmlPC(meaning)}</span>`;
+            }
+          }
+        }
         rows += `
           <div style="display:flex;align-items:center;gap:8px;
             padding:4px 10px;min-height:${rowH}px;
@@ -3861,7 +3786,7 @@ function showVocabPreview() {
             border-right:1px solid #e8eef5">
             <span style="font-size:${fs}px;font-weight:800;color:${clr};
               min-width:26px;flex-shrink:0;font-family:monospace">${num}.</span>
-            ${origMark}
+            ${promptHTML}
             <div style="flex:1;border-bottom:1.5px solid #c8d4e0;
               height:${rowH*0.55}px;"></div>
           </div>`;
