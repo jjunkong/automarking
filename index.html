@@ -997,6 +997,53 @@ select option{background:#282828}
   </div>
 </div>
 
+<!-- 재시험지 만들기 모달 -->
+<div id="retestModal" style="display:none;position:fixed;inset:0;z-index:215;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:760px;width:100%;max-height:92vh;overflow:auto">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">📝 재시험지 만들기</div>
+        <div id="retestExamName" style="font-size:12px;color:var(--t2)"></div>
+      </div>
+      <button onclick="closeRetestModal()"
+        style="height:32px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer">취소</button>
+    </div>
+
+    <!-- 대상 선택 -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">📋 대상 학생</div>
+      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:14px">
+        <div id="retestStudentList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:120px;overflow-y:auto"></div>
+        <div id="retestStudentSummary" style="font-size:11px;color:var(--t2);padding-top:8px;border-top:1px dashed var(--bo)"></div>
+      </div>
+    </div>
+
+    <!-- 틀린 문제 미리보기 -->
+    <div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase">❌ 틀린 문제 통합 (재시험 대상)</div>
+        <div id="retestQuestionCount" style="font-size:11px;color:#FFB74D;font-weight:700"></div>
+      </div>
+      <div id="retestQuestionPreview" style="background:var(--b2);border:1px solid rgba(255,183,77,.25);border-radius:var(--r);padding:14px;max-height:280px;overflow-y:auto;font-family:var(--m);font-size:12px"></div>
+      <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">💡 한 학생이라도 틀린 문제는 모두 포함됩니다. 정답이 있는 문제만 추출돼요.</div>
+    </div>
+
+    <!-- 안내 -->
+    <div style="background:rgba(29,185,84,.05);border:1px solid rgba(29,185,84,.2);border-radius:var(--r);padding:12px 14px;margin-bottom:18px;line-height:1.6;font-size:12px;color:var(--t1)">
+      💡 [재시험지 만들기] 클릭 시 → TYPE C 단어시험 화면으로 이동해서 시험지가 자동으로 만들어져요. 시험 정보 확인 후 PDF로 인쇄하시면 됩니다.
+    </div>
+
+    <!-- 버튼 -->
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeRetestModal()"
+        style="height:42px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:21px;color:var(--t1);font-family:var(--f);font-size:13px;cursor:pointer">취소</button>
+      <button onclick="buildRetestExam()" id="retestBuildBtn"
+        style="height:42px;padding:0 24px;background:var(--g);border:none;border-radius:21px;color:#000;font-family:var(--f);font-size:13px;font-weight:800;cursor:pointer">📝 재시험지 만들기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 채점 기록 수정 모달 -->
 <div id="editRecordModal" style="display:none;position:fixed;inset:0;z-index:210;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;overflow:auto">
   <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:680px;width:100%;max-height:92vh;overflow:auto">
@@ -2992,12 +3039,21 @@ function renderDashboard() {
     examEl.innerHTML = examEntries.map(([k, v]) => {
       const rate = Math.round(v.pass / v.total * 100);
       const color = rate >= 80 ? 'var(--g)' : rate >= 60 ? '#FFB74D' : '#ff6b6b';
+      // ★ 통과 못 한 학생이 있으면 "재시험지 만들기" 버튼 표시
+      const nonPassCount = v.warn + v.fail;
+      const retestBtn = nonPassCount > 0 ? `
+        <button onclick="openRetestBuilder('${escapeHtmlPC(k).replace(/'/g, "\\'")}')"
+          style="height:28px;padding:0 10px;background:rgba(255,183,77,.1);border:1px solid rgba(255,183,77,.4);border-radius:14px;color:#FFB74D;font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s"
+          onmouseover="this.style.background='rgba(255,183,77,.2)'"
+          onmouseout="this.style.background='rgba(255,183,77,.1)'"
+          title="${nonPassCount}명의 틀린 문제로 재시험지 만들기">📝 재시험지</button>` : '';
       return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtmlPC(k)}</div>
           <div style="font-size:10px;color:var(--t2);margin-top:2px">${v.total}명 · 평균 ${(v.sum/v.total).toFixed(1)}% · ${v.pass}통과 ${v.warn?v.warn+'불통 ':''}${v.fail}재시험</div>
         </div>
+        ${retestBtn}
         <div style="font-family:var(--m);font-size:14px;font-weight:700;color:${color};white-space:nowrap">${rate}%</div>
         <div style="width:80px;height:6px;background:var(--b2);border-radius:3px;overflow:hidden;flex-shrink:0">
           <div style="width:${rate}%;height:100%;background:${color}"></div>
@@ -3114,6 +3170,208 @@ async function clearAllDashboardRecords() {
     showToast('삭제 실패: ' + (r.error || '서버 오류'), 'err');
   }
 }
+
+// ══ 재시험지 빌더 ════════════════════════════════════════════
+let retestState = {
+  examName: null,
+  records: [],          // 통과 못 한 학생들의 records
+  wrongNumbers: new Set(), // 한 명이라도 틀린 문항 번호 집합
+  vocabConfig: null,    // 원본 시험 정답표
+};
+
+function openRetestBuilder(examName) {
+  retestState.examName = examName;
+  // 1) 해당 시험의 모든 record 찾기 (대시보드 필터 적용)
+  const filtered = getDashboardFilteredRecords();
+  const examRecords = filtered.filter(r => r.keyName === examName);
+  // 2) 통과 못 한 학생 (불통 + 재시험)
+  const nonPass = examRecords.filter(r => {
+    const v = getRecordVerdictPC(r);
+    return v.status === 'warn' || v.status === 'fail';
+  });
+  if (nonPass.length === 0) {
+    showToast('재시험 대상자가 없어요', 'err');
+    return;
+  }
+  retestState.records = nonPass;
+
+  // 3) 원본 시험 정답표 찾기
+  const savedVocab = JSON.parse(localStorage.getItem('kkj_vocab') || '{}');
+  const config = savedVocab[examName];
+  if (!config) {
+    if (confirm(`"${examName}" 시험 정답표를 찾을 수 없어요.\n\n클라우드에서 다시 가져오시려면 "정답 관리" 탭으로 이동해 새로고침 후 다시 시도해주세요.\n\n지금은 시험 이름만으로 진행할까요? (정답 정보 없이 문항 번호만 사용)`)) {
+      retestState.vocabConfig = null;
+    } else {
+      return;
+    }
+  } else {
+    retestState.vocabConfig = config;
+  }
+
+  // 4) 한 명이라도 틀린 문항 모음
+  const wrong = new Set();
+  nonPass.forEach(r => {
+    (r.results || []).forEach(qr => {
+      if (qr.correct === false) wrong.add(qr.num);
+    });
+  });
+  retestState.wrongNumbers = wrong;
+
+  if (wrong.size === 0) {
+    showToast('틀린 문항을 찾지 못했어요. 옛 채점 기록은 상세 정보가 없을 수 있어요.', 'err');
+    return;
+  }
+
+  renderRetestModal();
+  document.getElementById('retestModal').style.display = 'flex';
+}
+
+function closeRetestModal() {
+  document.getElementById('retestModal').style.display = 'none';
+  retestState = { examName:null, records:[], wrongNumbers:new Set(), vocabConfig:null };
+}
+
+function renderRetestModal() {
+  document.getElementById('retestExamName').textContent = `원본 시험: ${retestState.examName}`;
+
+  // 대상 학생 목록
+  const listEl = document.getElementById('retestStudentList');
+  const summaryEl = document.getElementById('retestStudentSummary');
+  const records = retestState.records;
+  const warnCount = records.filter(r => getRecordVerdictPC(r).status === 'warn').length;
+  const failCount = records.filter(r => getRecordVerdictPC(r).status === 'fail').length;
+
+  listEl.innerHTML = records.map(r => {
+    const v = getRecordVerdictPC(r);
+    const wrongN = (r.results || []).filter(q => q.correct === false).length;
+    return `
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:var(--b3);border:1px solid ${v.color === 'var(--g)' ? 'var(--bo)' : v.color === '#FFB74D' ? 'rgba(255,183,77,.3)' : 'rgba(255,107,107,.3)'};border-radius:14px;font-size:12px">
+        <span style="font-weight:600">${escapeHtmlPC(r.student || '(이름 없음)')}</span>
+        <span style="color:${v.color};font-weight:700">${r.score}/${r.total}</span>
+        <span style="color:var(--t2);font-size:10px">${wrongN}개 틀림</span>
+      </div>`;
+  }).join('');
+
+  summaryEl.innerHTML = `총 ${records.length}명 (${warnCount?warnCount+'명 불통, ':''}${failCount}명 재시험)`;
+
+  // 틀린 문항 미리보기
+  const previewEl = document.getElementById('retestQuestionPreview');
+  const countEl = document.getElementById('retestQuestionCount');
+  const wrongNums = Array.from(retestState.wrongNumbers).sort((a, b) => a - b);
+  countEl.textContent = `총 ${wrongNums.length}문항`;
+
+  // 시험 정답표 있으면 단어/뜻도 같이 보여주기
+  const config = retestState.vocabConfig;
+  const answerMap = config?.answerMap || {};
+
+  if (wrongNums.length === 0) {
+    previewEl.innerHTML = '<div style="color:var(--t2);text-align:center;padding:14px">틀린 문항이 없어요</div>';
+  } else {
+    previewEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:6px">
+        ${wrongNums.map(n => {
+          const v = answerMap[n];
+          const display = v ? `<span style="color:var(--t1)">${escapeHtmlPC(v.word||'')}</span> <span style="color:var(--t2);font-size:10px">${escapeHtmlPC((v.meanings||[]).slice(0,2).join('/'))}</span>` : '<span style="color:var(--t2)">(정답 정보 없음)</span>';
+          return `<div style="padding:6px 10px;background:var(--b3);border-radius:4px;font-size:11px">
+            <span style="color:#FFB74D;font-weight:700;margin-right:6px">${n}.</span>${display}
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+}
+
+// 재시험지 자동 생성 → TYPE C 화면으로 이동
+function buildRetestExam() {
+  const wrongNums = Array.from(retestState.wrongNumbers).sort((a, b) => a - b);
+  if (wrongNums.length === 0) {
+    showToast('틀린 문제가 없어요', 'err');
+    return;
+  }
+
+  const config = retestState.vocabConfig;
+  if (!config) {
+    showToast('원본 시험 정답표가 없어 재시험지를 만들 수 없어요', 'err');
+    return;
+  }
+
+  // TYPE C 탭으로 전환
+  switchTab('typec');
+
+  // 1) 시험 정보 자동 입력 (재시험 표시)
+  const today = new Date().toLocaleDateString('ko-KR');
+  const newName = `${retestState.examName} 재시험`;
+  document.getElementById('vcExamTitle').value = newName;
+  document.getElementById('vcGrade').value     = config.grade || '';
+  document.getElementById('vcAuthor').value    = config.author || '';
+  document.getElementById('vcDate').value      = today;
+  document.getElementById('vcPassRate').value  = config.passRate || '90';
+  document.getElementById('vcFailRate').value  = config.failRate || '80';
+  document.getElementById('vcLineH').value     = config.lineH || 'medium';
+  document.getElementById('vcCols').value      = config.cols || '2';
+
+  // 2) 문항 수 — 틀린 문제 개수 (가장 가까운 표준 문항수로)
+  const newTotal = wrongNums.length;
+  const standardSizes = [20, 30, 40, 50, 60, 80, 100, 120];
+  const matchSize = standardSizes.find(s => s === newTotal);
+  if (matchSize) {
+    document.getElementById('vcTotal').value = String(matchSize);
+    document.getElementById('vcCustomRow').style.display = 'none';
+  } else {
+    document.getElementById('vcTotal').value = 'custom';
+    document.getElementById('vcCustomRow').style.display = '';
+    document.getElementById('vcCustomTotal').value = String(newTotal);
+  }
+
+  // 3) 시험 유형 구성 — 원본의 첫 type 또는 'kor' 기본
+  if (config.types && config.types.length > 0) {
+    const dominantType = config.types[0].type || 'kor';
+    vcTypes = [{ from: 1, to: newTotal, type: dominantType }];
+  } else {
+    vcTypes = [{ from: 1, to: newTotal, type: 'kor' }];
+  }
+  renderVcTypes();
+
+  // 4) 정답 맵 자동 채우기 — 원본의 단어/뜻 → 새 번호 1, 2, 3...
+  const answerMap = config.answerMap || {};
+  vcAnswerMap = {};
+  wrongNums.forEach((origNum, idx) => {
+    const newNum = idx + 1;
+    const orig = answerMap[origNum];
+    if (orig) {
+      vcAnswerMap[newNum] = {
+        word: orig.word || '',
+        meanings: [...(orig.meanings || [])],
+      };
+    }
+  });
+
+  // 정답 미리보기 표시 (renderPdfPreview 사용)
+  const ansCount = Object.keys(vcAnswerMap).length;
+  if (ansCount > 0) {
+    const pdfResultArea = document.getElementById('pdfResultArea');
+    if (pdfResultArea) {
+      pdfResultArea.style.display = '';
+      const titleEl = document.getElementById('pdfResultTitle');
+      const badgeEl = document.getElementById('pdfStatusBadge');
+      if (titleEl) titleEl.textContent = `✓ ${ansCount}개 정답 자동 추출됨 (재시험)`;
+      if (badgeEl) {
+        badgeEl.textContent = `${ansCount}개 완료`;
+        badgeEl.style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,183,77,.1);color:#FFB74D;border:1px solid rgba(255,183,77,.3)';
+      }
+      const answers = Object.entries(vcAnswerMap).map(([num,v])=>({num:+num, word:v.word, meanings:v.meanings}));
+      answers.sort((a,b) => a.num - b.num);
+      if (typeof renderPdfPreview === 'function') renderPdfPreview(answers);
+    }
+  }
+
+  // 모달 닫기
+  closeRetestModal();
+  closeDashboard();
+
+  // 안내 토스트
+  showToast(`✓ "${newName}" 자동 생성됨 — ${wrongNums.length}문항. 정보 확인 후 PDF로 인쇄하세요`, 'ok');
+}
+// ════════════════════════════════════════════════════════════
 
 // ══ PC 채점 기록 수정 ════════════════════════════════════════
 let editRecordPCState = { recordId: null, record: null };
