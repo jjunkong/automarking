@@ -161,7 +161,7 @@ export default async function handler(req, res) {
       if (!current) return res.status(500).json({ ok:false, error:'record corrupt' });
 
       // updates의 허용 필드만 병합 (보안 — 임의 필드 삽입 방지)
-      const allowedFields = ['student', 'score', 'total', 'passed', 'passRate', 'results', 'keyName'];
+      const allowedFields = ['student', 'score', 'total', 'passed', 'passRate', 'failRate', 'verdict', 'results', 'keyName'];
       const merged = { ...current };
       for (const k of allowedFields) {
         if (k in updates) merged[k] = updates[k];
