@@ -1407,8 +1407,20 @@ function getVocabAnswerKey(keyData) {
   // answerMap이 저장된 경우 사용
   if (keyData && keyData.answerMap) {
     const map = {};
+    // 각 문항의 type을 알기 위해 types 배열에서 찾기
+    const types = keyData.types || [];
     Object.entries(keyData.answerMap).forEach(([num, v]) => {
-      map[+num] = v.meanings || [];
+      const n = +num;
+      // 이 번호가 어떤 type 구간에 속하는지 찾기
+      const typeInfo = types.find(t => n >= t.from && n <= t.to);
+      if (typeInfo && typeInfo.type === 'eng') {
+        // 영어 스펠링 시험: 정답은 word (영단어)
+        // 단어가 여러 개일 수도 있으니 배열로
+        map[n] = v.word ? [v.word] : [];
+      } else {
+        // 한국어 뜻쓰기 (기본): 정답은 meanings (한국어 뜻들)
+        map[n] = v.meanings || [];
+      }
     });
     return map;
   }
