@@ -533,14 +533,30 @@ select option{background:#282828}
               </select>
             </div>
             <div>
-              <label>통과 기준</label>
+              <label>통과 기준 (이상)</label>
               <select id="vcPassRate">
-                <option value="80">80% 이상</option>
-                <option value="90" selected>90% 이상</option>
-                <option value="95">95% 이상</option>
+                <option value="80">80%</option>
+                <option value="90" selected>90%</option>
+                <option value="95">95%</option>
                 <option value="100">100%</option>
               </select>
             </div>
+            <div>
+              <label>불통 기준 (이상)</label>
+              <select id="vcFailRate">
+                <option value="60">60%</option>
+                <option value="70">70%</option>
+                <option value="80" selected>80%</option>
+                <option value="85">85%</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--t2);margin-bottom:16px;line-height:1.6;padding:10px 12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
+            💡 3단계 자동 판정:<br>
+            <span style="color:var(--ok);font-weight:700">통과</span> = 통과 기준 이상 ·
+            <span style="color:#FFB74D;font-weight:700">불통</span> = 불통 기준 ~ 통과 기준 미만 ·
+            <span style="color:var(--err);font-weight:700">재시험</span> = 불통 기준 미만
           </div>
 
           <div id="vcCustomRow" style="display:none;margin-bottom:16px">
@@ -1052,24 +1068,29 @@ select option{background:#282828}
     </div>
 
     <!-- 요약 통계 -->
-    <div id="dashboardStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
-      <div style="padding:14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
+    <div id="dashboardStats" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px">
+      <div style="padding:12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
         <div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">총 채점</div>
-        <div id="statTotal" style="font-size:24px;font-weight:800;font-family:var(--m)">0</div>
+        <div id="statTotal" style="font-size:22px;font-weight:800;font-family:var(--m)">0</div>
       </div>
-      <div style="padding:14px;background:var(--b2);border:1px solid rgba(29,185,84,.3);border-radius:var(--r)">
+      <div style="padding:12px;background:var(--b2);border:1px solid rgba(29,185,84,.3);border-radius:var(--r)">
         <div style="font-size:10px;color:var(--g);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">통과</div>
-        <div id="statPass" style="font-size:24px;font-weight:800;font-family:var(--m);color:var(--g)">0</div>
+        <div id="statPass" style="font-size:22px;font-weight:800;font-family:var(--m);color:var(--g)">0</div>
         <div id="statPassRate" style="font-size:10px;color:var(--t2);margin-top:2px">0%</div>
       </div>
-      <div style="padding:14px;background:var(--b2);border:1px solid rgba(255,107,107,.3);border-radius:var(--r)">
+      <div style="padding:12px;background:var(--b2);border:1px solid rgba(255,183,77,.3);border-radius:var(--r)">
+        <div style="font-size:10px;color:#FFB74D;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">불통</div>
+        <div id="statWarn" style="font-size:22px;font-weight:800;font-family:var(--m);color:#FFB74D">0</div>
+        <div id="statWarnRate" style="font-size:10px;color:var(--t2);margin-top:2px">0%</div>
+      </div>
+      <div style="padding:12px;background:var(--b2);border:1px solid rgba(255,107,107,.3);border-radius:var(--r)">
         <div style="font-size:10px;color:#ff6b6b;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">재시험</div>
-        <div id="statFail" style="font-size:24px;font-weight:800;font-family:var(--m);color:#ff6b6b">0</div>
+        <div id="statFail" style="font-size:22px;font-weight:800;font-family:var(--m);color:#ff6b6b">0</div>
         <div id="statFailRate" style="font-size:10px;color:var(--t2);margin-top:2px">0%</div>
       </div>
-      <div style="padding:14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
-        <div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">평균 점수</div>
-        <div id="statAvg" style="font-size:24px;font-weight:800;font-family:var(--m)">-</div>
+      <div style="padding:12px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)">
+        <div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">평균</div>
+        <div id="statAvg" style="font-size:22px;font-weight:800;font-family:var(--m)">-</div>
       </div>
     </div>
 
@@ -2652,6 +2673,7 @@ function saveVocabConfig() {
     date:      document.getElementById('vcDate').value,
     total:     getVcTotal(),
     passRate:  document.getElementById('vcPassRate').value,
+    failRate:  document.getElementById('vcFailRate').value,
     lineH:     document.getElementById('vcLineH').value,
     cols:      document.getElementById('vcCols').value,
     types:     vcTypes.map(t=>({...t})),
@@ -2690,6 +2712,7 @@ function loadVocabConfig(name) {
   document.getElementById('vcAuthor').value    = d.author||'';
   document.getElementById('vcDate').value      = d.date||'';
   document.getElementById('vcPassRate').value  = d.passRate||'90';
+  document.getElementById('vcFailRate').value  = d.failRate||'80';
   document.getElementById('vcLineH').value     = d.lineH||'medium';
   document.getElementById('vcCols').value      = d.cols||'2';
   const totalSel = document.getElementById('vcTotal');
@@ -2929,10 +2952,13 @@ function getDashboardFilteredRecords() {
 function renderDashboard() {
   const filtered = getDashboardFilteredRecords();
   const total = filtered.length;
-  const passed = filtered.filter(r => r.passed).length;
-  const failed = total - passed;
+  // ★ 3단계 카운트
+  const passed = filtered.filter(r => getRecordVerdictPC(r).status==='pass').length;
+  const warned = filtered.filter(r => getRecordVerdictPC(r).status==='warn').length;
+  const failed = filtered.filter(r => getRecordVerdictPC(r).status==='fail').length;
   const passRate = total > 0 ? Math.round(passed / total * 100) : 0;
-  const failRate = total > 0 ? 100 - passRate : 0;
+  const warnRate = total > 0 ? Math.round(warned / total * 100) : 0;
+  const failRate = total > 0 ? Math.round(failed / total * 100) : 0;
   const avgScore = total > 0
     ? (filtered.reduce((s,r) => s + (r.score / r.total * 100), 0) / total).toFixed(1)
     : '-';
@@ -2940,17 +2966,22 @@ function renderDashboard() {
   document.getElementById('statTotal').textContent = total;
   document.getElementById('statPass').textContent = passed;
   document.getElementById('statPassRate').textContent = passRate + '%';
+  document.getElementById('statWarn').textContent = warned;
+  document.getElementById('statWarnRate').textContent = warnRate + '%';
   document.getElementById('statFail').textContent = failed;
   document.getElementById('statFailRate').textContent = failRate + '%';
   document.getElementById('statAvg').textContent = avgScore !== '-' ? avgScore + '%' : '-';
 
-  // 시험별 통과율
+  // 시험별 통과율 (통과 비율로만 — 단순화)
   const byExam = {};
   filtered.forEach(r => {
     const k = r.keyName || '(이름 없음)';
-    if (!byExam[k]) byExam[k] = { total:0, pass:0, sum:0 };
+    if (!byExam[k]) byExam[k] = { total:0, pass:0, warn:0, fail:0, sum:0 };
     byExam[k].total++;
-    if (r.passed) byExam[k].pass++;
+    const v = getRecordVerdictPC(r);
+    if (v.status === 'pass') byExam[k].pass++;
+    else if (v.status === 'warn') byExam[k].warn++;
+    else byExam[k].fail++;
     byExam[k].sum += (r.score / r.total * 100);
   });
   const examEntries = Object.entries(byExam).sort((a,b) => b[1].total - a[1].total);
@@ -2965,7 +2996,7 @@ function renderDashboard() {
       <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtmlPC(k)}</div>
-          <div style="font-size:10px;color:var(--t2);margin-top:2px">${v.total}명 응시 · 평균 ${(v.sum/v.total).toFixed(1)}%</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:2px">${v.total}명 · 평균 ${(v.sum/v.total).toFixed(1)}% · ${v.pass}통과 ${v.warn?v.warn+'불통 ':''}${v.fail}재시험</div>
         </div>
         <div style="font-family:var(--m);font-size:14px;font-weight:700;color:${color};white-space:nowrap">${rate}%</div>
         <div style="width:80px;height:6px;background:var(--b2);border-radius:3px;overflow:hidden;flex-shrink:0">
@@ -2975,8 +3006,8 @@ function renderDashboard() {
     }).join('');
   }
 
-  // 재시험 명단
-  const failList = filtered.filter(r => !r.passed);
+  // 재시험 명단 (재시험만 — 불통은 따로 안 표시)
+  const failList = filtered.filter(r => getRecordVerdictPC(r).status === 'fail');
   const failEl = document.getElementById('dashboardFailList');
   if (failList.length === 0) {
     failEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">재시험 대상자 없음 ✓</div>';
@@ -2999,7 +3030,9 @@ function renderDashboard() {
   if (filtered.length === 0) {
     allEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">데이터 없음</div>';
   } else {
-    allEl.innerHTML = filtered.slice(0, 200).map(r => `
+    allEl.innerHTML = filtered.slice(0, 200).map(r => {
+      const v = getRecordVerdictPC(r);
+      return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--b3);border-radius:6px;cursor:pointer;transition:background .15s"
         onmouseover="this.style.background='rgba(255,183,77,.08)'"
         onmouseout="this.style.background='var(--b3)'"
@@ -3009,10 +3042,11 @@ function renderDashboard() {
           <div style="font-size:10px;color:var(--t2);margin-top:2px">${escapeHtmlPC(r.keyName||'')} · ${r.date} ${r.time||''}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-family:var(--m);font-size:13px;font-weight:700;color:${r.passed?'var(--g)':'#ff6b6b'}">${r.score}/${r.total}</div>
-          <div style="font-size:10px;color:${r.passed?'var(--g)':'#ff6b6b'}">${r.passed?'통과':'재시험'}</div>
+          <div style="font-family:var(--m);font-size:13px;font-weight:700;color:${v.color}">${r.score}/${r.total}</div>
+          <div style="font-size:10px;color:${v.color}">${v.label}</div>
         </div>
-      </div>`).join('') + (filtered.length > 200 ? '<div style="font-size:11px;color:var(--t2);text-align:center;padding:10px">더 많은 기록은 CSV로 다운로드해주세요</div>' : '');
+      </div>`;
+    }).join('') + (filtered.length > 200 ? '<div style="font-size:11px;color:var(--t2);text-align:center;padding:10px">더 많은 기록은 CSV로 다운로드해주세요</div>' : '');
   }
 }
 
@@ -3030,6 +3064,7 @@ function downloadDashboardCsv() {
   ];
   filtered.forEach(r => {
     const pct = r.total > 0 ? Math.round(r.score / r.total * 100) + '%' : '';
+    const v = getRecordVerdictPC(r);
     rows.push([
       r.date || '',
       r.time || '',
@@ -3038,7 +3073,7 @@ function downloadDashboardCsv() {
       r.score ?? '',
       r.total ?? '',
       pct,
-      r.passed ? '통과' : '재시험'
+      v.label   // 통과 / 불통 / 재시험
     ]);
   });
   // CSV 생성 (BOM 추가 → 엑셀 한글 호환)
@@ -3151,18 +3186,43 @@ function recalculateRecordScore(r) {
   if (!r || !r.results) return;
   const okCount = r.results.filter(x => x.correct === true).length;
   r.score = okCount;
-  const passNum = Math.ceil((r.total || r.results.length) * (r.passRate || 90) / 100);
-  r.passed = okCount >= passNum;
+  const v = computeVerdictPC(okCount, r.total || r.results.length, r.passRate || 90, r.failRate || 80);
+  r.passed = v.status === 'pass';
+  r.verdict = v.status;
+}
+
+// PC 측 3단계 판정 헬퍼 (grading.html의 computeVerdict와 동일 로직)
+function computeVerdictPC(score, total, passRate, failRate) {
+  passRate = parseInt(passRate || 90);
+  failRate = parseInt(failRate || 80);
+  if (failRate >= passRate) failRate = Math.max(0, passRate - 10);
+  const pct = total > 0 ? (score / total) * 100 : 0;
+  if (pct >= passRate) return { status:'pass', label:'통과', color:'var(--g)', icon:'✅' };
+  if (pct >= failRate) return { status:'warn', label:'불통', color:'#FFB74D', icon:'⚠️' };
+  return { status:'fail', label:'재시험', color:'#ff6b6b', icon:'❌' };
+}
+
+// 옛 record에서도 verdict 추출 (PC용)
+function getRecordVerdictPC(record) {
+  if (!record) return computeVerdictPC(0, 1, 90, 80);
+  if (record.verdict) {
+    const map = {
+      pass: { status:'pass', label:'통과', color:'var(--g)', icon:'✅' },
+      warn: { status:'warn', label:'불통', color:'#FFB74D', icon:'⚠️' },
+      fail: { status:'fail', label:'재시험', color:'#ff6b6b', icon:'❌' },
+    };
+    return map[record.verdict] || map.fail;
+  }
+  return computeVerdictPC(record.score || 0, record.total || 1, record.passRate || 90, record.failRate || 80);
 }
 
 function updateEditRecordScorePC() {
   const r = editRecordPCState.record;
   if (!r) return;
   const pct = r.total > 0 ? Math.round(r.score / r.total * 100) : 0;
-  const verdict = r.passed ? '통과' : '재시험';
-  const color = r.passed ? 'var(--g)' : '#ff6b6b';
+  const v = getRecordVerdictPC(r);
   document.getElementById('editRecordScore').innerHTML =
-    `<span style="color:${color}">${r.score}/${r.total} · ${pct}% · ${verdict}</span>`;
+    `<span style="color:${v.color}">${r.score}/${r.total} · ${pct}% · ${v.label}</span>`;
 }
 
 async function saveEditRecordPC() {
@@ -3184,6 +3244,7 @@ async function saveEditRecordPC() {
     student: r.student,
     score: r.score,
     passed: r.passed,
+    verdict: r.verdict,
     results: r.results,
   };
   const resp = await cloudSync('updateRecord', {
