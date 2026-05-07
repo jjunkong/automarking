@@ -1714,11 +1714,90 @@ function updateHome() {
     el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">채점 기록이 없습니다</div>';
     return;
   }
-  el.innerHTML = hist.slice(0,10).map(r=>`
+
+  // ★ 날짜별로 그룹화 (날짜 → [기록들])
+  const groups = {};
+  hist.forEach(r => {
+    const d = r.date || '날짜 없음';
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(r);
+  });
+
+  // 날짜 정렬 (최신순) — "2026.5.5" 형태 ko-KR
+  const sortedDates = Object.keys(groups).sort((a, b) => {
+    // 한국어 날짜 형식 정렬: "2026. 5. 5." 같은 형태
+    return parseKoDate(b) - parseKoDate(a);
+  });
+
+  // 펼침 상태 (초기: 오늘만 펼침, 나머지 접힘)
+  // 사용자가 토글한 상태를 기억하기 위해 모듈 변수 사용
+  if (!window._histOpen) {
+    window._histOpen = {};
+    window._histOpen[today] = true; // 오늘은 자동 펼침
+  }
+
+  let html = '';
+  sortedDates.forEach(date => {
+    const items = groups[date];
+    const passed = items.filter(r => r.passed).length;
+    const failed = items.length - passed;
+    const isToday = date === today;
+    const isOpen = isToday || window._histOpen[date] === true;
+    const dateLabel = formatDateLabel(date, isToday);
+
+    html += `
+      <div class="hist-group" data-date="${escapeHtml(date)}">
+        <div class="hist-date-header" onclick="toggleHistDate('${escapeHtml(date)}')"
+          style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isToday?'rgba(29,185,84,.08)':'var(--b2)'};border:1px solid ${isToday?'rgba(29,185,84,.25)':'var(--bo)'};border-radius:var(--r);cursor:pointer;user-select:none;transition:background .15s">
+          <span style="font-size:11px;color:var(--t2);transition:transform .2s;display:inline-block;${isOpen?'transform:rotate(90deg)':''}">▶</span>
+          <span style="font-size:13px;font-weight:700;flex:1;color:${isToday?'var(--g)':'var(--t1)'}">${dateLabel}</span>
+          <span style="font-size:11px;color:var(--t2)">${items.length}건</span>
+          ${passed>0?`<span style="font-size:10px;color:var(--ok);font-weight:700">${passed} 통과</span>`:''}
+          ${failed>0?`<span style="font-size:10px;color:var(--err);font-weight:700">${failed} 재시험</span>`:''}
+        </div>
+        <div class="hist-date-body" style="display:${isOpen?'flex':'none'};flex-direction:column;gap:6px;margin-top:6px;padding-left:4px">
+          ${items.map(r => renderHistItem(r)).join('')}
+        </div>
+      </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+// 한국어 날짜 문자열을 timestamp로 변환 (정렬용)
+function parseKoDate(s) {
+  if (!s) return 0;
+  // "2026. 5. 5." → [2026, 5, 5]
+  const m = s.match(/(\d{4})[.\-\/년]\s*(\d{1,2})[.\-\/월]\s*(\d{1,2})/);
+  if (!m) return 0;
+  return new Date(+m[1], +m[2]-1, +m[3]).getTime();
+}
+
+// 날짜 라벨 포맷 (오늘/어제 표시)
+function formatDateLabel(dateStr, isToday) {
+  if (isToday) return `📅 오늘 (${dateStr})`;
+  // 어제 판정
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yStr = yesterday.toLocaleDateString('ko-KR');
+  if (dateStr === yStr) return `📆 어제 (${dateStr})`;
+  return `📆 ${dateStr}`;
+}
+
+// 날짜 그룹 펼침/접힘 토글
+function toggleHistDate(date) {
+  if (!window._histOpen) window._histOpen = {};
+  window._histOpen[date] = !window._histOpen[date];
+  updateHome();
+}
+
+// 개별 기록 한 줄 렌더링 (재사용 가능)
+function renderHistItem(r) {
+  return `
     <div class="hist-item" style="position:relative">
       <div style="flex:1;min-width:0;cursor:pointer" onclick="openEditRecord('${r.id}')">
         <div class="hist-name">${escapeHtml(r.student||'(이름 없음)')}${r.editedAt ? ' <span style="font-size:9px;color:var(--t2);font-weight:500">✎ 수정됨</span>' : ''}</div>
-        <div class="hist-meta">${escapeHtml(r.keyName||'')} · ${r.date} ${r.time}</div>
+        <div class="hist-meta">${escapeHtml(r.keyName||'')} · ${r.time||''}</div>
       </div>
       <div style="text-align:right;margin-right:6px;cursor:pointer" onclick="openEditRecord('${r.id}')">
         <div class="hist-score" style="color:${r.passed?'var(--ok)':'var(--err)'}">${r.score}/${r.total}</div>
@@ -1732,7 +1811,7 @@ function updateHome() {
         style="width:28px;height:28px;flex-shrink:0;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
         onmouseover="this.style.borderColor='var(--err)';this.style.color='var(--err)'"
         onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">✕</button>
-    </div>`).join('');
+    </div>`;
 }
 
 // HTML 이스케이프 (학생 이름 등 표시용)
