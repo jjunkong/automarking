@@ -142,7 +142,9 @@ select option{background:#282828}
 .rnum{font-size:11px;font-weight:800;color:var(--t2);min-width:26px;font-family:var(--m)}
 .ranswer{flex:1;font-size:13px;font-weight:500}
 .rexpect{font-size:11px;color:var(--t2);margin-top:1px}
-.rbadge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0}
+.rbadge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0;transition:transform .1s,box-shadow .15s}
+.rbadge:hover{transform:scale(1.08)}
+.rbadge:active{transform:scale(.95)}
 .ok .rbadge{background:rgba(29,185,84,.15);color:var(--ok)}
 .err .rbadge{background:rgba(255,77,77,.15);color:var(--err)}
 .unc .rbadge{background:rgba(255,183,77,.15);color:var(--warn)}
@@ -476,12 +478,13 @@ body{padding-bottom:52px}
 
   <!-- 자동 채점 결과 -->
   <div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--t2)"></div>
       <span style="font-size:12px;font-weight:700;color:var(--t2)">자동 채점 완료</span>
       <button onclick="toggleAutoList()" id="autoToggle"
         style="margin-left:auto;font-size:11px;color:var(--t2);background:transparent;border:1px solid var(--bm);border-radius:12px;padding:2px 10px;cursor:pointer">접기</button>
     </div>
+    <div style="font-size:10px;color:var(--t2);margin-bottom:8px;line-height:1.5">💡 O/X 배지를 탭하면 결과를 변경할 수 있어요</div>
     <div class="result-list" id="autoList"></div>
   </div>
 
@@ -1333,6 +1336,21 @@ function gradeAnswers(extracted) {
   const keyData  = state.keyData;
   const results  = [];
 
+  // ★ 답안 정규화 — 보이지 않는 차이 제거
+  // - 모든 공백/탭/줄바꿈 제거
+  // - 마침표, 쉼표, 따옴표 등 구두점 제거
+  // - zero-width 문자, 영(0xFEFF), 비표준 공백 제거
+  // - 소문자 변환
+  const normalize = (s) => {
+    if (s == null) return '';
+    return String(s)
+      .replace(/[\u200B-\u200F\uFEFF\u2028\u2029\u00A0\u3000]/g, '') // 비표시 문자, 다양한 공백
+      .replace(/\s+/g, '')                                            // 일반 공백/탭/개행
+      .replace(/[.,;:!?'"`()[\]{}…·\-—–~]/g, '')                       // 구두점
+      .toLowerCase()
+      .trim();
+  };
+
   // 정답 맵 구성
   let answerMap = {}; // {num: {correct:[...], type:'kor'|'eng'}}
   if (keyData && keyData.types) {
@@ -1361,33 +1379,38 @@ function gradeAnswers(extracted) {
       return;
     }
 
+    // ★ 학생 답과 정답 모두 정규화해서 비교
+    const studentNorm = normalize(ans);
+
     if (info.type==='eng') {
-      // 스펠링: 대소문자 무시 정확 비교
-      const studentLower = ans.trim().toLowerCase();
-      const exactOk = info.corrects.some(c=>c.trim().toLowerCase()===studentLower);
+      // 영어 스펠링: 정규화 후 정확 비교
+      const exactOk = info.corrects.some(c => normalize(c) === studentNorm);
       if (exactOk) {
         results.push({num, student:ans, correct:true, auto:true, status:'ok', corrects:info.corrects});
       } else {
-        // ★ 오타 허용: 1글자 차이면 미확인 처리 (조교가 결정)
+        // 오타 허용: 1글자 차이면 미확인 처리
         const minDist = Math.min(...info.corrects.map(c=>answerSimilarity(ans, c)));
         if (minDist === 1) {
-          // 1글자만 차이 — 미확인으로 두어 조교가 판단
           results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'1글자 차이'});
         } else {
           results.push({num, student:ans, correct:false, auto:true, status:'err', corrects:info.corrects});
         }
       }
     } else {
-      // 뜻쓰기: 핵심어 포함 여부 (간단 체크)
-      const studentClean = ans.trim().replace(/\s/g,'');
-      const ok = info.corrects.some(c=>{
-        const clean = c.trim().replace(/\s/g,'');
-        return studentClean.includes(clean) || clean.includes(studentClean) ||
-               studentClean.toLowerCase()===clean.toLowerCase();
+      // 한국어 뜻쓰기: 정규화 + 부분 일치
+      const ok = info.corrects.some(c => {
+        const correctNorm = normalize(c);
+        if (!correctNorm) return false;
+        // 1) 완전 일치
+        if (studentNorm === correctNorm) return true;
+        // 2) 포함 관계 (학생이 더 길게 쓰거나, 짧게 핵심만 쓴 경우)
+        if (studentNorm.includes(correctNorm) || correctNorm.includes(studentNorm)) return true;
+        return false;
       });
+
       // 부분 일치면 uncertain (편집 거리 또는 similarity)
       let close = !ok && info.corrects.some(c=>similarity(ans,c)>0.6);
-      // ★ 오타 허용: 1글자 차이도 미확인 (한글에서 받침 빼먹기 등)
+      // 1글자 차이도 미확인 (받침 빼먹기 등)
       if (!ok && !close) {
         const minDist = Math.min(...info.corrects.map(c=>answerSimilarity(ans, c)));
         if (minDist === 1) close = true;
@@ -1510,14 +1533,30 @@ function renderResultItem(r, withBtns) {
       </div>
     </div>`;
   }
+  // ★ 자동 채점 항목도 ⭕/❌ 배지 클릭으로 토글 가능
+  // O인 항목 클릭 → X로, X인 항목 클릭 → O로
   return `<div class="result-item ${r.status}">
     <span class="rnum">${r.num}.</span>
     <div style="flex:1;min-width:0">
       <div class="ranswer">${r.student}${manualMark}</div>
       ${corrStr&&r.status==='err'?`<div class="rexpect">정답: ${corrStr}</div>`:''}
     </div>
-    <span class="rbadge">${r.status==='ok'?'O':'X'}</span>
+    <span class="rbadge" onclick="toggleAutoResult(${r.num})"
+      style="cursor:pointer;user-select:none"
+      title="클릭하여 ${r.status==='ok'?'X로 변경':'O로 변경'}">${r.status==='ok'?'O':'X'}</span>
   </div>`;
+}
+
+// 자동 채점 항목의 O/X 토글
+function toggleAutoResult(num) {
+  const r = state.results.find(r=>r.num===num);
+  if (!r) return;
+  // 정답 → 오답으로, 오답 → 정답으로
+  r.correct = !r.correct;
+  r.status = r.correct ? 'ok' : 'err';
+  r.auto = false; // 사용자가 직접 결정한 표시
+  renderReview();
+  showToast(r.correct ? '✓ O로 변경됨' : '✗ X로 변경됨', '');
 }
 
 function setUnc(num, correct) {
