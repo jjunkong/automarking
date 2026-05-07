@@ -163,6 +163,7 @@ select option{background:#282828}
   border:4px solid;
 }
 .score-circle.pass{border-color:var(--ok);background:rgba(29,185,84,.1)}
+.score-circle.warn{border-color:#FFB74D;background:rgba(255,183,77,.1)}
 .score-circle.fail{border-color:var(--err);background:rgba(255,77,77,.1)}
 .score-num{font-size:28px;font-weight:800;letter-spacing:-1px;font-family:var(--m)}
 .score-label{font-size:11px;font-weight:600;margin-top:2px}
@@ -179,6 +180,7 @@ select option{background:#282828}
 .hist-score{font-size:16px;font-weight:800;font-family:var(--m)}
 .hist-verdict{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:2px;display:inline-block}
 .hist-verdict.pass{background:rgba(29,185,84,.15);color:var(--ok)}
+.hist-verdict.warn{background:rgba(255,183,77,.15);color:#FFB74D}
 .hist-verdict.fail{background:rgba(255,77,77,.15);color:var(--err)}
 
 /* ── TOAST ── */
@@ -261,17 +263,21 @@ body{padding-bottom:52px}
   <!-- 최근 채점 -->
   <div>
     <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">오늘 채점 현황</div>
-    <div id="todaySummary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px;text-align:center">
-        <div id="todayCount" style="font-size:22px;font-weight:800;color:var(--t0);font-family:var(--m)">0</div>
-        <div style="font-size:10px;color:var(--t2);margin-top:2px">채점 완료</div>
+    <div id="todaySummary" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
+      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:10px 6px;text-align:center">
+        <div id="todayCount" style="font-size:20px;font-weight:800;color:var(--t0);font-family:var(--m)">0</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">채점</div>
       </div>
-      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px;text-align:center">
-        <div id="todayPass" style="font-size:22px;font-weight:800;color:var(--ok);font-family:var(--m)">0</div>
+      <div style="background:var(--b2);border:1px solid rgba(29,185,84,.25);border-radius:var(--r);padding:10px 6px;text-align:center">
+        <div id="todayPass" style="font-size:20px;font-weight:800;color:var(--ok);font-family:var(--m)">0</div>
         <div style="font-size:10px;color:var(--t2);margin-top:2px">통과</div>
       </div>
-      <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px;text-align:center">
-        <div id="todayFail" style="font-size:22px;font-weight:800;color:var(--err);font-family:var(--m)">0</div>
+      <div style="background:var(--b2);border:1px solid rgba(255,183,77,.25);border-radius:var(--r);padding:10px 6px;text-align:center">
+        <div id="todayWarn" style="font-size:20px;font-weight:800;color:#FFB74D;font-family:var(--m)">0</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px">불통</div>
+      </div>
+      <div style="background:var(--b2);border:1px solid rgba(255,77,77,.25);border-radius:var(--r);padding:10px 6px;text-align:center">
+        <div id="todayFail" style="font-size:20px;font-weight:800;color:var(--err);font-family:var(--m)">0</div>
         <div style="font-size:10px;color:var(--t2);margin-top:2px">재시험</div>
       </div>
     </div>
@@ -1604,12 +1610,15 @@ async function confirmResult() {
   const errCount = results.filter(r=>r.correct===false).length;
   const total    = state.keyData?.total||results.length;
   const passRate = parseInt(state.keyData?.passRate||90);
-  const passNum  = Math.ceil(total*passRate/100);
-  const passed   = okCount >= passNum;
+  const failRate = parseInt(state.keyData?.failRate||80);
+
+  // ★ 3단계 판정
+  const verdict = computeVerdict(okCount, total, passRate, failRate);
+  // verdict: { status: 'pass'|'warn'|'fail', label: '통과'|'불통'|'재시험', color, icon }
 
   const now = Date.now();
   const record = {
-    id: now + '_' + Math.random().toString(36).slice(2, 8), // 더 고유한 ID
+    id: now + '_' + Math.random().toString(36).slice(2, 8),
     savedAt: new Date(now).toISOString(),
     date: new Date(now).toLocaleDateString('ko-KR'),
     time: new Date(now).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
@@ -1619,7 +1628,9 @@ async function confirmResult() {
     score: okCount,
     total,
     passRate,
-    passed,
+    failRate,                          // ★ 새로 저장
+    passed: verdict.status === 'pass', // 호환성: 통과는 true
+    verdict: verdict.status,            // ★ 'pass'|'warn'|'fail'
     results: results.map(r=>({num:r.num,student:r.student,correct:r.correct})),
   };
 
@@ -1637,26 +1648,57 @@ async function confirmResult() {
       if (r.ok) {
         console.log('[record] uploaded to cloud:', r.id);
       } else if (r.status === 404) {
-        // 학원 코드 무효화 → 로그아웃
         handleCodeInvalidated();
       } else {
         console.warn('[record] cloud upload failed:', r.error);
-        // 실패해도 로컬엔 저장됐으니 사용 흐름 안 끊음
       }
     });
   }
 }
 
+// ★ 3단계 판정 헬퍼 — 모든 곳에서 공통 사용
+// 옛 record (passed: true/false만 있음) 도 호환되게 처리
+function computeVerdict(score, total, passRate, failRate) {
+  passRate = parseInt(passRate || 90);
+  failRate = parseInt(failRate || 80);
+  // failRate가 passRate 이상이면 그냥 2단계 모드 (예전 데이터)
+  if (failRate >= passRate) failRate = Math.max(0, passRate - 10);
+  const pct = total > 0 ? (score / total) * 100 : 0;
+  if (pct >= passRate) return { status: 'pass', label: '통과', color: 'var(--ok)', icon: '✅' };
+  if (pct >= failRate) return { status: 'warn', label: '불통', color: '#FFB74D', icon: '⚠️' };
+  return { status: 'fail', label: '재시험', color: 'var(--err)', icon: '❌' };
+}
+
+// 옛 record에서 verdict 추출 (호환성)
+function getRecordVerdict(record) {
+  if (!record) return computeVerdict(0, 1, 90, 80);
+  // 이미 verdict 필드가 있으면 그대로
+  if (record.verdict) {
+    const map = {
+      pass: { status:'pass', label:'통과', color:'var(--ok)', icon:'✅' },
+      warn: { status:'warn', label:'불통', color:'#FFB74D', icon:'⚠️' },
+      fail: { status:'fail', label:'재시험', color:'var(--err)', icon:'❌' },
+    };
+    return map[record.verdict] || map.fail;
+  }
+  // 옛 데이터 — passed boolean만으로 추측 (점수로 재계산)
+  return computeVerdict(record.score || 0, record.total || 1, record.passRate || 90, record.failRate || 80);
+}
+
 function renderResult(r) {
   const pct = Math.round(r.score/r.total*100);
+  const v = getRecordVerdict(r);
   const circle = document.getElementById('resultCircle');
-  circle.className = `score-circle ${r.passed?'pass':'fail'}`;
+  // 3단계 클래스 (CSS는 .pass / .warn / .fail)
+  circle.className = `score-circle ${v.status}`;
   document.getElementById('resultScoreNum').textContent  = `${pct}%`;
   document.getElementById('resultScoreLabel').textContent= `${r.score}/${r.total}`;
-  document.getElementById('resultVerdict').textContent   = r.passed?'✅ 통과':'❌ 재시험';
-  document.getElementById('resultVerdict').style.color   = r.passed?'var(--ok)':'var(--err)';
+  document.getElementById('resultVerdict').textContent   = `${v.icon} ${v.label}`;
+  document.getElementById('resultVerdict').style.color   = v.color;
+  const pr = r.passRate || 90;
+  const fr = r.failRate || 80;
   document.getElementById('resultDetail').textContent    =
-    `통과 기준 ${r.passRate}% (${Math.ceil(r.total*r.passRate/100)}개) · ${r.passed?'합격':'불합격'}`;
+    `통과 ${pr}% · 불통 ${fr}% · ${v.label}`;
 
   const bd = document.getElementById('resultBreakdown');
   const ok  = r.results.filter(x=>x.correct===true).length;
@@ -1706,8 +1748,9 @@ function updateHome() {
   const today = new Date().toLocaleDateString('ko-KR');
   const todays = hist.filter(h=>h.date===today);
   document.getElementById('todayCount').textContent = todays.length;
-  document.getElementById('todayPass').textContent  = todays.filter(h=>h.passed).length;
-  document.getElementById('todayFail').textContent  = todays.filter(h=>!h.passed).length;
+  document.getElementById('todayPass').textContent  = todays.filter(h=>getRecordVerdict(h).status==='pass').length;
+  document.getElementById('todayWarn').textContent  = todays.filter(h=>getRecordVerdict(h).status==='warn').length;
+  document.getElementById('todayFail').textContent  = todays.filter(h=>getRecordVerdict(h).status==='fail').length;
 
   const el = document.getElementById('histList');
   if (!hist.length) {
@@ -1739,8 +1782,9 @@ function updateHome() {
   let html = '';
   sortedDates.forEach(date => {
     const items = groups[date];
-    const passed = items.filter(r => r.passed).length;
-    const failed = items.length - passed;
+    const passN = items.filter(r => getRecordVerdict(r).status==='pass').length;
+    const warnN = items.filter(r => getRecordVerdict(r).status==='warn').length;
+    const failN = items.filter(r => getRecordVerdict(r).status==='fail').length;
     const isToday = date === today;
     const isOpen = isToday || window._histOpen[date] === true;
     const dateLabel = formatDateLabel(date, isToday);
@@ -1748,12 +1792,13 @@ function updateHome() {
     html += `
       <div class="hist-group" data-date="${escapeHtml(date)}">
         <div class="hist-date-header" onclick="toggleHistDate('${escapeHtml(date)}')"
-          style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isToday?'rgba(29,185,84,.08)':'var(--b2)'};border:1px solid ${isToday?'rgba(29,185,84,.25)':'var(--bo)'};border-radius:var(--r);cursor:pointer;user-select:none;transition:background .15s">
+          style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isToday?'rgba(29,185,84,.08)':'var(--b2)'};border:1px solid ${isToday?'rgba(29,185,84,.25)':'var(--bo)'};border-radius:var(--r);cursor:pointer;user-select:none;transition:background .15s;flex-wrap:wrap">
           <span style="font-size:11px;color:var(--t2);transition:transform .2s;display:inline-block;${isOpen?'transform:rotate(90deg)':''}">▶</span>
-          <span style="font-size:13px;font-weight:700;flex:1;color:${isToday?'var(--g)':'var(--t1)'}">${dateLabel}</span>
+          <span style="font-size:13px;font-weight:700;flex:1;color:${isToday?'var(--g)':'var(--t1)'};min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dateLabel}</span>
           <span style="font-size:11px;color:var(--t2)">${items.length}건</span>
-          ${passed>0?`<span style="font-size:10px;color:var(--ok);font-weight:700">${passed} 통과</span>`:''}
-          ${failed>0?`<span style="font-size:10px;color:var(--err);font-weight:700">${failed} 재시험</span>`:''}
+          ${passN>0?`<span style="font-size:10px;color:var(--ok);font-weight:700">${passN}통과</span>`:''}
+          ${warnN>0?`<span style="font-size:10px;color:#FFB74D;font-weight:700">${warnN}불통</span>`:''}
+          ${failN>0?`<span style="font-size:10px;color:var(--err);font-weight:700">${failN}재시험</span>`:''}
         </div>
         <div class="hist-date-body" style="display:${isOpen?'flex':'none'};flex-direction:column;gap:6px;margin-top:6px;padding-left:4px">
           ${items.map(r => renderHistItem(r)).join('')}
@@ -1793,6 +1838,7 @@ function toggleHistDate(date) {
 
 // 개별 기록 한 줄 렌더링 (재사용 가능)
 function renderHistItem(r) {
+  const v = getRecordVerdict(r);
   return `
     <div class="hist-item" style="position:relative">
       <div style="flex:1;min-width:0;cursor:pointer" onclick="openEditRecord('${r.id}')">
@@ -1800,8 +1846,8 @@ function renderHistItem(r) {
         <div class="hist-meta">${escapeHtml(r.keyName||'')} · ${r.time||''}</div>
       </div>
       <div style="text-align:right;margin-right:6px;cursor:pointer" onclick="openEditRecord('${r.id}')">
-        <div class="hist-score" style="color:${r.passed?'var(--ok)':'var(--err)'}">${r.score}/${r.total}</div>
-        <div class="hist-verdict ${r.passed?'pass':'fail'}">${r.passed?'통과':'재시험'}</div>
+        <div class="hist-score" style="color:${v.color}">${r.score}/${r.total}</div>
+        <div class="hist-verdict ${v.status}">${v.label}</div>
       </div>
       <button onclick="event.stopPropagation();openEditRecord('${r.id}')" title="수정"
         style="width:28px;height:28px;flex-shrink:0;background:transparent;border:1px solid var(--bm);border-radius:50%;color:var(--t2);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-right:4px;transition:all .15s"
@@ -1917,19 +1963,18 @@ function recalculateScore() {
   if (!r || !r.results) return;
   const okCount = r.results.filter(x => x.correct === true).length;
   r.score = okCount;
-  // total은 그대로 유지
-  const passNum = Math.ceil((r.total || r.results.length) * (r.passRate || 90) / 100);
-  r.passed = okCount >= passNum;
+  const v = computeVerdict(okCount, r.total || r.results.length, r.passRate || 90, r.failRate || 80);
+  r.passed = v.status === 'pass';
+  r.verdict = v.status;
 }
 
 function updateEditScoreDisplay() {
   const r = editState.record;
   if (!r) return;
   const pct = r.total > 0 ? Math.round(r.score / r.total * 100) : 0;
-  const verdict = r.passed ? '통과' : '재시험';
-  const color = r.passed ? 'var(--ok)' : 'var(--err)';
+  const v = getRecordVerdict(r);
   document.getElementById('editCurrentScore').innerHTML =
-    `<span style="color:${color}">${r.score}/${r.total} · ${pct}% · ${verdict}</span>`;
+    `<span style="color:${v.color}">${r.score}/${r.total} · ${pct}% · ${v.label}</span>`;
 }
 
 async function saveEditRecord() {
@@ -1961,6 +2006,7 @@ async function saveEditRecord() {
       student: r.student,
       score: r.score,
       passed: r.passed,
+      verdict: r.verdict,
       results: r.results,
     };
     const resp = await cloudSync('updateRecord', {
