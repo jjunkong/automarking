@@ -266,6 +266,8 @@ select option{background:#282828}
   .fr.c3{grid-template-columns:1fr}
 }
 </style>
+<!-- mammoth.js: DOCX 파일에서 텍스트 추출용 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
@@ -411,7 +413,7 @@ select option{background:#282828}
         <div class="cb">
 
           <!-- 업로드 영역 -->
-          <input type="file" id="pdfFileInput" accept=".pdf"
+          <input type="file" id="pdfFileInput" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             style="display:none" onchange="onPdfSelected(event)">
 
           <label for="pdfFileInput" id="pdfDropArea"
@@ -423,10 +425,10 @@ select option{background:#282828}
               transition:all .2s;margin-bottom:14px;user-select:none">
             <div style="font-size:36px;margin-bottom:10px">📄</div>
             <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:6px">
-              PDF를 여기에 드래그하거나 클릭하여 선택
+              파일을 여기에 드래그하거나 클릭하여 선택
             </div>
             <div style="font-size:12px;color:var(--t2);margin-bottom:14px">
-              문제+정답 형식의 PDF를 올려주세요
+              문제+정답이 들어있는 <strong>PDF, DOCX, DOC</strong> 파일을 올려주세요
             </div>
             <span style="display:inline-block;padding:8px 22px;
               background:rgba(206,147,216,.2);border:1px solid rgba(206,147,216,.4);
@@ -3568,16 +3570,121 @@ document.addEventListener('DOMContentLoaded', ()=>{
 function onPdfSelected(e) {
   const file = e.target.files[0];
   if (!file) return;
-  parsePdfAnswers(file);
+  parseAnswerFile(file);
 }
 
 function onPdfDropped(e) {
   const file = e.dataTransfer?.files[0];
   if (!file) return;
-  if (file.type !== 'application/pdf') {
-    showToast('PDF 파일만 업로드 가능해요','err'); return;
+  parseAnswerFile(file);
+}
+
+// 파일 종류 판별 — 확장자 기반 (브라우저가 type 못 잡는 경우 많음)
+function detectAnswerFileType(file) {
+  const name = (file.name || '').toLowerCase();
+  if (name.endsWith('.pdf')) return 'pdf';
+  if (name.endsWith('.docx')) return 'docx';
+  if (name.endsWith('.doc')) return 'doc';
+  // MIME 타입 fallback
+  if (file.type === 'application/pdf') return 'pdf';
+  if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  if (file.type === 'application/msword') return 'doc';
+  return 'unknown';
+}
+
+// 파일 종류에 따라 분기
+async function parseAnswerFile(file) {
+  const fileType = detectAnswerFileType(file);
+
+  if (fileType === 'pdf') {
+    return parsePdfAnswers(file);
   }
-  parsePdfAnswers(file);
+  if (fileType === 'docx') {
+    return parseDocxAnswers(file);
+  }
+  if (fileType === 'doc') {
+    showToast('⚠ .doc(옛 Word) 형식은 직접 지원이 안 됩니다.\nWord에서 "다른 이름으로 저장" → .docx 또는 .pdf로 변환 후 올려주세요','err');
+    return;
+  }
+  showToast('지원하지 않는 파일 형식입니다 (PDF 또는 DOCX만 가능)', 'err');
+}
+
+// DOCX 처리 — mammoth.js로 텍스트 추출 후 AI에 전송
+async function parseDocxAnswers(file) {
+  if (typeof mammoth === 'undefined') {
+    showToast('DOCX 처리 라이브러리 로딩 실패. 페이지를 새로고침해주세요','err');
+    return;
+  }
+
+  document.getElementById('pdfProgress').style.display='';
+  document.getElementById('pdfResultArea').style.display='none';
+  document.getElementById('pdfStatusBadge').textContent='DOCX 분석 중...';
+  document.getElementById('pdfStatusBadge').style.color='#CE93D8';
+  document.getElementById('pdfProgressText').textContent='DOCX 텍스트 추출 중...';
+  document.getElementById('pdfProgressSub').textContent='Word 문서를 읽고 있어요';
+
+  try {
+    // 1) DOCX → 텍스트 추출 (mammoth.js)
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+    const docText = (result.value || '').trim();
+    if (!docText) {
+      throw new Error('문서에서 텍스트를 읽지 못했어요');
+    }
+    console.log('[docx] extracted text length:', docText.length);
+
+    // 2) AI에 텍스트 전송 → 정답 파싱
+    document.getElementById('pdfProgressText').textContent='AI가 정답을 찾는 중...';
+    document.getElementById('pdfProgressSub').textContent='잠시만 기다려 주세요';
+
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      document.getElementById('pdfProgress').style.display='none';
+      openApiKeyModal();
+      showToast('API 키를 먼저 입력해 주세요','err');
+      return;
+    }
+
+    const prompt = `다음은 영어 단어시험의 정답지입니다 (Word 문서에서 추출한 텍스트).
+각 번호와 단어, 정답(한국어 뜻 또는 영어 스펠링)을 추출해주세요.
+한국어 뜻의 경우 여러 허용 답안이 있으면 모두 포함하세요.
+예: "번영하다, 성공하다, 번성하다" → 모두 포함
+
+반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
+{"total":120,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다","번성하다"]},{"num":2,"word":"region","meanings":["지역","지방","지대"]}]}
+
+==== 문서 내용 ====
+${docText.slice(0, 50000)}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API 오류');
+    const text = data.content?.find(b => b.type === 'text')?.text || '{}';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (!parsed.answers?.length) throw new Error('정답을 찾지 못했어요');
+
+    // 결과 처리 (PDF와 동일)
+    handleParsedAnswers(parsed);
+
+  } catch (err) {
+    console.error('[docx] error:', err);
+    document.getElementById('pdfProgress').style.display = 'none';
+    showToast('DOCX 처리 실패: ' + (err.message || '알 수 없는 오류'), 'err');
+  }
 }
 
 async function parsePdfAnswers(file) {
@@ -3629,36 +3736,13 @@ async function parsePdfAnswers(file) {
     });
 
     const data=await res.json();
+    if (data.error) throw new Error(data.error.message || 'API 오류');
     const text=data.content?.find(b=>b.type==='text')?.text||'{}';
     const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
     if(!parsed.answers?.length) throw new Error('정답을 찾지 못했어요');
 
-    // 저장
-    vcAnswerMap={};
-    parsed.answers.forEach(a=>{vcAnswerMap[a.num]={word:a.word,meanings:a.meanings};});
-
-    // 총 문항 수 자동 설정
-    const total=parsed.total||parsed.answers.length;
-    const sel=document.getElementById('vcTotal');
-    if([30,40,50,60,80,100,120].includes(total)) sel.value=String(total);
-    else{sel.value='custom';document.getElementById('vcCustomTotal').value=total;document.getElementById('vcCustomRow').style.display='';}
-
-    document.getElementById('pdfProgress').style.display='none';
-    document.getElementById('pdfResultArea').style.display='';
-    document.getElementById('pdfResultTitle').textContent=`✓ ${parsed.answers.length}개 정답 파싱 완료`;
-    document.getElementById('pdfStatusBadge').textContent=`${parsed.answers.length}개 완료`;
-    document.getElementById('pdfStatusBadge').style.cssText='font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(29,185,84,.1);color:var(--g);border:1px solid rgba(29,185,84,.3)';
-    // 인라인 이름 입력란에 추천 이름 미리 채우기
-    const qn = document.getElementById('pdfQuickName');
-    if (qn && !qn.value.trim()) {
-      const today = new Date();
-      const mm = String(today.getMonth()+1).padStart(2,'0');
-      const dd = String(today.getDate()).padStart(2,'0');
-      qn.value = `단어시험_${mm}${dd}_${parsed.answers.length}문항`;
-      qn.select();
-    }
-    renderPdfPreview(parsed.answers);
-    showToast(`✓ ${parsed.answers.length}개 정답 자동 완성`,'ok');
+    // 결과 처리 (DOCX와 공통)
+    handleParsedAnswers(parsed);
 
   } catch(err) {
     console.error(err);
@@ -3668,6 +3752,41 @@ async function parsePdfAnswers(file) {
     showToast('오류: '+err.message,'err');
   }
   document.getElementById('pdfFileInput').value='';
+}
+
+// PDF/DOCX 공통 — 파싱된 정답을 UI에 반영
+function handleParsedAnswers(parsed) {
+  // 저장
+  vcAnswerMap = {};
+  parsed.answers.forEach(a => { vcAnswerMap[a.num] = {word:a.word, meanings:a.meanings}; });
+
+  // 총 문항 수 자동 설정
+  const total = parsed.total || parsed.answers.length;
+  const sel = document.getElementById('vcTotal');
+  if ([30,40,50,60,80,100,120].includes(total)) sel.value = String(total);
+  else {
+    sel.value = 'custom';
+    document.getElementById('vcCustomTotal').value = total;
+    document.getElementById('vcCustomRow').style.display = '';
+  }
+
+  document.getElementById('pdfProgress').style.display = 'none';
+  document.getElementById('pdfResultArea').style.display = '';
+  document.getElementById('pdfResultTitle').textContent = `✓ ${parsed.answers.length}개 정답 파싱 완료`;
+  document.getElementById('pdfStatusBadge').textContent = `${parsed.answers.length}개 완료`;
+  document.getElementById('pdfStatusBadge').style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(29,185,84,.1);color:var(--g);border:1px solid rgba(29,185,84,.3)';
+
+  // 인라인 이름 입력란에 추천 이름 미리 채우기
+  const qn = document.getElementById('pdfQuickName');
+  if (qn && !qn.value.trim()) {
+    const today = new Date();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    qn.value = `단어시험_${mm}${dd}_${parsed.answers.length}문항`;
+    qn.select();
+  }
+  renderPdfPreview(parsed.answers);
+  showToast(`✓ ${parsed.answers.length}개 정답 자동 완성`, 'ok');
 }
 
 function renderPdfPreview(answers) {
