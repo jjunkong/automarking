@@ -467,6 +467,14 @@ body{padding-bottom:52px}
     </div>
   </div>
 
+  <!-- 총 문항수 수정 (AI가 잘못 인식했을 때) -->
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);font-size:12px">
+    <span style="color:var(--t2)">📋 총 문항수</span>
+    <input type="number" id="reviewTotalInput" min="1" max="200" onchange="updateReviewTotal()"
+      style="width:62px;height:32px;padding:0 8px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);font-family:var(--m);font-size:14px;font-weight:700;text-align:center;outline:none">
+    <span style="font-size:11px;color:var(--t2);flex:1;line-height:1.4">AI 인식이 틀렸으면 직접 수정 (예: 60문항 시험인데 80으로 인식된 경우)</span>
+  </div>
+
   <!-- AI 추출 안내 (조건부 표시) -->
   <div id="nameExtractedHint" style="display:none;background:rgba(206,147,216,.08);border:1px solid rgba(206,147,216,.25);border-radius:var(--r);padding:8px 12px;font-size:11px;color:#CE93D8">
     ✨ 사진에서 이름을 자동 인식했어요. 틀렸으면 위에서 수정해주세요.
@@ -1112,6 +1120,9 @@ async function startGrading() {
     const results = gradeAnswers(extracted);
     await stepProc(2);
     state.results = results;
+    // ★ 새 채점 시작 — 총 문항수 사용자 수정 플래그 리셋
+    const totalInput = document.getElementById('reviewTotalInput');
+    if (totalInput) totalInput._userSet = false;
     renderReview();
   } catch(e) {
     console.error(e);
@@ -1500,6 +1511,12 @@ function renderReview() {
   document.getElementById('reviewMeta').textContent = `${state.keyName||'채점'} · ${results.length}문항 읽음`;
   document.getElementById('reviewScore').textContent = `${okCount} / ${total}`;
 
+  // ★ 총 문항수 입력란 동기화 (AI 인식 결과 수정 가능하게)
+  const totalInput = document.getElementById('reviewTotalInput');
+  if (totalInput && !totalInput._userSet) {
+    totalInput.value = total;
+  }
+
   // 미확인 섹션
   const uncSec = document.getElementById('uncSection');
   if (unc.length) {
@@ -1563,6 +1580,45 @@ function toggleAutoResult(num) {
   r.auto = false; // 사용자가 직접 결정한 표시
   renderReview();
   showToast(r.correct ? '✓ O로 변경됨' : '✗ X로 변경됨', '');
+}
+
+// ★ 총 문항수 사용자 수정 — AI가 잘못 인식했을 때
+function updateReviewTotal() {
+  const inputEl = document.getElementById('reviewTotalInput');
+  const newTotal = parseInt(inputEl.value);
+  if (!newTotal || newTotal < 1 || newTotal > 200) {
+    showToast('1~200 사이의 숫자를 입력해주세요', 'err');
+    inputEl.value = state.keyData?.total || state.results.length;
+    return;
+  }
+  inputEl._userSet = true; // 사용자가 직접 설정함을 표시 (재렌더링 시 덮어쓰지 않음)
+
+  // keyData의 total 업데이트
+  if (state.keyData) state.keyData.total = newTotal;
+
+  const currentLen = state.results.length;
+  if (newTotal > currentLen) {
+    // 늘리기 — 빈 항목으로 채우기
+    for (let i = currentLen + 1; i <= newTotal; i++) {
+      state.results.push({
+        num: i,
+        student: '',
+        correct: false,
+        auto: true,
+        status: 'err',
+        corrects: [],
+      });
+    }
+    showToast(`✓ ${newTotal}문항으로 변경 (${newTotal - currentLen}개 추가)`, 'ok');
+  } else if (newTotal < currentLen) {
+    // 줄이기 — 뒤쪽 항목 제거
+    state.results = state.results.slice(0, newTotal);
+    showToast(`✓ ${newTotal}문항으로 변경 (${currentLen - newTotal}개 제거)`, 'ok');
+  } else {
+    showToast(`현재 ${newTotal}문항입니다`);
+  }
+
+  renderReview();
 }
 
 function setUnc(num, correct) {
