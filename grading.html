@@ -203,6 +203,8 @@ select option{background:#282828}
 .np-copy{font-size:9px;font-weight:500;color:var(--g);letter-spacing:.4px}
 body{padding-bottom:52px}
 </style>
+<!-- mammoth.js: DOCX 파일에서 텍스트 추출용 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
@@ -251,13 +253,15 @@ body{padding-bottom:52px}
 <!-- ══ SCREEN: HOME ══ -->
 <div id="s-home" class="screen">
 
-  <!-- 학원 코드 + 새로고침 -->
-  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--b2);border:1px solid rgba(206,147,216,.25);border-radius:var(--r);padding:10px 14px;margin-bottom:4px">
-    <div>
+  <!-- 학원 코드 + 새로고침 + 정답 업로드 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--b2);border:1px solid rgba(206,147,216,.25);border-radius:var(--r);padding:10px 14px;margin-bottom:4px;gap:8px">
+    <div style="flex:1;min-width:0">
       <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase">학원 코드</div>
       <div id="academyCodeBadge" style="font-family:var(--m);font-size:13px;font-weight:600;color:#CE93D8;margin-top:1px">—</div>
     </div>
-    <button onclick="refreshFromCloud()" style="height:32px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer">🔄 새로고침</button>
+    <button onclick="openAnswerUpload()" title="정답표 업로드 (PDF/DOCX)"
+      style="height:32px;padding:0 12px;background:rgba(255,183,77,.1);border:1px solid rgba(255,183,77,.4);border-radius:16px;color:#FFB74D;font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">📄 정답</button>
+    <button onclick="refreshFromCloud()" style="height:32px;padding:0 12px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">🔄</button>
   </div>
 
   <!-- 최근 채점 -->
@@ -561,6 +565,90 @@ body{padding-bottom:52px}
     <span style="font-size:18px">✓</span> 저장
   </button>
   <button class="btn btn-o" onclick="cancelEditRecord()">취소</button>
+</div>
+
+<!-- ══ MODAL: 정답 업로드 ══ -->
+<div id="answerUploadModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--r);padding:20px;max-width:520px;width:100%;max-height:92vh;overflow:auto">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px">📄 정답표 업로드</div>
+        <div style="font-size:11px;color:var(--t2)">PDF 또는 DOCX 파일을 올려주세요</div>
+      </div>
+      <button onclick="closeAnswerUpload()"
+        style="height:32px;padding:0 12px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer">취소</button>
+    </div>
+
+    <!-- 업로드 영역 -->
+    <input type="file" id="answerFileInput" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      style="display:none" onchange="onAnswerFileSelected(event)">
+
+    <label for="answerFileInput" id="answerDropArea"
+      style="display:block;background:transparent;border:2px dashed rgba(255,183,77,.3);
+        border-radius:var(--r);padding:24px 16px;text-align:center;cursor:pointer;
+        transition:all .2s;margin-bottom:12px">
+      <div style="font-size:36px;margin-bottom:8px">📄</div>
+      <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px">
+        파일 선택
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:10px">
+        PDF, DOCX 형식만 지원
+      </div>
+      <span style="display:inline-block;padding:6px 18px;
+        background:rgba(255,183,77,.2);border:1px solid rgba(255,183,77,.4);
+        border-radius:16px;font-size:12px;font-weight:700;color:#FFB74D">
+        📂 파일 선택
+      </span>
+    </label>
+
+    <!-- 진행 상태 -->
+    <div id="answerProgress" style="display:none;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,183,77,.08);border-radius:var(--r);border:1px solid rgba(255,183,77,.2)">
+        <div style="width:16px;height:16px;border:2px solid rgba(255,183,77,.3);border-top-color:#FFB74D;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:#FFB74D" id="answerProgressText">처리 중...</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:1px" id="answerProgressSub">잠시만 기다려주세요</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 결과 영역 -->
+    <div id="answerResultArea" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:#FFB74D" id="answerResultTitle">정답 파싱 완료</div>
+        <button onclick="toggleAnswerPreview()" id="answerPreviewToggle"
+          style="height:24px;padding:0 8px;background:transparent;border:1px solid var(--bm);border-radius:12px;color:var(--t2);font-family:var(--f);font-size:10px;cursor:pointer">▾ 펼치기</button>
+      </div>
+      <div id="answerPreviewList" style="display:none;max-height:240px;overflow-y:auto;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);margin-bottom:12px"></div>
+
+      <!-- 시험 정보 -->
+      <div style="background:rgba(255,183,77,.05);border:1px solid rgba(255,183,77,.25);border-radius:var(--r);padding:12px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#FFB74D;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">📌 저장 정보</div>
+        <input type="text" id="answerSaveName" placeholder="시험 이름 (예: 능률VOCA DAY44)"
+          style="width:100%;height:38px;padding:0 12px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);font-family:var(--f);font-size:13px;color:var(--t0);outline:none;margin-bottom:8px">
+        <div style="display:flex;gap:6px">
+          <select id="answerSavePassRate" style="flex:1;height:36px;padding:0 8px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);font-family:var(--f);font-size:12px">
+            <option value="80">통과 80%</option>
+            <option value="90" selected>통과 90%</option>
+            <option value="95">통과 95%</option>
+            <option value="100">통과 100%</option>
+          </select>
+          <select id="answerSaveFailRate" style="flex:1;height:36px;padding:0 8px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);font-family:var(--f);font-size:12px">
+            <option value="60">불통 60%</option>
+            <option value="70">불통 70%</option>
+            <option value="80" selected>불통 80%</option>
+            <option value="85">불통 85%</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="saveAnswerUpload()" id="answerSaveBtn"
+        style="width:100%;height:44px;background:#FFB74D;border:none;border-radius:22px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">
+        💾 저장 (☁ 모든 기기 동기화)
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- NP BAR -->
@@ -2094,6 +2182,306 @@ async function saveEditRecord() {
 function cancelEditRecord() {
   editState = { recordId: null, record: null };
   goHome();
+}
+// ════════════════════════════════════════════════════════════
+
+// ══ 정답 업로드 (PDF/DOCX) ════════════════════════════════════
+let answerUploadState = { parsed: null };
+
+function openAnswerUpload() {
+  if (!getApiKey()) {
+    showToast('API 키가 필요해요. 학원 PC에서 설정 후 새로고침하세요','err');
+    return;
+  }
+  // 모달 초기화
+  answerUploadState.parsed = null;
+  document.getElementById('answerFileInput').value = '';
+  document.getElementById('answerProgress').style.display = 'none';
+  document.getElementById('answerResultArea').style.display = 'none';
+  document.getElementById('answerSaveName').value = '';
+  document.getElementById('answerPreviewList').style.display = 'none';
+  document.getElementById('answerPreviewToggle').textContent = '▾ 펼치기';
+  document.getElementById('answerUploadModal').style.display = 'flex';
+}
+
+function closeAnswerUpload() {
+  document.getElementById('answerUploadModal').style.display = 'none';
+  answerUploadState = { parsed: null };
+}
+
+function detectAnswerFileType(file) {
+  const name = (file.name || '').toLowerCase();
+  if (name.endsWith('.pdf')) return 'pdf';
+  if (name.endsWith('.docx')) return 'docx';
+  if (name.endsWith('.doc')) return 'doc';
+  if (file.type === 'application/pdf') return 'pdf';
+  if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  if (file.type === 'application/msword') return 'doc';
+  return 'unknown';
+}
+
+async function onAnswerFileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fileType = detectAnswerFileType(file);
+
+  if (fileType === 'pdf') {
+    return parseAnswerPdf(file);
+  }
+  if (fileType === 'docx') {
+    return parseAnswerDocx(file);
+  }
+  if (fileType === 'doc') {
+    showToast('⚠ .doc 파일은 직접 지원이 안 돼요.\n.docx 또는 .pdf로 변환해서 올려주세요','err');
+    return;
+  }
+  showToast('PDF 또는 DOCX 파일만 가능해요','err');
+}
+
+const ANSWER_PARSE_PROMPT = `이 문서는 영어 단어시험의 정답지입니다.
+각 번호와 단어, 정답(한국어 뜻 또는 영어 스펠링)을 추출해주세요.
+
+⚠️ 중요한 번호 처리 규칙:
+이 시험지는 보통 두 부분으로 나뉘어 있습니다:
+  - PART 1: 영어 → 한국어 뜻쓰기 (예: 1~30번)
+  - PART 2: 한국어 → 영어 스펠링쓰기 (예: 1~30번 또는 31~60번)
+
+만약 PART 2가 다시 1번부터 시작한다면, **PART 2의 번호를 PART 1 마지막 번호 다음으로 자동 변환**해서 출력하세요.
+예: PART 1이 1~30번이고 PART 2가 1~30번으로 다시 시작하면 → PART 2를 31~60번으로 변환
+
+이렇게 변환하는 이유는 채점 시스템이 1~60번 연속으로 인식하기 때문입니다.
+
+한국어 뜻의 경우 여러 허용 답안이 있으면 모두 포함하세요.
+예: "번영하다, 성공하다, 번성하다" → 모두 포함
+
+각 항목의 type도 함께 알려주세요:
+  - "kor": 영어 단어 → 한국어 뜻 쓰기 (정답이 한국어)
+  - "eng": 한국어 뜻 → 영어 단어 쓰기 (정답이 영어)
+
+반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
+{"total":60,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다"],"type":"kor"},{"num":31,"word":"region","meanings":["지역","지방"],"type":"eng"}]}`;
+
+async function parseAnswerPdf(file) {
+  showAnswerProgress('PDF 분석 중...', 'AI가 정답을 읽고 있어요');
+  try {
+    const b64 = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = e => res(e.target.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    const apiKey = getApiKey();
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+          { type: 'text', text: ANSWER_PARSE_PROMPT }
+        ]}]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API 오류');
+    const text = data.content?.find(b => b.type === 'text')?.text || '{}';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (!parsed.answers?.length) throw new Error('정답을 찾지 못했어요');
+    handleAnswerParsed(parsed, file.name);
+  } catch (err) {
+    console.error('[answer pdf] error:', err);
+    document.getElementById('answerProgress').style.display = 'none';
+    showToast('PDF 처리 실패: ' + (err.message || '알 수 없는 오류'), 'err');
+  }
+  document.getElementById('answerFileInput').value = '';
+}
+
+async function parseAnswerDocx(file) {
+  if (typeof mammoth === 'undefined') {
+    showToast('DOCX 처리 라이브러리 로딩 실패. 새로고침해주세요', 'err');
+    return;
+  }
+  showAnswerProgress('DOCX 텍스트 추출 중...', 'Word 문서를 읽고 있어요');
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+    const docText = (result.value || '').trim();
+    if (!docText) throw new Error('문서에서 텍스트를 읽지 못했어요');
+
+    showAnswerProgress('AI가 정답 분석 중...', '잠시만 기다려주세요');
+
+    const apiKey = getApiKey();
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: ANSWER_PARSE_PROMPT + '\n\n==== 문서 내용 ====\n' + docText.slice(0, 50000) }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API 오류');
+    const text = data.content?.find(b => b.type === 'text')?.text || '{}';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (!parsed.answers?.length) throw new Error('정답을 찾지 못했어요');
+    handleAnswerParsed(parsed, file.name);
+  } catch (err) {
+    console.error('[answer docx] error:', err);
+    document.getElementById('answerProgress').style.display = 'none';
+    showToast('DOCX 처리 실패: ' + (err.message || '알 수 없는 오류'), 'err');
+  }
+  document.getElementById('answerFileInput').value = '';
+}
+
+function showAnswerProgress(text, sub) {
+  document.getElementById('answerProgress').style.display = '';
+  document.getElementById('answerResultArea').style.display = 'none';
+  document.getElementById('answerProgressText').textContent = text;
+  document.getElementById('answerProgressSub').textContent = sub;
+}
+
+function handleAnswerParsed(parsed, fileName) {
+  answerUploadState.parsed = parsed;
+  document.getElementById('answerProgress').style.display = 'none';
+  document.getElementById('answerResultArea').style.display = '';
+  document.getElementById('answerResultTitle').textContent = `✓ ${parsed.answers.length}개 정답 파싱 완료`;
+
+  // 미리보기 렌더
+  renderAnswerPreview(parsed.answers);
+
+  // 추천 이름 자동 채우기
+  const today = new Date();
+  const mm = String(today.getMonth()+1).padStart(2,'0');
+  const dd = String(today.getDate()).padStart(2,'0');
+  const baseName = (fileName || '').replace(/\.(pdf|docx?)$/i, '').slice(0, 30);
+  document.getElementById('answerSaveName').value = baseName || `단어시험_${mm}${dd}_${parsed.answers.length}문항`;
+
+  showToast(`✓ ${parsed.answers.length}개 정답 추출 완료`, 'ok');
+}
+
+function renderAnswerPreview(answers) {
+  const list = document.getElementById('answerPreviewList');
+  list.innerHTML = answers.map((a, i) => {
+    const typeColor = a.type === 'eng' ? '#29B6F6' : '#CE93D8';
+    return `
+      <div style="display:flex;align-items:baseline;gap:8px;padding:6px 10px;
+        background:${i%2===0?'transparent':'var(--b3)'};border-bottom:1px solid var(--bo);font-size:11px">
+        <span style="font-family:var(--m);font-weight:700;color:${typeColor};min-width:24px">${a.num}.</span>
+        <span style="font-weight:600;color:var(--t0);min-width:70px">${escapeHtml(a.word||'')}</span>
+        <span style="color:var(--t1);flex:1">${escapeHtml((a.meanings||[]).join(' / '))}</span>
+      </div>`;
+  }).join('');
+}
+
+function toggleAnswerPreview() {
+  const list = document.getElementById('answerPreviewList');
+  const btn = document.getElementById('answerPreviewToggle');
+  const hidden = list.style.display === 'none';
+  list.style.display = hidden ? '' : 'none';
+  btn.textContent = hidden ? '▴ 접기' : '▾ 펼치기';
+}
+
+async function saveAnswerUpload() {
+  const parsed = answerUploadState.parsed;
+  if (!parsed) return;
+  const name = document.getElementById('answerSaveName').value.trim();
+  if (!name) {
+    showToast('시험 이름을 입력해주세요', 'err');
+    return;
+  }
+  const passRate = document.getElementById('answerSavePassRate').value;
+  const failRate = document.getElementById('answerSaveFailRate').value;
+
+  const btn = document.getElementById('answerSaveBtn');
+  btn.disabled = true;
+  const oldText = btn.innerHTML;
+  btn.innerHTML = '⏳ 저장 중...';
+
+  // answerMap 구성
+  const answerMap = {};
+  parsed.answers.forEach(a => {
+    answerMap[a.num] = { word: a.word, meanings: a.meanings };
+  });
+
+  // 시험 유형 구간 자동 설정 (AI가 type 알려줌)
+  const sortedAnswers = [...parsed.answers].sort((a, b) => a.num - b.num);
+  const types = [];
+  if (sortedAnswers.length > 0) {
+    let curType = sortedAnswers[0].type || 'kor';
+    let curStart = sortedAnswers[0].num;
+    let curEnd = sortedAnswers[0].num;
+    for (let i = 1; i < sortedAnswers.length; i++) {
+      const a = sortedAnswers[i];
+      const t = a.type || 'kor';
+      if (t === curType && a.num === curEnd + 1) {
+        curEnd = a.num;
+      } else {
+        types.push({ from: curStart, to: curEnd, type: curType });
+        curType = t;
+        curStart = a.num;
+        curEnd = a.num;
+      }
+    }
+    types.push({ from: curStart, to: curEnd, type: curType });
+  }
+
+  // 시험 데이터 구성 (TYPE C 형식)
+  const total = parsed.total || parsed.answers.length;
+  const config = {
+    examTitle: name,
+    grade: '',
+    author: '',
+    date: new Date().toLocaleDateString('ko-KR'),
+    total: total,
+    passRate: passRate,
+    failRate: failRate,
+    cols: '2',
+    lineH: 'medium',
+    types: types,
+    answerMap: answerMap,
+    savedAt: new Date().toLocaleDateString('ko-KR'),
+  };
+
+  // 1. 로컬 저장
+  let savedVocab = {};
+  try {
+    savedVocab = JSON.parse(localStorage.getItem('kkj_vocab') || '{}');
+  } catch (e) {}
+  savedVocab[name] = config;
+  localStorage.setItem('kkj_vocab', JSON.stringify(savedVocab));
+
+  // 2. 클라우드 동기화
+  const code = getAcademyCode();
+  if (code) {
+    const r = await cloudSync('put', { code, type: 'vocab', name, value: config });
+    if (r.ok) {
+      btn.disabled = false;
+      btn.innerHTML = oldText;
+      showToast(`✓ "${name}" 저장됨 (☁ 모든 기기 동기화)`, 'ok');
+      closeAnswerUpload();
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = oldText;
+      showToast(`로컬엔 저장됨 (☁ 동기화 실패: ${r.error||'서버 오류'})`, 'err');
+    }
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = oldText;
+    showToast(`✓ "${name}" 로컬 저장 완료`, 'ok');
+    closeAnswerUpload();
+  }
 }
 // ════════════════════════════════════════════════════════════
 
