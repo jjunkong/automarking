@@ -3647,11 +3647,26 @@ async function parseDocxAnswers(file) {
 
     const prompt = `다음은 영어 단어시험의 정답지입니다 (Word 문서에서 추출한 텍스트).
 각 번호와 단어, 정답(한국어 뜻 또는 영어 스펠링)을 추출해주세요.
+
+⚠️ 중요한 번호 처리 규칙:
+이 시험지는 보통 두 부분으로 나뉘어 있습니다:
+  - PART 1: 영어 → 한국어 뜻쓰기 (예: 1~30번)
+  - PART 2: 한국어 → 영어 스펠링쓰기 (예: 1~30번 또는 31~60번)
+
+만약 PART 2가 다시 1번부터 시작한다면, **PART 2의 번호를 PART 1 마지막 번호 다음으로 자동 변환**해서 출력하세요.
+예: PART 1이 1~30번이고 PART 2가 1~30번으로 다시 시작하면 → PART 2를 31~60번으로 변환
+
+이렇게 변환하는 이유는 채점 시스템이 1~60번 연속으로 인식하기 때문입니다.
+
 한국어 뜻의 경우 여러 허용 답안이 있으면 모두 포함하세요.
 예: "번영하다, 성공하다, 번성하다" → 모두 포함
 
+각 항목의 type도 함께 알려주세요:
+  - "kor": 영어 단어 → 한국어 뜻 쓰기 (정답이 한국어)
+  - "eng": 한국어 뜻 → 영어 단어 쓰기 (정답이 영어)
+
 반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
-{"total":120,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다","번성하다"]},{"num":2,"word":"region","meanings":["지역","지방","지대"]}]}
+{"total":60,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다"],"type":"kor"},{"num":31,"word":"region","meanings":["지역","지방"],"type":"eng"}]}
 
 ==== 문서 내용 ====
 ${docText.slice(0, 50000)}`;
@@ -3703,11 +3718,26 @@ async function parsePdfAnswers(file) {
   try {
     const prompt=`이 PDF는 영어 단어시험의 정답지입니다.
 각 번호와 단어, 정답(한국어 뜻 또는 영어 스펠링)을 추출해주세요.
+
+⚠️ 중요한 번호 처리 규칙:
+이 시험지는 보통 두 부분으로 나뉘어 있습니다:
+  - PART 1: 영어 → 한국어 뜻쓰기 (예: 1~30번)
+  - PART 2: 한국어 → 영어 스펠링쓰기 (예: 1~30번 또는 31~60번)
+
+만약 PART 2가 다시 1번부터 시작한다면, **PART 2의 번호를 PART 1 마지막 번호 다음으로 자동 변환**해서 출력하세요.
+예: PART 1이 1~30번이고 PART 2가 1~30번으로 다시 시작하면 → PART 2를 31~60번으로 변환
+
+이렇게 변환하는 이유는 채점 시스템이 1~60번 연속으로 인식하기 때문입니다.
+
 한국어 뜻의 경우 여러 허용 답안이 있으면 모두 포함하세요.
 예: "번영하다, 성공하다, 번성하다" → 모두 포함
 
+각 항목의 type도 함께 알려주세요:
+  - "kor": 영어 단어 → 한국어 뜻 쓰기 (정답이 한국어)
+  - "eng": 한국어 뜻 → 영어 단어 쓰기 (정답이 영어)
+
 반드시 아래 JSON 형식만 응답하세요 (다른 텍스트 없이):
-{"total":120,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다","번성하다"]},{"num":2,"word":"region","meanings":["지역","지방","지대"]}]}`;
+{"total":60,"answers":[{"num":1,"word":"prosper","meanings":["번영하다","성공하다"],"type":"kor"},{"num":31,"word":"region","meanings":["지역","지방"],"type":"eng"}]}`;
 
     const apiKey = getApiKey();
     if (!apiKey) {
@@ -3768,6 +3798,41 @@ function handleParsedAnswers(parsed) {
     sel.value = 'custom';
     document.getElementById('vcCustomTotal').value = total;
     document.getElementById('vcCustomRow').style.display = '';
+  }
+
+  // ★ AI가 type을 알려주면 자동으로 시험 유형 구간 자동 설정
+  // 각 문항의 type을 보고 연속된 같은 type을 그룹화
+  const sortedAnswers = [...parsed.answers].sort((a, b) => a.num - b.num);
+  const hasTypeInfo = sortedAnswers.some(a => a.type === 'kor' || a.type === 'eng');
+  if (hasTypeInfo && sortedAnswers.length > 0) {
+    const groups = [];
+    let curType = sortedAnswers[0].type || 'kor';
+    let curStart = sortedAnswers[0].num;
+    let curEnd = sortedAnswers[0].num;
+    for (let i = 1; i < sortedAnswers.length; i++) {
+      const a = sortedAnswers[i];
+      const t = a.type || 'kor';
+      if (t === curType && a.num === curEnd + 1) {
+        // 같은 type이고 연속 번호 → 확장
+        curEnd = a.num;
+      } else {
+        // 다른 type 또는 번호 끊김 → 새 그룹
+        groups.push({ from: curStart, to: curEnd, type: curType });
+        curType = t;
+        curStart = a.num;
+        curEnd = a.num;
+      }
+    }
+    groups.push({ from: curStart, to: curEnd, type: curType });
+    // vcTypes에 반영 (id 자동 부여)
+    if (typeof vcTypeId === 'undefined') window.vcTypeId = 0;
+    vcTypes = groups.map(g => ({
+      ...g,
+      id: ++vcTypeId,
+      label: g.type === 'kor' ? '영→한 뜻쓰기' : '한→영 단어쓰기',
+    }));
+    if (typeof renderVcTypes === 'function') renderVcTypes();
+    console.log('[parse] vcTypes auto-set:', vcTypes);
   }
 
   document.getElementById('pdfProgress').style.display = 'none';
