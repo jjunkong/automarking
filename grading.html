@@ -462,17 +462,17 @@ body{padding-bottom:52px}
       <div id="reviewMeta" style="font-size:11px;color:var(--t2);margin-top:4px"></div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-size:24px;font-weight:800;font-family:var(--m)" id="reviewScore"></div>
-      <div style="font-size:11px;color:var(--t2)">현재 점수</div>
+      <div style="font-size:24px;font-weight:800;font-family:var(--m);display:inline-flex;align-items:baseline;gap:2px">
+        <span id="reviewScoreNum">0</span>
+        <span style="color:var(--t2);font-weight:600">/</span>
+        <input type="number" id="reviewTotalInput" min="1" max="200" onchange="updateReviewTotal()"
+          title="틀렸으면 클릭해서 수정 (예: 60문항인데 80으로 인식된 경우)"
+          style="width:54px;height:30px;padding:0 4px;background:rgba(255,183,77,.08);border:1px dashed rgba(255,183,77,.4);border-radius:6px;color:var(--t0);font-family:var(--m);font-size:22px;font-weight:800;text-align:center;outline:none;cursor:pointer"
+          onfocus="this.style.background='rgba(255,183,77,.15)';this.style.borderStyle='solid'"
+          onblur="this.style.background='rgba(255,183,77,.08)';this.style.borderStyle='dashed'">
+      </div>
+      <div style="font-size:11px;color:var(--t2)">현재 점수 · <span style="color:#FFB74D">클릭해 수정</span></div>
     </div>
-  </div>
-
-  <!-- 총 문항수 수정 (AI가 잘못 인식했을 때) -->
-  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);font-size:12px">
-    <span style="color:var(--t2)">📋 총 문항수</span>
-    <input type="number" id="reviewTotalInput" min="1" max="200" onchange="updateReviewTotal()"
-      style="width:62px;height:32px;padding:0 8px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);font-family:var(--m);font-size:14px;font-weight:700;text-align:center;outline:none">
-    <span style="font-size:11px;color:var(--t2);flex:1;line-height:1.4">AI 인식이 틀렸으면 직접 수정 (예: 60문항 시험인데 80으로 인식된 경우)</span>
   </div>
 
   <!-- AI 추출 안내 (조건부 표시) -->
@@ -1509,7 +1509,8 @@ function renderReview() {
   };
 
   document.getElementById('reviewMeta').textContent = `${state.keyName||'채점'} · ${results.length}문항 읽음`;
-  document.getElementById('reviewScore').textContent = `${okCount} / ${total}`;
+  // ★ 점수 숫자만 업데이트 (총 문항수 input은 그대로 유지)
+  document.getElementById('reviewScoreNum').textContent = okCount;
 
   // ★ 총 문항수 입력란 동기화 (AI 인식 결과 수정 가능하게)
   const totalInput = document.getElementById('reviewTotalInput');
