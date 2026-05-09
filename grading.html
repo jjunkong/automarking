@@ -1079,6 +1079,10 @@ function loadAnswerKeys() {
 }
 
 // ── 화면 전환 ─────────────────────────────────────────────
+// ★ 브라우저 history 연동 — 폰 시스템 뒤로가기를 앱 내부에서 처리
+let _navStack = ['home'];      // 화면 이동 스택
+let _navInProgress = false;    // popstate 처리 중 플래그 (재귀 방지)
+
 function showScreen(id, title, sub) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('s-'+id).classList.add('active');
@@ -1087,7 +1091,90 @@ function showScreen(id, title, sub) {
   document.getElementById('npStatus').textContent  = title||'홈';
   document.getElementById('backBtn').style.display = id==='home'?'none':'block';
   window.scrollTo(0,0);
+
+  // ★ history에 화면 정보 푸시 (popstate 처리 중이면 이미 있는 항목으로 이동한 거라 푸시 안 함)
+  if (!_navInProgress) {
+    if (_navStack[_navStack.length - 1] !== id) {
+      _navStack.push(id);
+      try {
+        history.pushState({ screen: id, navStackLen: _navStack.length }, '', '#' + id);
+      } catch (e) {
+        console.warn('[history] pushState failed:', e);
+      }
+    }
+  }
 }
+
+// ★ 시스템 뒤로가기 처리
+window.addEventListener('popstate', (e) => {
+  _navInProgress = true;
+  try {
+    // 1) 모달이 열려있으면 모달부터 닫기
+    const modalIds = ['answerUploadModal', 'keyPreviewModal'];
+    let modalClosed = false;
+    for (const mid of modalIds) {
+      const m = document.getElementById(mid);
+      if (m && m.style.display === 'flex') {
+        m.style.display = 'none';
+        modalClosed = true;
+        break;
+      }
+    }
+    if (modalClosed) {
+      // 모달 닫은 후엔 history를 다시 그 자리로
+      try { history.pushState({ screen: _navStack[_navStack.length-1] }, '', '#' + _navStack[_navStack.length-1]); } catch (er) {}
+      return;
+    }
+
+    // 2) 화면 스택에서 이전 화면으로
+    if (_navStack.length > 1) {
+      _navStack.pop();
+      const prev = _navStack[_navStack.length - 1];
+      // 화면별 적절한 처리
+      if (prev === 'home') {
+        state.type = null;
+        showScreen('home', '채점 프로그램');
+        updateHome();
+      } else if (prev === 'setup') {
+        const titles = { typec:'단어시험 설정', typea:'TYPE A 설정', typeb:'TYPE B 설정' };
+        showScreen('setup', titles[state.type]||'시험 설정');
+      } else if (prev === 'photo') {
+        showScreen('photo', '사진 촬영');
+      } else if (prev === 'review') {
+        showScreen('review', '채점 검토');
+      } else if (prev === 'result') {
+        showScreen('result', '채점 결과');
+      } else if (prev === 'edit') {
+        showScreen('edit', '기록 수정');
+      } else if (prev === 'proc') {
+        // 처리 중이면 그냥 홈으로 (안전)
+        _navStack = ['home'];
+        state.type = null;
+        showScreen('home', '채점 프로그램');
+        updateHome();
+      } else {
+        showScreen(prev);
+      }
+    } else {
+      // 3) 홈 화면에서 뒤로가기 → 종료 확인
+      if (confirm('채점 프로그램을 종료할까요?')) {
+        history.back();
+      } else {
+        _navStack = ['home'];
+        try { history.pushState({ screen: 'home' }, '', '#home'); } catch (er) {}
+      }
+    }
+  } finally {
+    _navInProgress = false;
+  }
+});
+
+// 페이지 로드 시 초기 history 상태 설정
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    history.replaceState({ screen: 'home' }, '', '#home');
+  } catch (e) {}
+});
 
 function goHome()    { state.type=null; showScreen('home','채점 프로그램'); updateHome(); }
 async function goToSetup() {
