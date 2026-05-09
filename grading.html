@@ -342,9 +342,13 @@ body{padding-bottom:52px}
     <div class="cb" style="display:flex;flex-direction:column;gap:14px">
       <div>
         <label>정답표 선택</label>
-        <select id="keySelect">
+        <select id="keySelect" onchange="updatePreviewBtnState()">
           <option value="">— 정답표를 선택하세요 —</option>
         </select>
+        <button type="button" id="previewKeyBtn" onclick="openKeyPreview()" disabled
+          style="width:100%;margin-top:8px;height:36px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:var(--r);color:var(--t2);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
+          👁 정답 미리보기
+        </button>
       </div>
       <div>
         <label>학생 이름 / 번호 <span style="color:var(--t2);font-weight:500;text-transform:none;letter-spacing:0">(선택)</span></label>
@@ -651,6 +655,34 @@ body{padding-bottom:52px}
   </div>
 </div>
 
+<!-- ══ MODAL: 정답 미리보기 ══ -->
+<div id="keyPreviewModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--r);padding:20px;max-width:520px;width:100%;max-height:92vh;overflow:auto">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px">👁 정답 미리보기</div>
+        <div id="keyPreviewTitle" style="font-size:11px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <button onclick="closeKeyPreview()"
+        style="height:30px;padding:0 12px;background:transparent;border:1px solid var(--bm);border-radius:15px;color:var(--t1);font-family:var(--f);font-size:11px;cursor:pointer;flex-shrink:0;margin-left:8px">닫기</button>
+    </div>
+
+    <!-- 시험 정보 요약 -->
+    <div id="keyPreviewMeta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:8px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);font-size:11px"></div>
+
+    <!-- 시험 유형 구간 -->
+    <div id="keyPreviewTypes" style="margin-bottom:10px"></div>
+
+    <!-- 정답 목록 -->
+    <div id="keyPreviewList" style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);max-height:60vh;overflow-y:auto"></div>
+
+    <div style="margin-top:10px;font-size:10px;color:var(--t2);line-height:1.4;text-align:center">
+      💡 정답 수정은 학원 PC에서만 가능해요
+    </div>
+  </div>
+</div>
+
 <!-- NP BAR -->
 <div class="np">
   <div class="np-row">
@@ -848,6 +880,168 @@ function changeAcademyCode() {
 }
 
 // ── localStorage 키 공유 (index.html과 동일) ──────────────
+// ══ 정답 미리보기 (조교 폰) ══════════════════════════════════
+function updatePreviewBtnState() {
+  const sel = document.getElementById('keySelect');
+  const btn = document.getElementById('previewKeyBtn');
+  if (!sel || !btn) return;
+  const v = sel.value;
+  const enable = v && v !== '__demo__';
+  btn.disabled = !enable;
+  btn.style.opacity = enable ? '1' : '.5';
+  btn.style.cursor = enable ? 'pointer' : 'not-allowed';
+  if (enable) {
+    btn.onmouseover = () => { btn.style.borderColor='#CE93D8'; btn.style.color='#CE93D8'; };
+    btn.onmouseout = () => { btn.style.borderColor='var(--bm)'; btn.style.color='var(--t2)'; };
+  }
+}
+
+function openKeyPreview() {
+  const sel = document.getElementById('keySelect');
+  const name = sel.value;
+  if (!name || name === '__demo__') {
+    showToast('정답표를 먼저 선택해주세요', 'err');
+    return;
+  }
+
+  let data = null;
+  try {
+    if (state.type === 'typec') {
+      const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+      data = vocab[name];
+    } else if (state.type === 'typea') {
+      const keys = JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}');
+      data = keys[name];
+    }
+  } catch (e) {}
+
+  if (!data) {
+    showToast('정답표 데이터를 찾을 수 없어요', 'err');
+    return;
+  }
+
+  renderKeyPreview(name, data);
+  document.getElementById('keyPreviewModal').style.display = 'flex';
+}
+
+function closeKeyPreview() {
+  document.getElementById('keyPreviewModal').style.display = 'none';
+}
+
+function renderKeyPreview(name, data) {
+  document.getElementById('keyPreviewTitle').textContent = name;
+
+  // 메타 정보
+  const ansCount = data.answerMap ? Object.keys(data.answerMap).length : 0;
+  let metaHtml = '';
+  if (state.type === 'typec') {
+    metaHtml = `
+      <span><strong style="color:var(--t1)">${data.total||'-'}</strong>문항</span>
+      <span style="color:var(--bo)">·</span>
+      <span><strong style="color:var(--t1)">${ansCount}</strong>개 정답</span>
+      <span style="color:var(--bo)">·</span>
+      <span>통과 <strong style="color:var(--g)">${data.passRate||90}%</strong></span>
+      ${data.failRate ? `<span style="color:var(--bo)">·</span><span>불통 <strong style="color:#FFB74D">${data.failRate}%</strong></span>` : ''}
+    `;
+  } else {
+    // TYPE A
+    metaHtml = `
+      <span><strong style="color:var(--t1)">${data.total||'-'}</strong>문항</span>
+      <span style="color:var(--bo)">·</span>
+      <span>통과 <strong style="color:var(--g)">${data.passRate||90}%</strong></span>
+    `;
+  }
+  document.getElementById('keyPreviewMeta').innerHTML = metaHtml;
+
+  // 시험 유형 구간 (TYPE C만)
+  const typesEl = document.getElementById('keyPreviewTypes');
+  if (state.type === 'typec' && data.types && data.types.length > 0) {
+    typesEl.innerHTML = `
+      <div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px">📋 시험 유형 구간</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${data.types.map(t => {
+          const typeColor = t.type === 'kor' ? 'rgba(206,147,216,.15)' : 'rgba(41,182,246,.15)';
+          const typeBd = t.type === 'kor' ? 'rgba(206,147,216,.4)' : 'rgba(41,182,246,.4)';
+          const typeTxt = t.type === 'kor' ? '#CE93D8' : '#29B6F6';
+          const label = t.type === 'kor' ? '영→한' : '한→영';
+          return `<div style="padding:5px 10px;background:${typeColor};border:1px solid ${typeBd};border-radius:12px;font-size:10px;color:${typeTxt};font-weight:700">${t.from}~${t.to}: ${label}</div>`;
+        }).join('')}
+      </div>`;
+  } else {
+    typesEl.innerHTML = '';
+  }
+
+  // 정답 목록 렌더링
+  const listEl = document.getElementById('keyPreviewList');
+
+  if (state.type === 'typec') {
+    // TYPE C: 단어시험
+    const answerMap = data.answerMap || {};
+    const nums = Object.keys(answerMap).map(Number).sort((a,b) => a-b);
+    if (nums.length === 0) {
+      listEl.innerHTML = '<div style="font-size:12px;color:var(--t2);text-align:center;padding:24px">정답 데이터가 없어요</div>';
+      return;
+    }
+    const types = data.types || [];
+    const getNumType = (n) => {
+      const t = types.find(x => n >= x.from && n <= x.to);
+      return t?.type || 'kor';
+    };
+    listEl.innerHTML = nums.map((n, idx) => {
+      const ans = answerMap[n];
+      const t = getNumType(n);
+      const numColor = t === 'kor' ? '#CE93D8' : '#29B6F6';
+      const bg = idx%2===0 ? 'var(--b2)' : 'transparent';
+      return `
+        <div style="display:grid;grid-template-columns:36px 1fr;gap:8px;padding:7px 12px;background:${bg};border-bottom:1px solid var(--bo);font-size:11px">
+          <span style="font-family:var(--m);font-weight:700;color:${numColor};text-align:right">${n}.</span>
+          <div style="min-width:0">
+            <div style="font-weight:600;color:var(--t0);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(ans.word||'')}</div>
+            <div style="color:var(--t1);margin-top:1px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml((ans.meanings||[]).join(' / '))}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } else if (state.type === 'typea') {
+    // TYPE A: 5지선다 + bracket + 서술형
+    const html = [];
+    const key = data.key || {};
+    const bracketKey = data.bracketKey || {};
+    const essayKey = data.essayKey || {};
+    const total = data.total || 60;
+
+    for (let n = 1; n <= total; n++) {
+      const ans = key[n];
+      const bracket = bracketKey[n];
+      const essay = essayKey[n];
+      let display = '';
+      let badgeColor = 'var(--t2)';
+      if (ans && ans > 0) {
+        const symbols = ['','①','②','③','④','⑤'];
+        display = symbols[ans] || ans;
+        badgeColor = 'var(--g)';
+      } else if (bracket && Array.isArray(bracket) && bracket.length > 0) {
+        display = bracket.map(b => `[${b}]`).join(' ');
+        badgeColor = '#29B6F6';
+      } else if (essay && essay.trim()) {
+        display = essay.length > 30 ? essay.slice(0,30)+'...' : essay;
+        badgeColor = '#FFB74D';
+      } else {
+        continue; // 정답 없는 문항은 건너뜀
+      }
+      const bg = (html.length)%2===0 ? 'var(--b2)' : 'transparent';
+      html.push(`
+        <div style="display:grid;grid-template-columns:36px 1fr;gap:8px;padding:7px 12px;background:${bg};border-bottom:1px solid var(--bo);font-size:11px">
+          <span style="font-family:var(--m);font-weight:700;color:${badgeColor};text-align:right">${n}.</span>
+          <div style="font-weight:600;color:var(--t0)">${escapeHtml(display)}</div>
+        </div>`);
+    }
+    listEl.innerHTML = html.length > 0
+      ? html.join('')
+      : '<div style="font-size:12px;color:var(--t2);text-align:center;padding:24px">정답 데이터가 없어요</div>';
+  }
+}
+// ════════════════════════════════════════════════════════════
+
 function loadAnswerKeys() {
   // TYPE C: kkj_vocab
   // TYPE A: kkj_answer_keys
@@ -905,6 +1099,8 @@ async function goToSetup() {
   loadAnswerKeys();
   document.getElementById('studentName').value = '';
   document.getElementById('toPhotoBtn').disabled = true;
+  // 미리보기 버튼 비활성 상태로 시작
+  updatePreviewBtnState();
   // 정확도 모드 초기화 (이전 선택 복원)
   setAccuracyMode(getAccuracyMode());
   const titles = { typec:'단어시험 설정', typea:'TYPE A 설정', typeb:'TYPE B 설정' };
