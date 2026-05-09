@@ -1246,25 +1246,80 @@ function buildAnswerHintBlock() {
   const total = keyData.total || 60;
   const lines = [];
 
-  // 문항별 정답 1개 (첫 번째 정답만, 짧게)
+  // ★ 문항별 type 매핑 (영→한, 한→영 구분)
+  const numToType = {};
+  types.forEach(t => {
+    for (let n = t.from; n <= t.to; n++) numToType[n] = t.type;
+  });
+
+  // ★ 모든 허용 정답을 표시 (한글의 경우 다양한 답 인정)
   for (let n = 1; n <= total; n++) {
     const answers = keyData.answerMap[n];
     if (!answers || !answers.length) continue;
-    // 첫 번째 정답만 표시 (전체 표시는 너무 길어짐)
-    const correct = answers[0];
-    if (!correct || typeof correct !== 'string') continue;
-    lines.push(`Q${n}: ${correct.slice(0, 30)}`); // 너무 긴 답은 자름
+    const t = numToType[n] || 'kor';
+    // 영어는 1개만 (스펠링 시험), 한글은 모든 허용 답안
+    const display = t === 'eng'
+      ? answers[0]                                  // 영어: 1개만
+      : answers.slice(0, 5).join(' / ');             // 한글: 최대 5개까지
+    if (!display) continue;
+    lines.push(`Q${n}: ${display.slice(0, 80)}`);
   }
 
   if (lines.length === 0) return '';
 
-  return `\n\n【 채점 참고 — 정답 ${lines.length}개 】
-이 시험의 정답은 다음과 같습니다. 학생 답안을 정답과 비교해서
-흐릿한 손글씨도 정확히 판독하는 데에만 사용하세요.
-※ 절대 정답을 그대로 베껴 쓰지 말고, 학생이 실제로 사진에 쓴 글자를 읽으세요.
+  return `\n\n【 채점 참고 — 정답 후보 ${lines.length}개 】
+⚠️ 이 시험의 모든 허용 정답입니다. 학생 답이 이 후보 중 하나와 비슷하면 그 후보로 정확히 읽어주세요.
 
+📌 한글 손글씨 인식 핵심 규칙:
+- 학생이 쓴 글자가 정답 후보 중 하나와 90% 비슷하면 → 그 정답으로 읽기
+- 받침이 흐릿하거나 없어 보여도 정답 후보 중에 있으면 그것으로 판독
+- 모음이 살짝 다르게 보여도 정답 후보가 있으면 그것으로 매칭
+- 예: 학생이 "사가" 같은 글자 → 정답 후보 "사과" 있으면 "사과"로 읽음
+- 예: 학생이 "기부하나" → 정답 후보 "기부하다" 있으면 "기부하다"로 읽음
+- 단, 학생 글자가 정답과 완전히 다르면(50% 미만 일치) 학생이 쓴 그대로 읽기
+
+【 정답 후보 】
 ${lines.join('\n')}
 `;
+}
+
+// ── 한글 자모 분해 (받침/모음 차이 비교용) ─────────────
+// "기부하다" → ['ㄱ','ㅣ',null,'ㅂ','ㅜ',null,'ㅎ','ㅏ',null,'ㄷ','ㅏ',null]
+function decomposeHangul(text) {
+  if (!text) return [];
+  const result = [];
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) {
+      // 한글 음절: 초성 19개, 중성 21개, 종성 28개
+      const syllableIndex = code - 0xAC00;
+      const initial = Math.floor(syllableIndex / (21 * 28));
+      const medial = Math.floor((syllableIndex % (21 * 28)) / 28);
+      const final = syllableIndex % 28;
+      const INITIALS = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+      const MEDIALS = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+      const FINALS = ['',  'ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+      result.push(INITIALS[initial], MEDIALS[medial], FINALS[final] || '');
+    } else {
+      result.push(ch, '', '');
+    }
+  }
+  return result;
+}
+
+// 한글 자모 단위 유사도 — 자모가 몇 개 다른지
+// "기부하다"(자모12개) vs "기부하나"(자모12개) → 1개 다름 (다 vs 나)
+function hangulJamoDistance(a, b) {
+  const ja = decomposeHangul(a);
+  const jb = decomposeHangul(b);
+  // 길이가 너무 다르면 패스
+  if (Math.abs(ja.length - jb.length) > 3) return 99;
+  const len = Math.max(ja.length, jb.length);
+  let diff = 0;
+  for (let i = 0; i < len; i++) {
+    if ((ja[i] || '') !== (jb[i] || '')) diff++;
+  }
+  return diff;
 }
 
 // ── 편집 거리 (오타 허용 채점용) ─────────────────────────
@@ -1502,7 +1557,7 @@ function gradeAnswers(extracted) {
         }
       }
     } else {
-      // 한국어 뜻쓰기: 정규화 + 부분 일치
+      // 한국어 뜻쓰기: 정규화 + 부분 일치 + 자모 거리
       const ok = info.corrects.some(c => {
         const correctNorm = normalize(c);
         if (!correctNorm) return false;
@@ -1510,6 +1565,14 @@ function gradeAnswers(extracted) {
         if (studentNorm === correctNorm) return true;
         // 2) 포함 관계 (학생이 더 길게 쓰거나, 짧게 핵심만 쓴 경우)
         if (studentNorm.includes(correctNorm) || correctNorm.includes(studentNorm)) return true;
+        // 3) ★ 자모 단위 1개 차이 — 받침/모음 1개 정도는 정답 처리
+        // (예: "기부하다" vs "기부하나" 받침 'ㅏ'/'ㅏ'+'ㄴ' 차이 = 자모 1개 차이)
+        // 글자 수가 비슷하고 자모가 1개만 차이나면 정답
+        const lengthDiff = Math.abs(studentNorm.length - correctNorm.length);
+        if (lengthDiff <= 1 && correctNorm.length >= 2) {
+          const jamoDist = hangulJamoDistance(studentNorm, correctNorm);
+          if (jamoDist <= 1) return true; // 자모 1개 차이는 정답 처리
+        }
         return false;
       });
 
@@ -1519,6 +1582,11 @@ function gradeAnswers(extracted) {
       if (!ok && !close) {
         const minDist = Math.min(...info.corrects.map(c=>answerSimilarity(ans, c)));
         if (minDist === 1) close = true;
+        // ★ 자모 단위 2개 차이도 미확인
+        if (!close) {
+          const minJamoDist = Math.min(...info.corrects.map(c => hangulJamoDistance(normalize(ans), normalize(c))));
+          if (minJamoDist <= 2) close = true;
+        }
       }
       if (close) {
         results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'정답에 가까움'});
