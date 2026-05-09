@@ -588,9 +588,12 @@ select option{background:#282828}
             <div>
               <label>열 수</label>
               <select id="vcCols">
-                <option value="1">1열</option>
-                <option value="2" selected>2열</option>
+                <option value="1">1열 (넉넉)</option>
+                <option value="2" selected>2열 (기본)</option>
                 <option value="3">3열</option>
+                <option value="4">4열 (절약)</option>
+                <option value="5">5열</option>
+                <option value="6">6열 (압축)</option>
               </select>
             </div>
           </div>
@@ -995,6 +998,47 @@ select option{background:#282828}
     <div style="display:flex;gap:8px">
       <button onclick="saveApiKey()" style="flex:1;height:44px;background:var(--g);border:none;border-radius:22px;color:#000;font-family:var(--f);font-size:14px;font-weight:800;cursor:pointer">저장</button>
       <button onclick="closeApiKeyModal()" id="apiKeyCancelBtn" style="height:44px;padding:0 20px;background:transparent;border:1px solid var(--bm);border-radius:22px;color:var(--t1);font-family:var(--f);font-size:14px;cursor:pointer">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 정답 미리보기/편집 모달 -->
+<div id="vocabPreviewModal" style="display:none;position:fixed;inset:0;z-index:212;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);padding:28px;max-width:900px;width:100%;max-height:92vh;overflow:auto">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">👁 정답 미리보기</div>
+        <div id="vocabPreviewTitle" style="font-size:12px;color:var(--t2)"></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="toggleVocabPreviewEdit()" id="vocabPreviewEditBtn"
+          style="height:32px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer">✎ 편집 모드</button>
+        <button onclick="closeVocabPreview()"
+          style="height:32px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:12px;cursor:pointer">닫기</button>
+      </div>
+    </div>
+
+    <!-- 시험 정보 요약 -->
+    <div id="vocabPreviewMeta" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding:10px 14px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);font-size:12px"></div>
+
+    <!-- 시험 유형 구간 표시 -->
+    <div id="vocabPreviewTypes" style="margin-bottom:14px"></div>
+
+    <!-- 정답 목록 -->
+    <div id="vocabPreviewList" style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);max-height:60vh;overflow-y:auto"></div>
+
+    <!-- 편집 모드 안내 (편집 시만 표시) -->
+    <div id="vocabPreviewEditHint" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,183,77,.05);border:1px solid rgba(255,183,77,.25);border-radius:var(--r);font-size:11px;color:var(--t1);line-height:1.5">
+      💡 단어/뜻을 클릭하여 직접 수정할 수 있어요. 뜻은 <strong>/</strong>로 구분 (예: 사과 / 사과나무 / 능금)
+    </div>
+
+    <!-- 편집 모드 — 저장 버튼 -->
+    <div id="vocabPreviewSaveBar" style="display:none;margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="cancelVocabPreviewEdit()"
+        style="height:38px;padding:0 18px;background:transparent;border:1px solid var(--bm);border-radius:19px;color:var(--t1);font-family:var(--f);font-size:13px;cursor:pointer">취소</button>
+      <button onclick="saveVocabPreviewEdit()" id="vocabPreviewSaveBtn"
+        style="height:38px;padding:0 22px;background:var(--g);border:none;border-radius:19px;color:#000;font-family:var(--f);font-size:13px;font-weight:800;cursor:pointer">✓ 저장 (모든 기기 동기화)</button>
     </div>
   </div>
 </div>
@@ -2824,13 +2868,19 @@ function renderSavedVocab() {
   }
   el.innerHTML = keys.map(name=>{
     const d = saved[name];
+    const ansCount = d.answerMap ? Object.keys(d.answerMap).length : 0;
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
       background:var(--b2);border-radius:var(--r);border:1px solid var(--bo)"
       onmouseover="this.style.borderColor='var(--bm)'" onmouseout="this.style.borderColor='var(--bo)'">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:2px">${d.total}문항 · 통과 ${d.passRate}% · ${d.savedAt||''}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px">${d.total}문항 · 정답 ${ansCount}개 · 통과 ${d.passRate}% · ${d.savedAt||''}</div>
       </div>
+      <button onclick="openVocabPreview('${name.replace(/'/g,"\\'")}')"
+        style="height:30px;padding:0 12px;background:transparent;border:1px solid var(--bm);
+          border-radius:15px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap"
+        onmouseover="this.style.borderColor='#CE93D8';this.style.color='#CE93D8'"
+        onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">👁 미리보기</button>
       <button onclick="loadVocabConfig('${name.replace(/'/g,"\\'")}')"
         style="height:30px;padding:0 12px;background:var(--gl);border:1px solid rgba(29,185,84,.3);
           border-radius:15px;color:var(--g);font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer"
@@ -2843,6 +2893,202 @@ function renderSavedVocab() {
     </div>`;
   }).join('');
 }
+
+// ══ 정답 미리보기 & 편집 ══════════════════════════════════════
+let vocabPreviewState = {
+  name: null,
+  data: null,        // 원본 (취소 시 복원용)
+  edited: null,      // 편집중인 깊은 복사본
+  editMode: false,
+};
+
+function openVocabPreview(name) {
+  const saved = getSavedVocab();
+  const d = saved[name];
+  if (!d) {
+    showToast('정답표를 찾을 수 없어요', 'err');
+    return;
+  }
+  vocabPreviewState.name = name;
+  vocabPreviewState.data = d;
+  vocabPreviewState.edited = JSON.parse(JSON.stringify(d));
+  vocabPreviewState.editMode = false;
+  renderVocabPreview();
+  document.getElementById('vocabPreviewModal').style.display = 'flex';
+}
+
+function closeVocabPreview() {
+  if (vocabPreviewState.editMode) {
+    if (!confirm('편집 중인 변경사항이 있어요. 정말 닫으시겠어요?')) return;
+  }
+  document.getElementById('vocabPreviewModal').style.display = 'none';
+  vocabPreviewState = { name:null, data:null, edited:null, editMode:false };
+}
+
+function toggleVocabPreviewEdit() {
+  vocabPreviewState.editMode = !vocabPreviewState.editMode;
+  renderVocabPreview();
+}
+
+function cancelVocabPreviewEdit() {
+  // 원본으로 복원
+  vocabPreviewState.edited = JSON.parse(JSON.stringify(vocabPreviewState.data));
+  vocabPreviewState.editMode = false;
+  renderVocabPreview();
+  showToast('편집 취소됨', '');
+}
+
+function renderVocabPreview() {
+  const d = vocabPreviewState.edited;
+  if (!d) return;
+
+  // 제목
+  document.getElementById('vocabPreviewTitle').textContent = `${vocabPreviewState.name}`;
+
+  // 메타
+  const ansCount = d.answerMap ? Object.keys(d.answerMap).length : 0;
+  document.getElementById('vocabPreviewMeta').innerHTML = `
+    <span><strong style="color:var(--t1)">${d.total}</strong>문항</span>
+    <span style="color:var(--bo)">·</span>
+    <span><strong style="color:var(--t1)">${ansCount}</strong>개 정답</span>
+    <span style="color:var(--bo)">·</span>
+    <span>통과 <strong style="color:var(--g)">${d.passRate||90}%</strong></span>
+    <span style="color:var(--bo)">·</span>
+    <span>불통 <strong style="color:#FFB74D">${d.failRate||80}%</strong></span>
+    <span style="color:var(--bo)">·</span>
+    <span style="color:var(--t2)">${d.savedAt||''}</span>
+  `;
+
+  // 시험 유형 표시
+  const typesEl = document.getElementById('vocabPreviewTypes');
+  const types = d.types || [];
+  if (types.length > 0) {
+    typesEl.innerHTML = `
+      <div style="font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">📋 시험 유형 구간</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${types.map(t => {
+          const typeColor = t.type === 'kor' ? 'rgba(206,147,216,.15)' : 'rgba(41,182,246,.15)';
+          const typeBd = t.type === 'kor' ? 'rgba(206,147,216,.4)' : 'rgba(41,182,246,.4)';
+          const typeTxt = t.type === 'kor' ? '#CE93D8' : '#29B6F6';
+          const label = t.type === 'kor' ? '영→한 뜻쓰기' : '한→영 단어쓰기';
+          return `<div style="padding:6px 12px;background:${typeColor};border:1px solid ${typeBd};border-radius:14px;font-size:11px;color:${typeTxt};font-weight:700">${t.from}~${t.to}번: ${label}</div>`;
+        }).join('')}
+      </div>`;
+  } else {
+    typesEl.innerHTML = '';
+  }
+
+  // 정답 목록
+  const listEl = document.getElementById('vocabPreviewList');
+  const answerMap = d.answerMap || {};
+  const nums = Object.keys(answerMap).map(Number).sort((a,b) => a-b);
+  if (nums.length === 0) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--t2);text-align:center;padding:30px">정답 데이터가 없어요</div>';
+    return;
+  }
+
+  // 시험 유형별 색상 매핑
+  const getNumType = (n) => {
+    const t = types.find(x => n >= x.from && n <= x.to);
+    return t?.type || 'kor';
+  };
+
+  // 편집 모드 vs 보기 모드
+  const editMode = vocabPreviewState.editMode;
+  document.getElementById('vocabPreviewEditBtn').textContent = editMode ? '✕ 편집 종료' : '✎ 편집 모드';
+  document.getElementById('vocabPreviewEditBtn').style.color = editMode ? '#FFB74D' : 'var(--t1)';
+  document.getElementById('vocabPreviewEditBtn').style.borderColor = editMode ? 'rgba(255,183,77,.5)' : 'var(--bm)';
+  document.getElementById('vocabPreviewEditHint').style.display = editMode ? '' : 'none';
+  document.getElementById('vocabPreviewSaveBar').style.display = editMode ? 'flex' : 'none';
+
+  if (editMode) {
+    // 편집 모드 — input 필드
+    listEl.innerHTML = nums.map(n => {
+      const ans = answerMap[n];
+      const t = getNumType(n);
+      const numColor = t === 'kor' ? '#CE93D8' : '#29B6F6';
+      return `
+        <div style="display:grid;grid-template-columns:50px 1fr 1.5fr;gap:8px;padding:6px 12px;border-bottom:1px solid var(--bo);align-items:center">
+          <span style="font-family:var(--m);font-size:12px;font-weight:700;color:${numColor};text-align:center">${n}.</span>
+          <input type="text" value="${escapeHtmlPC(ans.word||'')}" placeholder="단어"
+            onchange="editVocabAnswer(${n}, 'word', this.value)"
+            style="height:32px;padding:0 10px;background:var(--b3);border:1px solid var(--bm);border-radius:6px;color:var(--t0);font-size:12px;font-family:var(--f);outline:none">
+          <input type="text" value="${escapeHtmlPC((ans.meanings||[]).join(' / '))}" placeholder="뜻 (/ 로 구분)"
+            onchange="editVocabAnswer(${n}, 'meanings', this.value)"
+            style="height:32px;padding:0 10px;background:var(--b3);border:1px solid var(--bm);border-radius:6px;color:var(--t0);font-size:12px;font-family:var(--f);outline:none">
+        </div>`;
+    }).join('');
+  } else {
+    // 보기 모드 — 깔끔하게
+    listEl.innerHTML = nums.map((n, idx) => {
+      const ans = answerMap[n];
+      const t = getNumType(n);
+      const numColor = t === 'kor' ? '#CE93D8' : '#29B6F6';
+      const bg = idx%2===0 ? 'var(--b2)' : 'transparent';
+      return `
+        <div style="display:grid;grid-template-columns:50px 1fr 1.5fr;gap:8px;padding:8px 14px;background:${bg};border-bottom:1px solid var(--bo)">
+          <span style="font-family:var(--m);font-size:12px;font-weight:700;color:${numColor};text-align:center">${n}.</span>
+          <span style="font-size:13px;font-weight:600;color:var(--t0)">${escapeHtmlPC(ans.word||'')}</span>
+          <span style="font-size:12px;color:var(--t1)">${escapeHtmlPC((ans.meanings||[]).join(' / '))}</span>
+        </div>`;
+    }).join('');
+  }
+}
+
+function editVocabAnswer(num, field, value) {
+  const d = vocabPreviewState.edited;
+  if (!d || !d.answerMap || !d.answerMap[num]) return;
+  if (field === 'word') {
+    d.answerMap[num].word = value.trim();
+  } else if (field === 'meanings') {
+    // / 로 분리
+    d.answerMap[num].meanings = value.split('/').map(s => s.trim()).filter(s => s);
+  }
+}
+
+async function saveVocabPreviewEdit() {
+  const d = vocabPreviewState.edited;
+  const name = vocabPreviewState.name;
+  if (!d || !name) return;
+
+  const btn = document.getElementById('vocabPreviewSaveBtn');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = '⏳ 저장 중...';
+
+  // 1. 로컬 저장
+  const saved = getSavedVocab();
+  saved[name] = d;
+  localStorage.setItem('kkj_vocab', JSON.stringify(saved));
+
+  // 2. 클라우드 동기화
+  const code = getAcademyCode();
+  if (code) {
+    const r = await cloudPut('vocab', name, d);
+    if (r.ok) {
+      btn.disabled = false;
+      btn.textContent = oldText;
+      vocabPreviewState.data = JSON.parse(JSON.stringify(d));
+      vocabPreviewState.editMode = false;
+      renderVocabPreview();
+      renderSavedVocab();
+      showToast(`✓ "${name}" 저장됨 (☁ 모든 기기 동기화)`, 'ok');
+    } else {
+      btn.disabled = false;
+      btn.textContent = oldText;
+      showToast(`로컬엔 저장됨 (☁ 동기화 실패: ${r.error||'서버 오류'})`, 'err');
+    }
+  } else {
+    btn.disabled = false;
+    btn.textContent = oldText;
+    vocabPreviewState.data = JSON.parse(JSON.stringify(d));
+    vocabPreviewState.editMode = false;
+    renderVocabPreview();
+    renderSavedVocab();
+    showToast(`✓ 로컬 저장 완료`, 'ok');
+  }
+}
+// ════════════════════════════════════════════════════════════
 
 // ── API 키 관리 ───────────────────────────────────────────
 function getApiKey() {
@@ -3916,8 +4162,39 @@ function showVocabPreview() {
   const lineH    = document.getElementById('vcLineH').value;
   const cols     = parseInt(document.getElementById('vcCols').value)||2;
 
-  const rowH = lineH==='large'?46:lineH==='medium'?36:28;
-  const fs   = lineH==='large'?13:lineH==='medium'?12:11;
+  // ★ 열 수에 따라 자동 스케일 — 열 많을수록 글자/높이 축소해서 한 페이지에 맞춤
+  // 기본값(2열)
+  let baseRowH = lineH==='large'?46:lineH==='medium'?36:28;
+  let baseFs   = lineH==='large'?13:lineH==='medium'?12:11;
+  let baseGap  = 8;
+  let basePad  = 10;
+  let numMinW  = 26;
+
+  // 열이 많을수록 자동으로 더 컴팩트하게
+  if (cols >= 4) {
+    baseRowH = Math.max(20, Math.round(baseRowH * 0.78));
+    baseFs   = Math.max(9, baseFs - 1);
+    baseGap  = 4;
+    basePad  = 6;
+    numMinW  = 20;
+  }
+  if (cols >= 5) {
+    baseRowH = Math.max(18, Math.round(baseRowH * 0.7));
+    baseFs   = Math.max(8, baseFs - 1);
+    baseGap  = 3;
+    basePad  = 5;
+    numMinW  = 18;
+  }
+  if (cols >= 6) {
+    baseRowH = Math.max(16, Math.round(baseRowH * 0.65));
+    baseFs   = Math.max(8, baseFs - 1);
+    baseGap  = 2;
+    basePad  = 4;
+    numMinW  = 16;
+  }
+
+  const rowH = baseRowH;
+  const fs   = baseFs;
   const sub  = [grade,author,date].filter(Boolean).join('  ·  ');
 
   const passNum = Math.ceil(total * parseInt(passRate)/100);
@@ -3952,27 +4229,28 @@ function showVocabPreview() {
           if (ans) {
             // 영→한(kor): 영단어 보여주고 뜻 빈칸
             // 한→영(eng): 한국어 뜻 보여주고 단어 빈칸
+            const promptMinW = cols >= 4 ? 60 : 90;
             if (t.type === 'kor') {
               const word = ans.word || '';
               promptHTML = `<span style="font-size:${fs}px;font-weight:600;color:#0a2540;
-                min-width:90px;flex-shrink:0">${escapeHtmlPC(word)}</span>`;
+                min-width:${promptMinW}px;flex-shrink:0">${escapeHtmlPC(word)}</span>`;
             } else if (t.type === 'eng') {
               const meaning = (ans.meanings && ans.meanings[0]) || '';
               promptHTML = `<span style="font-size:${fs}px;font-weight:600;color:#0a2540;
-                min-width:90px;flex-shrink:0">${escapeHtmlPC(meaning)}</span>`;
+                min-width:${promptMinW}px;flex-shrink:0">${escapeHtmlPC(meaning)}</span>`;
             }
           }
         }
         rows += `
-          <div style="display:flex;align-items:center;gap:8px;
-            padding:4px 10px;min-height:${rowH}px;
+          <div style="display:flex;align-items:center;gap:${baseGap}px;
+            padding:${Math.floor(basePad*0.4)}px ${basePad}px;min-height:${rowH}px;
             background:${shade};border-bottom:1px solid #edf2f7;
             border-right:1px solid #e8eef5">
             <span style="font-size:${fs}px;font-weight:800;color:${clr};
-              min-width:26px;flex-shrink:0;font-family:monospace">${num}.</span>
+              min-width:${numMinW}px;flex-shrink:0;font-family:monospace">${num}.</span>
             ${promptHTML}
             <div style="flex:1;border-bottom:1.5px solid #c8d4e0;
-              height:${rowH*0.55}px;"></div>
+              height:${Math.max(8, rowH*0.55)}px;"></div>
           </div>`;
       }
       colsHTML += `<div style="flex:1;overflow:hidden">${rows}</div>`;
