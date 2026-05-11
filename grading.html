@@ -1617,16 +1617,19 @@ function updateBatchUI() {
   const addBtn = document.getElementById('addToBatchBtn');
   const gradeBtnLabel = document.getElementById('gradeBtnLabel');
 
+  // ★ "다음 학생 추가" 버튼은 사진이 있으면 항상 표시 (배치 비어있어도)
+  // 그래야 첫 학생부터 일괄 채점을 시작할 수 있음
+  if (addBtn) {
+    addBtn.style.display = state.photos.length > 0 ? '' : 'none';
+  }
+
   if (state.batch.length === 0) {
     card.style.display = 'none';
-    addBtn.style.display = 'none';
     if (gradeBtnLabel) gradeBtnLabel.textContent = 'AI 채점 시작';
     return;
   }
 
   card.style.display = '';
-  // 배치 있으면 "다음 학생 추가" 버튼 표시 (현재 사진 있을 때)
-  addBtn.style.display = state.photos.length > 0 ? '' : 'none';
   sub.textContent = `${state.batch.length}명 추가됨`;
   if (gradeBtnLabel) {
     const total = state.batch.length + (state.photos.length > 0 ? 1 : 0);
