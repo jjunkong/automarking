@@ -417,6 +417,11 @@ body{padding-bottom:52px}
         style="display:none" onchange="onPhotoSelected(event)">
       <input type="file" id="galleryInput" accept="image/*" multiple
         style="display:none" onchange="onPhotoSelected(event)">
+
+      <!-- ★ 일괄 채점: "다음 학생 추가" 버튼 — 사진 카드 내부에 더 잘 보이게 -->
+      <button id="addToBatchBtn" onclick="addToBatch()" style="display:none;width:100%;margin-top:12px;height:48px;background:rgba(206,147,216,.15);border:1.5px solid rgba(206,147,216,.5);border-radius:24px;color:#CE93D8;font-family:var(--f);font-size:14px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;gap:8px">
+        <span style="font-size:18px">➕</span> 다음 학생 추가 (일괄 채점)
+      </button>
     </div>
   </div>
 
@@ -455,11 +460,6 @@ body{padding-bottom:52px}
 
   <button class="btn btn-g" id="gradeBtn" onclick="startGrading()" disabled>
     <span style="font-size:18px">⚡</span> <span id="gradeBtnLabel">AI 채점 시작</span>
-  </button>
-
-  <!-- ★ 일괄 채점 모드 — "다음 학생 추가" 버튼 -->
-  <button class="btn btn-o" id="addToBatchBtn" onclick="addToBatch()" style="display:none;background:rgba(206,147,216,.1);border:1px solid rgba(206,147,216,.4);color:#CE93D8">
-    <span style="font-size:16px">➕</span> 다음 학생 추가 (현재 사진을 배치에 저장)
   </button>
 
   <button class="btn btn-o" onclick="goToSetup()">← 뒤로</button>
@@ -1620,7 +1620,7 @@ function updateBatchUI() {
   // ★ "다음 학생 추가" 버튼은 사진이 있으면 항상 표시 (배치 비어있어도)
   // 그래야 첫 학생부터 일괄 채점을 시작할 수 있음
   if (addBtn) {
-    addBtn.style.display = state.photos.length > 0 ? '' : 'none';
+    addBtn.style.display = state.photos.length > 0 ? 'flex' : 'none';
   }
 
   if (state.batch.length === 0) {
