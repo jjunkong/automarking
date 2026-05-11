@@ -1795,13 +1795,19 @@ function gradeAnswers(extracted) {
   };
 
   // 정답 맵 구성
-  let answerMap = {}; // {num: {correct:[...], type:'kor'|'eng'}}
+  let answerMap = {}; // {num: {corrects:[...], type:'kor'|'eng', word: '...'}}
   if (keyData && keyData.types) {
     // TYPE C vocab key
     const vocabKey = getVocabAnswerKey(keyData);
+    const rawAnswerMap = keyData.answerMap || {};
     keyData.types.forEach(t=>{
       for(let n=t.from;n<=t.to;n++) {
-        answerMap[n] = { corrects: vocabKey[n]||[], type: t.type };
+        answerMap[n] = {
+          corrects: vocabKey[n]||[],
+          type: t.type,
+          // ★ 한글 뜻 채점 시 원래 영단어도 보여주기 위해 같이 저장
+          word: rawAnswerMap[n]?.word || '',
+        };
       }
     });
   }
@@ -1812,13 +1818,13 @@ function gradeAnswers(extracted) {
     const info   = answerMap[num];
 
     if (!ans || ans.trim()==='') {
-      results.push({num, student:'(빈칸)', correct:false, auto:true, status:'err', corrects:info?.corrects||[]});
+      results.push({num, student:'(빈칸)', correct:false, auto:true, status:'err', corrects:info?.corrects||[], word:info?.word||'', type:info?.type});
       return;
     }
 
     if (!info || !info.corrects || !info.corrects.length) {
       // 정답 없음 → 수동 확인
-      results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:[], type:info?.type});
+      results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:[], word:info?.word||'', type:info?.type});
       return;
     }
 
@@ -1829,14 +1835,14 @@ function gradeAnswers(extracted) {
       // 영어 스펠링: 정규화 후 정확 비교
       const exactOk = info.corrects.some(c => normalize(c) === studentNorm);
       if (exactOk) {
-        results.push({num, student:ans, correct:true, auto:true, status:'ok', corrects:info.corrects});
+        results.push({num, student:ans, correct:true, auto:true, status:'ok', corrects:info.corrects, word:info.word||'', type:'eng'});
       } else {
         // 오타 허용: 1글자 차이면 미확인 처리
         const minDist = Math.min(...info.corrects.map(c=>answerSimilarity(ans, c)));
         if (minDist === 1) {
-          results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'1글자 차이'});
+          results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'1글자 차이', word:info.word||'', type:'eng'});
         } else {
-          results.push({num, student:ans, correct:false, auto:true, status:'err', corrects:info.corrects});
+          results.push({num, student:ans, correct:false, auto:true, status:'err', corrects:info.corrects, word:info.word||'', type:'eng'});
         }
       }
     } else {
@@ -1872,9 +1878,9 @@ function gradeAnswers(extracted) {
         }
       }
       if (close) {
-        results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'정답에 가까움'});
+        results.push({num, student:ans, correct:null, auto:false, status:'unc', corrects:info.corrects, hint:'정답에 가까움', word:info.word||'', type:'kor'});
       } else {
-        results.push({num, student:ans, correct:ok, auto:true, status:ok?'ok':'err', corrects:info.corrects});
+        results.push({num, student:ans, correct:ok, auto:true, status:ok?'ok':'err', corrects:info.corrects, word:info.word||'', type:'kor'});
       }
     }
   });
@@ -1983,12 +1989,28 @@ function renderResultItem(r, withBtns) {
   const wasUnc = !r.auto && r.status !== 'unc';
   const manualMark = wasUnc ? '<span style="font-size:9px;color:var(--t2);font-weight:500;margin-left:4px">✎ 직접 결정</span>' : '';
 
+  // ★ 한글 뜻쓰기(kor)일 때는 영단어도 함께 표시 — 채점 효율 ↑
+  // 예: "discern 차별대우하다 / 식별하다"
+  // 영어 스펠링(eng)일 때는 기존대로 "정답: ..."
+  const buildExpectHTML = () => {
+    if (!corrStr) return '';
+    if (r.type === 'kor' && r.word) {
+      // 영단어 + 한글 뜻 함께 (영단어는 강조)
+      return `<div class="rexpect">
+        <span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(r.word)}</span>
+        <span>${corrStr}</span>
+      </div>`;
+    }
+    // 한→영(eng) 또는 word 없음 → 기존 형식
+    return `<div class="rexpect">정답: ${corrStr}</div>`;
+  };
+
   if (withBtns) {
     return `<div class="result-item unc" id="ritem-${r.num}">
       <span class="rnum">${r.num}.</span>
       <div style="flex:1;min-width:0">
         <div class="ranswer">${r.student}</div>
-        ${corrStr?`<div class="rexpect">정답: ${corrStr}</div>`:''}
+        ${buildExpectHTML()}
       </div>
       <div class="unc-btns">
         <button class="unc-btn o" onclick="setUnc(${r.num},true)" id="ub-o-${r.num}">O</button>
@@ -2002,7 +2024,7 @@ function renderResultItem(r, withBtns) {
     <span class="rnum">${r.num}.</span>
     <div style="flex:1;min-width:0">
       <div class="ranswer">${r.student}${manualMark}</div>
-      ${corrStr&&r.status==='err'?`<div class="rexpect">정답: ${corrStr}</div>`:''}
+      ${r.status==='err' ? buildExpectHTML() : ''}
     </div>
     <span class="rbadge" onclick="toggleAutoResult(${r.num})"
       style="cursor:pointer;user-select:none"
