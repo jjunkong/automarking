@@ -1568,20 +1568,20 @@ async function downloadAllFromCloud() {
     if (status) status.textContent = '⚠ 불러오기 실패: ' + (r.error||'');
     return;
   }
-  // 기존 로컬 데이터와 병합 (클라우드 우선)
-  const localVocab = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_vocab')||'{}'); } catch { return {}; } })();
-  const localKeys  = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}'); } catch { return {}; } })();
-  const mergedVocab = { ...localVocab, ...(r.vocab || {}) };
-  const mergedKeys  = { ...localKeys,  ...(r.akeys || {}) };
-  localStorage.setItem('kkj_vocab', JSON.stringify(mergedVocab));
-  localStorage.setItem('kkj_answer_keys', JSON.stringify(mergedKeys));
-  const vCount = Object.keys(r.vocab||{}).length;
-  const kCount = Object.keys(r.akeys||{}).length;
-  if (status) status.textContent = `✓ 클라우드 데이터 ${vCount + kCount}개 항목 불러옴`;
+  // ★ 동기화 정책: 클라우드를 진실의 원천(source of truth)으로 사용
+  // 한쪽에서 삭제한 정답이 다른 쪽 로컬에 살아남는 문제 해결
+  // → 클라우드의 데이터로 로컬을 통째로 교체 (병합 X)
+  const cloudVocab = r.vocab || {};
+  const cloudKeys  = r.akeys || {};
+  localStorage.setItem('kkj_vocab', JSON.stringify(cloudVocab));
+  localStorage.setItem('kkj_answer_keys', JSON.stringify(cloudKeys));
+  const vCount = Object.keys(cloudVocab).length;
+  const kCount = Object.keys(cloudKeys).length;
+  if (status) status.textContent = `✓ 클라우드 데이터 ${vCount + kCount}개 항목 동기화 완료`;
   // 화면 갱신
   if (typeof renderSavedVocab === 'function') renderSavedVocab();
   if (typeof renderSavedKeys === 'function')  renderSavedKeys();
-  showToast(`✓ 클라우드에서 ${vCount + kCount}개 항목 불러옴`, 'ok');
+  showToast(`✓ 클라우드와 동기화: ${vCount + kCount}개 항목`, 'ok');
 }
 
 function init() {
@@ -4642,11 +4642,9 @@ if (getAcademyCode()) {
   setTimeout(()=>{
     cloudSync('getAll', { code: getAcademyCode() }).then(r=>{
       if (!r.ok) return;
-      const localVocab = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_vocab')||'{}'); } catch { return {}; } })();
-      const localKeys  = (()=>{ try { return JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}'); } catch { return {}; } })();
-      // 클라우드 데이터를 우선
-      localStorage.setItem('kkj_vocab', JSON.stringify({ ...localVocab, ...(r.vocab||{}) }));
-      localStorage.setItem('kkj_answer_keys', JSON.stringify({ ...localKeys, ...(r.akeys||{}) }));
+      // ★ 클라우드를 진실의 원천으로 사용 — 병합 X (한쪽에서 삭제한 게 다른 쪽에서 살아남는 문제 방지)
+      localStorage.setItem('kkj_vocab', JSON.stringify(r.vocab||{}));
+      localStorage.setItem('kkj_answer_keys', JSON.stringify(r.akeys||{}));
       renderSavedVocab();
       renderSavedKeys();
     });
