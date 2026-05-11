@@ -2442,7 +2442,14 @@ async function confirmResult() {
     failRate,                          // ★ 새로 저장
     passed: verdict.status === 'pass', // 호환성: 통과는 true
     verdict: verdict.status,            // ★ 'pass'|'warn'|'fail'
-    results: results.map(r=>({num:r.num,student:r.student,correct:r.correct})),
+    results: results.map(r=>({
+      num:r.num,
+      student:r.student,
+      correct:r.correct,
+      word: r.word || '',    // ★ 영단어 (한글 뜻쓰기일 때 표시용)
+      type: r.type || '',    // ★ 'kor'|'eng'
+      corrects: r.corrects || [],  // ★ 정답 후보 (표시용)
+    })),
   };
 
   // 1. 로컬 저장 (즉시)
@@ -2780,8 +2787,51 @@ function openEditRecord(id) {
   // 수정용 깊은 복사 (취소 시 원본 보존)
   editState.recordId = id;
   editState.record = JSON.parse(JSON.stringify(rec));
+
+  // ★ 옛 기록 호환성 — word/type 없는 results를 keyData에서 보강
+  enrichRecordWithKeyData(editState.record);
+
   renderEditScreen();
   showScreen('edit', `${rec.student || '(이름 없음)'} 수정`);
+}
+
+// 옛 기록(word/type 정보 없음) → keyData에서 영단어/type 정보 보강
+function enrichRecordWithKeyData(record) {
+  if (!record || !record.results || record.results.length === 0) return;
+  // 이미 모든 항목에 word/type 있으면 건너뜀
+  const needsEnrich = record.results.some(r => !r.word && !r.type);
+  if (!needsEnrich) return;
+
+  // keyName으로 시험 데이터 찾기
+  if (!record.keyName) return;
+  let keyData = null;
+  try {
+    if (record.type === 'typec') {
+      const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+      keyData = vocab[record.keyName];
+    }
+  } catch (e) {}
+  if (!keyData || !keyData.answerMap) return;
+
+  // 번호별 type 매핑 (types에서)
+  const numToType = {};
+  (keyData.types || []).forEach(t => {
+    for (let n = t.from; n <= t.to; n++) numToType[n] = t.type;
+  });
+
+  // 각 results에 word/type 채우기
+  record.results.forEach(r => {
+    const ans = keyData.answerMap[r.num];
+    if (ans) {
+      if (!r.word) r.word = ans.word || '';
+      if (!r.type) r.type = numToType[r.num] || 'kor';
+      if (!r.corrects) {
+        r.corrects = (numToType[r.num] === 'eng')
+          ? (ans.word ? [ans.word] : [])
+          : (ans.meanings || []);
+      }
+    }
+  });
 }
 
 function renderEditScreen() {
@@ -2809,11 +2859,38 @@ function renderEditRow(row, idx) {
   const statusColor = status === 'ok' ? 'var(--ok)' : status === 'err' ? 'var(--err)' : 'var(--t2)';
   const statusBg = status === 'ok' ? 'rgba(29,185,84,.1)' : status === 'err' ? 'rgba(255,107,107,.1)' : 'var(--b3)';
   const statusBorder = status === 'ok' ? 'rgba(29,185,84,.3)' : status === 'err' ? 'rgba(255,107,107,.3)' : 'var(--bo)';
-  const statusIcon = status === 'ok' ? 'O' : status === 'err' ? 'X' : '?';
+
+  // ★ 정답 표시 — type에 따라 다르게
+  // - 한글 뜻쓰기(kor): "discern  차별대우하다 / 식별하다"
+  // - 영어 스펠링(eng): "discern"
+  const corrStr = (row.corrects || []).slice(0,2).join(' / ');
+  let infoHTML = '';
+  if (row.type === 'kor' && row.word) {
+    // 영단어 + 한글 뜻
+    infoHTML = `
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">
+        <span style="color:#CE93D8;font-weight:700;margin-right:4px">${escapeHtml(row.word)}</span>
+        <span>${escapeHtml(corrStr)}</span>
+      </div>`;
+  } else if (row.type === 'eng' && row.word) {
+    // 영단어만 (정답)
+    infoHTML = `
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">
+        <span style="color:#29B6F6;font-weight:700">${escapeHtml(row.word)}</span>
+      </div>`;
+  } else if (corrStr) {
+    // type 정보 없으면 정답만
+    infoHTML = `
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">정답: ${escapeHtml(corrStr)}</div>`;
+  }
+
   return `
     <div style="display:flex;align-items:center;gap:8px;padding:10px;background:${statusBg};border:1px solid ${statusBorder};border-radius:8px">
       <div style="width:32px;font-family:var(--m);font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0">${row.num}.</div>
-      <div style="flex:1;min-width:0;font-size:13px;${row.student ? '' : 'color:var(--t2);font-style:italic'}">${row.student ? escapeHtml(row.student) : '(빈칸)'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;${row.student ? 'color:var(--t0);font-weight:600' : 'color:var(--t2);font-style:italic'}">${row.student ? escapeHtml(row.student) : '(빈칸)'}</div>
+        ${infoHTML}
+      </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         <button onclick="setRowResult(${idx}, true)"
           style="width:32px;height:32px;border-radius:50%;border:1px solid ${row.correct===true?'var(--ok)':'var(--bm)'};background:${row.correct===true?'var(--ok)':'transparent'};color:${row.correct===true?'#000':'var(--t2)'};font-weight:700;cursor:pointer;font-size:13px">O</button>
