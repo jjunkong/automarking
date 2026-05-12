@@ -2277,43 +2277,41 @@ function renderReview() {
 }
 
 function renderResultItem(r, withBtns) {
-  const corrStr = r.corrects?.slice(0,2).join(' / ') || '';
   // "원래 미확인이었지만 직접 결정한" 항목 표시 (auto:false)
   const wasUnc = !r.auto && r.status !== 'unc';
   const manualMark = wasUnc ? '<span style="font-size:9px;color:var(--t2);font-weight:500;margin-left:4px">✎ 직접 결정</span>' : '';
 
-  // ★ 시험 유형(type)에 따라 정답 표시 다르게
-  // - 한글 뜻쓰기(kor): "discern  차별대우하다 / 식별하다" (영단어 + 한글 뜻)
-  // - 영어 스펠링(eng): "discern" (영단어만, 한글뜻 X — 채점 효율 ↑)
-  // r.word(영단어)는 항상 저장돼있으니 영어 시험은 무조건 word 우선
-  // 한글이 들어있는지 검사 — 영어 시험에서 한글이 정답으로 표시되는 일 방지
-  const hasKor = (s) => /[가-힣]/.test(s || '');
+  // ★ 정답 표시 — 정답표(state.keyData)에서 직접 조회 (가장 정확한 데이터)
+  // r.word, r.corrects 등은 무시하고 정답표를 진실의 원천으로 사용
   const buildExpectHTML = () => {
-    if (r.type === 'kor') {
-      // 한글 뜻쓰기 — 영단어 + 한글 뜻
-      const word = r.word || '';
-      const meanings = (r.corrects || []).slice(0,2).join(' / ');
+    const keyData = state.keyData;
+    if (!keyData || !keyData.answerMap) return '';
+
+    // 이 번호의 type 찾기
+    const types = keyData.types || [];
+    const typeInfo = types.find(t => r.num >= t.from && r.num <= t.to);
+    const type = typeInfo?.type || 'kor';
+
+    // 정답 데이터
+    const ans = keyData.answerMap[r.num];
+    if (!ans) return '';
+
+    const word = (ans.word || '').trim();
+    const meanings = (ans.meanings || []).slice(0,3).join(', ').trim();
+
+    if (type === 'kor') {
+      // 한글뜻 시험 — 영단어(핑크) + 한글뜻(회색)
       if (!word && !meanings) return '';
       return `<div class="rexpect">
         ${word ? `<span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
         ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
       </div>`;
     }
-    if (r.type === 'eng') {
-      // 영어 스펠링 — 영단어만 표시 (한글이 정답으로 나오지 않도록)
-      let word = r.word || '';
-      // word 비어있으면 corrects에서 영어인 항목만 찾기 (한글은 건너뜀)
-      if (!word && r.corrects) {
-        word = r.corrects.find(c => c && !hasKor(c)) || '';
-      }
-      if (!word) return '';
-      return `<div class="rexpect">
-        <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
-      </div>`;
-    }
-    // type 정보 없는 옛 기록 — 정답 후보 전부
-    if (corrStr) return `<div class="rexpect">정답: ${escapeHtml(corrStr)}</div>`;
-    return '';
+    // 영단어 시험 — 영단어(파란색)만
+    if (!word) return '';
+    return `<div class="rexpect">
+      <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
+    </div>`;
   };
 
   if (withBtns) {
@@ -2811,6 +2809,7 @@ function openEditRecord(id) {
   // 수정용 깊은 복사 (취소 시 원본 보존)
   editState.recordId = id;
   editState.record = JSON.parse(JSON.stringify(rec));
+  editState._keyDataCache = null; // ★ 정답표 캐시 리셋 (새 기록 열 때마다)
 
   // ★ 옛 기록 호환성 — word/type 없는 results를 keyData에서 보강
   enrichRecordWithKeyData(editState.record);
@@ -2884,48 +2883,10 @@ function renderEditRow(row, idx) {
   const statusBg = status === 'ok' ? 'rgba(29,185,84,.1)' : status === 'err' ? 'rgba(255,107,107,.1)' : 'var(--b3)';
   const statusBorder = status === 'ok' ? 'rgba(29,185,84,.3)' : status === 'err' ? 'rgba(255,107,107,.3)' : 'var(--bo)';
 
-  // ★ 정답 표시 — type에 따라 다르게
-  // - 한글 뜻쓰기(kor): "discern  차별대우하다 / 식별하다"
-  // - 영어 스펠링(eng): 영단어만 (한글 절대 X)
-  const corrStr = (row.corrects || []).slice(0,2).join(' / ');
-  // 한글이 들어있는지 검사 (영어 시험에서 한글 정답이 잘못 들어간 경우 방지)
-  const hasKorean = (s) => /[가-힣]/.test(s || '');
-
-  let infoHTML = '';
-  if (row.type === 'kor') {
-    // 한글 뜻쓰기 — 영단어(있으면) + 한글뜻
-    const meanings = corrStr;
-    if (row.word || meanings) {
-      infoHTML = `
-        <div style="font-size:11px;color:var(--t2);margin-top:3px">
-          ${row.word ? `<span style="color:#CE93D8;font-weight:700;margin-right:4px">${escapeHtml(row.word)}</span>` : ''}
-          ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
-        </div>`;
-    }
-  } else if (row.type === 'eng') {
-    // 영어 스펠링 — 영단어만 표시 (한글은 절대 표시 X)
-    // word 비어있으면 corrects에서 영어인 첫 항목 찾기
-    let word = row.word || '';
-    if (!word && row.corrects) {
-      // corrects에서 한글이 없는 항목(영단어) 찾기
-      word = row.corrects.find(c => c && !hasKorean(c)) || '';
-    }
-    // 디버그: 콘솔에서 데이터 구조 확인
-    if (window._debugMode) {
-      console.log(`[edit ${row.num}] type=${row.type}, word=${row.word}, corrects=${JSON.stringify(row.corrects)}, student=${row.student}`);
-    }
-    if (word) {
-      infoHTML = `
-        <div style="font-size:11px;color:var(--t2);margin-top:3px">
-          <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
-        </div>`;
-    }
-    // 영단어를 찾지 못하면 아무것도 표시 안 함 (한글이 정답으로 나오는 일 방지)
-  } else if (corrStr) {
-    // type 정보 없는 옛 기록 — 정답 후보 전부
-    infoHTML = `
-      <div style="font-size:11px;color:var(--t2);margin-top:3px">정답: ${escapeHtml(corrStr)}</div>`;
-  }
+  // ★ 정답 표시 — 정답표(keyData)에서 직접 조회 (가장 정확)
+  // r.word, r.corrects 등 record에 저장된 데이터는 무시하고
+  // 정답표 데이터를 직접 사용 → 데이터 일관성 보장
+  let infoHTML = buildAnswerInfoFromKey(row.num);
 
   return `
     <div style="display:flex;align-items:center;gap:8px;padding:10px;background:${statusBg};border:1px solid ${statusBorder};border-radius:8px">
@@ -2941,6 +2902,59 @@ function renderEditRow(row, idx) {
           style="width:32px;height:32px;border-radius:50%;border:1px solid ${row.correct===false?'var(--err)':'var(--bm)'};background:${row.correct===false?'var(--err)':'transparent'};color:${row.correct===false?'#fff':'var(--t2)'};font-weight:700;cursor:pointer;font-size:13px">X</button>
       </div>
     </div>`;
+}
+
+// ★ 정답표(keyData)에서 직접 정답 정보를 조회해 HTML 생성
+// 핵심 원칙: 정답표가 진실의 원천 (record 데이터 무시)
+function buildAnswerInfoFromKey(num) {
+  // editState에 keyData 캐시 (없으면 로드)
+  if (!editState._keyDataCache) {
+    const record = editState.record;
+    if (record && record.keyName && record.type === 'typec') {
+      try {
+        const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+        editState._keyDataCache = vocab[record.keyName] || null;
+        if (!editState._keyDataCache) {
+          console.warn(`[edit] 정답표 '${record.keyName}'을 찾을 수 없음. 클라우드 동기화 필요`);
+        }
+      } catch (e) {
+        editState._keyDataCache = null;
+      }
+    } else {
+      editState._keyDataCache = null;
+    }
+  }
+  const keyData = editState._keyDataCache;
+  if (!keyData || !keyData.answerMap) return '';
+
+  // 이 번호의 type 찾기
+  const types = keyData.types || [];
+  const typeInfo = types.find(t => num >= t.from && num <= t.to);
+  const type = typeInfo?.type || 'kor';
+
+  // 이 번호의 정답
+  const ans = keyData.answerMap[num];
+  if (!ans) return '';
+
+  const word = (ans.word || '').trim();
+  const meanings = (ans.meanings || []).slice(0,3).join(', ').trim();
+
+  if (type === 'kor') {
+    // 한글뜻 시험: 영단어(핑크) + 한글뜻(회색)
+    if (!word && !meanings) return '';
+    return `
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">
+        ${word ? `<span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
+        ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
+      </div>`;
+  } else {
+    // 영단어 시험: 영단어(파란색)만 표시
+    if (!word) return '';
+    return `
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">
+        <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
+      </div>`;
+  }
 }
 
 // O/X 토글
