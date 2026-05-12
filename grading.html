@@ -1934,7 +1934,18 @@ function answerSimilarity(student, correct) {
 async function extractAnswers() {
   const total    = state.keyData?.total || 60;
   const types    = state.keyData?.types || [{type:'kor',from:1,to:total,label:'영→한 뜻쓰기'}];
-  const typeDesc = types.map(t=>`Q${t.from}~Q${t.to}: ${t.type==='kor'?'한국어 뜻쓰기(Korean meaning)':'영어 스펠링(English spelling)'}`).join(', ');
+  // ★ 답안지 양식 안내 — 각 섹션이 1번부터 다시 시작함
+  const typeDesc = types.map((t, idx) => {
+    const n = t.to - t.from + 1;
+    const label = t.type==='kor' ? '한국어 뜻쓰기(Korean meaning)' : '영어 스펠링(English spelling)';
+    return `섹션 ${idx+1} (${label}): 답안지에 1~${n}번으로 적혀있음 → 내부 번호 ${t.from}~${t.to}로 매핑됨`;
+  }).join(', ');
+
+  // ★ 섹션별 번호 매핑 정보 (AI가 결과 반환 시 사용)
+  const sectionInfo = types.map((t, idx) => {
+    const n = t.to - t.from + 1;
+    return `섹션${idx+1}: 답안지 1~${n}번 → 결과는 ${t.from}~${t.to}번으로 반환`;
+  }).join('\n');
 
   const photoCount = state.photos.length;
   const isMultiPage = photoCount > 1;
@@ -1946,7 +1957,7 @@ async function extractAnswers() {
     : `\n또한 답안지 상단의 "학생 이름" 또는 "이름" 칸에 적힌 학생 이름을 읽어주세요. 한글/영문 모두 OK. 빈칸이면 null.\n`;
 
   const multiPagePrompt = isMultiPage
-    ? `\n⚠ 답안지가 ${photoCount}장으로 나뉘어 있습니다. 모든 사진을 함께 보고 1번부터 ${total}번까지 모든 문항의 답을 추출해주세요. 같은 학생의 답안지입니다.\n`
+    ? `\n⚠ 답안지가 ${photoCount}장으로 나뉘어 있습니다. 모든 사진을 함께 보고 모든 섹션의 답을 추출해주세요. 같은 학생의 답안지입니다.\n`
     : '';
 
   // ★ 핵심 개선 1: 정답을 AI에게 미리 알려주기 (인식 가이드용)
@@ -1954,12 +1965,24 @@ async function extractAnswers() {
   const answerHint = buildAnswerHintBlock();
 
   const prompt = `이것은 영어 단어시험 답안지 사진${isMultiPage?'들':''}입니다.
-시험 구성: ${typeDesc}
+
+【 답안지 양식 안내 — 매우 중요 】
+이 시험은 여러 섹션으로 나뉘어 있고, 각 섹션은 번호가 1번부터 다시 시작됩니다:
+${typeDesc}
+
+【 번호 변환 규칙 — 결과 반환 시 적용 】
+${sectionInfo}
+
+예: "한국어→영어 스펠링" 섹션의 답안지 1번 → 결과 JSON에서는 num: ${types[1]?.from || 36}번으로 반환
+    "한국어→영어 스펠링" 섹션의 답안지 2번 → 결과 JSON에서는 num: ${types[1]?.from ? types[1].from+1 : 37}번으로 반환
+    ...
+
 총 ${total}문항입니다.${multiPagePrompt}
 ${answerHint}
 
 【 작업 】
-각 번호의 학생이 쓴 답을 사진에서 그대로 읽어주세요.
+각 번호의 학생이 쓴 답을 사진에서 그대로 읽고,
+위의 번호 변환 규칙에 따라 결과 JSON에서는 내부 번호(1~${total})로 반환해주세요.
 
 【 한글 손글씨 읽기 가이드 】
 한국 학생들의 손글씨는 다양해요. 다음 사항에 유의해서 읽어주세요:
