@@ -2282,20 +2282,32 @@ function renderResultItem(r, withBtns) {
   const wasUnc = !r.auto && r.status !== 'unc';
   const manualMark = wasUnc ? '<span style="font-size:9px;color:var(--t2);font-weight:500;margin-left:4px">✎ 직접 결정</span>' : '';
 
-  // ★ 한글 뜻쓰기(kor)일 때는 영단어도 함께 표시 — 채점 효율 ↑
-  // 예: "discern 차별대우하다 / 식별하다"
-  // 영어 스펠링(eng)일 때는 기존대로 "정답: ..."
+  // ★ 시험 유형(type)에 따라 정답 표시 다르게
+  // - 한글 뜻쓰기(kor): "discern  차별대우하다 / 식별하다" (영단어 + 한글 뜻)
+  // - 영어 스펠링(eng): "discern" (영단어만, 한글뜻 X — 채점 효율 ↑)
+  // r.word(영단어)는 항상 저장돼있으니 영어 시험은 무조건 word 우선
   const buildExpectHTML = () => {
-    if (!corrStr) return '';
-    if (r.type === 'kor' && r.word) {
-      // 영단어 + 한글 뜻 함께 (영단어는 강조)
+    if (r.type === 'kor') {
+      // 한글 뜻쓰기 — 영단어 + 한글 뜻
+      const word = r.word || '';
+      const meanings = (r.corrects || []).slice(0,2).join(' / ');
+      if (!word && !meanings) return '';
       return `<div class="rexpect">
-        <span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(r.word)}</span>
-        <span>${corrStr}</span>
+        ${word ? `<span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
+        ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
       </div>`;
     }
-    // 한→영(eng) 또는 word 없음 → 기존 형식
-    return `<div class="rexpect">정답: ${corrStr}</div>`;
+    if (r.type === 'eng') {
+      // 영어 스펠링 — 정답 영단어 표시 (word 또는 corrects[0])
+      const word = r.word || (r.corrects && r.corrects[0]) || '';
+      if (!word) return '';
+      return `<div class="rexpect">
+        <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
+      </div>`;
+    }
+    // type 정보 없는 옛 기록 — 정답 후보 전부
+    if (corrStr) return `<div class="rexpect">정답: ${escapeHtml(corrStr)}</div>`;
+    return '';
   };
 
   if (withBtns) {
