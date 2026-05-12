@@ -725,7 +725,7 @@ body{padding-bottom:52px}
     <div class="npd"></div>
     <span class="npt" id="npStatus">홈</span>
   </div>
-  <div class="np-copy">ALL COPYRIGHT reserved @김기준영어학원</div>
+  <div class="np-copy">ALL COPYRIGHT reserved @김기준영어학원 · v2.1</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -2909,6 +2909,10 @@ function renderEditRow(row, idx) {
     if (!word && row.corrects) {
       // corrects에서 한글이 없는 항목(영단어) 찾기
       word = row.corrects.find(c => c && !hasKorean(c)) || '';
+    }
+    // 디버그: 콘솔에서 데이터 구조 확인
+    if (window._debugMode) {
+      console.log(`[edit ${row.num}] type=${row.type}, word=${row.word}, corrects=${JSON.stringify(row.corrects)}, student=${row.student}`);
     }
     if (word) {
       infoHTML = `
