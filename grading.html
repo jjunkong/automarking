@@ -2307,10 +2307,11 @@ function renderResultItem(r, withBtns) {
         ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
       </div>`;
     }
-    // 영단어 시험 — 영단어(파란색)만
-    if (!word) return '';
+    // 영단어 시험 — 영단어(파란색) + 한글뜻(회색) 둘 다 표시
+    if (!word && !meanings) return '';
     return `<div class="rexpect">
-      <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
+      ${word ? `<span style="color:#29B6F6;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
+      ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
     </div>`;
   };
 
@@ -2948,11 +2949,12 @@ function buildAnswerInfoFromKey(num) {
         ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
       </div>`;
   } else {
-    // 영단어 시험: 영단어(파란색)만 표시
-    if (!word) return '';
+    // 영단어 시험: 영단어(파란색) + 한글뜻(회색) 둘 다 표시
+    if (!word && !meanings) return '';
     return `
       <div style="font-size:11px;color:var(--t2);margin-top:3px">
-        <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
+        ${word ? `<span style="color:#29B6F6;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
+        ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
       </div>`;
   }
 }
