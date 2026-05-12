@@ -2296,22 +2296,35 @@ function renderResultItem(r, withBtns) {
     const ans = keyData.answerMap[r.num];
     if (!ans) return '';
 
-    const word = (ans.word || '').trim();
-    const meanings = (ans.meanings || []).slice(0,3).join(', ').trim();
+    // ★ 정답표 데이터를 자동 분류 — word/meanings 칸이 뒤섞여도 처리
+    // 1) 모든 정답 데이터 모으기
+    const allItems = [];
+    if (ans.word) allItems.push(ans.word);
+    if (ans.meanings && Array.isArray(ans.meanings)) allItems.push(...ans.meanings);
 
-    if (type === 'kor') {
-      // 한글뜻 시험 — 영단어(핑크) + 한글뜻(회색)
-      if (!word && !meanings) return '';
-      return `<div class="rexpect">
-        ${word ? `<span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
-        ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
-      </div>`;
-    }
-    // 영단어 시험 — 영단어(파란색) + 한글뜻(회색) 둘 다 표시
-    if (!word && !meanings) return '';
+    // 2) 언어별 분류 (한글 포함 여부로 판단)
+    const hasKor = (s) => /[가-힣]/.test(s || '');
+    const englishItems = [];
+    const koreanItems = [];
+    allItems.forEach(item => {
+      const s = (item || '').trim();
+      if (!s) return;
+      if (hasKor(s)) koreanItems.push(s);
+      else englishItems.push(s);
+    });
+
+    // 3) 영단어와 한글뜻 결정
+    const englishWord = englishItems[0] || '';  // 영단어 (1개만)
+    const koreanMeanings = koreanItems.slice(0,3).join(', ');  // 한글뜻 (최대 3개)
+
+    if (!englishWord && !koreanMeanings) return '';
+
+    // 4) 시험 유형에 따라 색상 적용 (영단어 칸 색만 다름)
+    const wordColor = type === 'kor' ? '#CE93D8' : '#29B6F6';
+
     return `<div class="rexpect">
-      ${word ? `<span style="color:#29B6F6;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
-      ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
+      ${englishWord ? `<span style="color:${wordColor};font-weight:700;margin-right:6px">${escapeHtml(englishWord)}</span>` : ''}
+      ${koreanMeanings ? `<span>${escapeHtml(koreanMeanings)}</span>` : ''}
     </div>`;
   };
 
@@ -2937,26 +2950,37 @@ function buildAnswerInfoFromKey(num) {
   const ans = keyData.answerMap[num];
   if (!ans) return '';
 
-  const word = (ans.word || '').trim();
-  const meanings = (ans.meanings || []).slice(0,3).join(', ').trim();
+  // ★ 정답표 데이터를 자동 분류 — word/meanings 칸이 뒤섞여도 처리
+  // 1) 모든 정답 데이터 모으기
+  const allItems = [];
+  if (ans.word) allItems.push(ans.word);
+  if (ans.meanings && Array.isArray(ans.meanings)) allItems.push(...ans.meanings);
 
-  if (type === 'kor') {
-    // 한글뜻 시험: 영단어(핑크) + 한글뜻(회색)
-    if (!word && !meanings) return '';
-    return `
-      <div style="font-size:11px;color:var(--t2);margin-top:3px">
-        ${word ? `<span style="color:#CE93D8;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
-        ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
-      </div>`;
-  } else {
-    // 영단어 시험: 영단어(파란색) + 한글뜻(회색) 둘 다 표시
-    if (!word && !meanings) return '';
-    return `
-      <div style="font-size:11px;color:var(--t2);margin-top:3px">
-        ${word ? `<span style="color:#29B6F6;font-weight:700;margin-right:6px">${escapeHtml(word)}</span>` : ''}
-        ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
-      </div>`;
-  }
+  // 2) 언어별 분류 (한글 포함 여부로 판단)
+  const hasKor = (s) => /[가-힣]/.test(s || '');
+  const englishItems = [];
+  const koreanItems = [];
+  allItems.forEach(item => {
+    const s = (item || '').trim();
+    if (!s) return;
+    if (hasKor(s)) koreanItems.push(s);
+    else englishItems.push(s);
+  });
+
+  // 3) 영단어와 한글뜻 결정
+  const englishWord = englishItems[0] || '';  // 영단어 (1개만)
+  const koreanMeanings = koreanItems.slice(0,3).join(', ');  // 한글뜻 (최대 3개)
+
+  if (!englishWord && !koreanMeanings) return '';
+
+  // 4) 시험 유형에 따라 영단어 색상만 다름
+  const wordColor = type === 'kor' ? '#CE93D8' : '#29B6F6';
+
+  return `
+    <div style="font-size:11px;color:var(--t2);margin-top:3px">
+      ${englishWord ? `<span style="color:${wordColor};font-weight:700;margin-right:6px">${escapeHtml(englishWord)}</span>` : ''}
+      ${koreanMeanings ? `<span>${escapeHtml(koreanMeanings)}</span>` : ''}
+    </div>`;
 }
 
 // O/X 토글
