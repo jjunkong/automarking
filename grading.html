@@ -2329,11 +2329,15 @@ function renderResultItem(r, withBtns) {
 function toggleAutoResult(num) {
   const r = state.results.find(r=>r.num===num);
   if (!r) return;
+  // ★ 스크롤 위치 저장 (재렌더링 후 복원)
+  const scrollY = window.scrollY || window.pageYOffset || 0;
   // 정답 → 오답으로, 오답 → 정답으로
   r.correct = !r.correct;
   r.status = r.correct ? 'ok' : 'err';
   r.auto = false; // 사용자가 직접 결정한 표시
   renderReview();
+  // ★ 스크롤 위치 복원
+  window.scrollTo({ top: scrollY, behavior: 'instant' });
   showToast(r.correct ? '✓ O로 변경됨' : '✗ X로 변경됨', '');
 }
 
@@ -2379,6 +2383,8 @@ function updateReviewTotal() {
 function setUnc(num, correct) {
   const r = state.results.find(r=>r.num===num);
   if (!r) return;
+  // ★ 스크롤 위치 저장 (재렌더링 후 복원)
+  const scrollY = window.scrollY || window.pageYOffset || 0;
   // ★ 이미 결정한 값을 다시 누르면 토글 (선택 해제 → 다시 미확인으로)
   if (r.status !== 'unc' && r.correct === correct) {
     // 같은 값 다시 클릭 → 미확인으로 되돌림
@@ -2393,8 +2399,8 @@ function setUnc(num, correct) {
   // 미확인 섹션엔 결정된 항목은 시각적으로 ⭕/❌ 색상 표시
   renderReview();
 
-  // 부드러운 피드백 (스크롤 위치 유지)
-  // 화면 다시 그려도 review 섹션은 그대로 보임
+  // ★ 스크롤 위치 복원
+  window.scrollTo({ top: scrollY, behavior: 'instant' });
 }
 
 function toggleAutoList() {
