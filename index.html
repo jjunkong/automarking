@@ -4208,27 +4208,35 @@ function showVocabPreview() {
     if (!n) continue;
     const clr = typeColors[t.type];
     const bg  = typeBg[t.type];
-    const perCol = Math.ceil(n / cols);
+    // ★ 가로 배치 (row-major): 1,2,3가 가로로
+    // 예) cols=4면: 1행=[1,2,3,4], 2행=[5,6,7,8]...
+    const perRow = cols;
+    const rowCount = Math.ceil(n / perRow);
+
+    // ★ 각 열에 들어갈 행들 미리 만들기
+    const colArrays = Array.from({length: cols}, () => []);
+    for (let i = 0; i < n; i++) {
+      const num = t.from + i;
+      // 재시험 모드: 틀린 번호 아니면 건너뜀
+      if (window._isRetestMode && window._retestWrongNums && !window._retestWrongNums.has(num)) {
+        continue;
+      }
+      const colIdx = i % perRow;
+      colArrays[colIdx].push({ num, sectionIdx: i });
+    }
 
     let colsHTML = '';
     for (let ci=0; ci<cols; ci++) {
       let rows = '';
-      for (let ri=0; ri<perCol; ri++) {
-        const idx = ci*perCol+ri;
-        if (idx>=n) break;
-        const num = t.from+idx;
-        // ★ 재시험 모드: 틀린 번호가 아니면 건너뛰기
-        if (window._isRetestMode && window._retestWrongNums && !window._retestWrongNums.has(num)) {
-          continue;
-        }
-        const shade = idx%2===0?'#f8fafc':'#fff';
+      for (const item of colArrays[ci]) {
+        const num = item.num;           // 실제 내부 번호 (정답 매칭용)
+        const displayNum = item.sectionIdx + 1; // 섹션 내 표시 번호 (1부터)
+        const shade = item.sectionIdx%2===0?'#f8fafc':'#fff';
         // ★ 재시험 모드: 단어/뜻 인쇄
         let promptHTML = '';
         if (window._isRetestMode) {
           const ans = vcAnswerMap[num];
           if (ans) {
-            // 영→한(kor): 영단어 보여주고 뜻 빈칸
-            // 한→영(eng): 한국어 뜻 보여주고 단어 빈칸
             const promptMinW = cols >= 4 ? 60 : 90;
             if (t.type === 'kor') {
               const word = ans.word || '';
@@ -4247,7 +4255,7 @@ function showVocabPreview() {
             background:${shade};border-bottom:1px solid #edf2f7;
             border-right:1px solid #e8eef5">
             <span style="font-size:${fs}px;font-weight:800;color:${clr};
-              min-width:${numMinW}px;flex-shrink:0;font-family:monospace">${num}.</span>
+              min-width:${numMinW}px;flex-shrink:0;font-family:monospace">${displayNum}.</span>
             ${promptHTML}
             <div style="flex:1;border-bottom:1.5px solid #c8d4e0;
               height:${Math.max(8, rowH*0.55)}px;"></div>
@@ -4256,11 +4264,12 @@ function showVocabPreview() {
       colsHTML += `<div style="flex:1;overflow:hidden">${rows}</div>`;
     }
 
+    // 섹션 헤더의 번호 표시도 1부터 시작하는 걸로
     sectionsHTML += `
       <div style="margin-bottom:14px">
         <div style="background:${clr};padding:9px 14px;display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;font-weight:800;color:#fff">${t.label}</span>
-          <span style="font-size:10px;color:rgba(255,255,255,.8)">Q${t.from} – Q${t.to} (${n}문항)</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.8)">Q1 – Q${n} (${n}문항)</span>
         </div>
         <div style="display:flex;border:1px solid #e0e8f0;border-top:none;padding-top:10px;background:#fff">${colsHTML}</div>
       </div>`;
