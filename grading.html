@@ -2286,6 +2286,8 @@ function renderResultItem(r, withBtns) {
   // - 한글 뜻쓰기(kor): "discern  차별대우하다 / 식별하다" (영단어 + 한글 뜻)
   // - 영어 스펠링(eng): "discern" (영단어만, 한글뜻 X — 채점 효율 ↑)
   // r.word(영단어)는 항상 저장돼있으니 영어 시험은 무조건 word 우선
+  // 한글이 들어있는지 검사 — 영어 시험에서 한글이 정답으로 표시되는 일 방지
+  const hasKor = (s) => /[가-힣]/.test(s || '');
   const buildExpectHTML = () => {
     if (r.type === 'kor') {
       // 한글 뜻쓰기 — 영단어 + 한글 뜻
@@ -2298,8 +2300,12 @@ function renderResultItem(r, withBtns) {
       </div>`;
     }
     if (r.type === 'eng') {
-      // 영어 스펠링 — 정답 영단어 표시 (word 또는 corrects[0])
-      const word = r.word || (r.corrects && r.corrects[0]) || '';
+      // 영어 스펠링 — 영단어만 표시 (한글이 정답으로 나오지 않도록)
+      let word = r.word || '';
+      // word 비어있으면 corrects에서 영어인 항목만 찾기 (한글은 건너뜀)
+      if (!word && r.corrects) {
+        word = r.corrects.find(c => c && !hasKor(c)) || '';
+      }
       if (!word) return '';
       return `<div class="rexpect">
         <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
@@ -2880,24 +2886,39 @@ function renderEditRow(row, idx) {
 
   // ★ 정답 표시 — type에 따라 다르게
   // - 한글 뜻쓰기(kor): "discern  차별대우하다 / 식별하다"
-  // - 영어 스펠링(eng): "discern"
+  // - 영어 스펠링(eng): 영단어만 (한글 절대 X)
   const corrStr = (row.corrects || []).slice(0,2).join(' / ');
+  // 한글이 들어있는지 검사 (영어 시험에서 한글 정답이 잘못 들어간 경우 방지)
+  const hasKorean = (s) => /[가-힣]/.test(s || '');
+
   let infoHTML = '';
-  if (row.type === 'kor' && row.word) {
-    // 영단어 + 한글 뜻
-    infoHTML = `
-      <div style="font-size:11px;color:var(--t2);margin-top:3px">
-        <span style="color:#CE93D8;font-weight:700;margin-right:4px">${escapeHtml(row.word)}</span>
-        <span>${escapeHtml(corrStr)}</span>
-      </div>`;
-  } else if (row.type === 'eng' && row.word) {
-    // 영단어만 (정답)
-    infoHTML = `
-      <div style="font-size:11px;color:var(--t2);margin-top:3px">
-        <span style="color:#29B6F6;font-weight:700">${escapeHtml(row.word)}</span>
-      </div>`;
+  if (row.type === 'kor') {
+    // 한글 뜻쓰기 — 영단어(있으면) + 한글뜻
+    const meanings = corrStr;
+    if (row.word || meanings) {
+      infoHTML = `
+        <div style="font-size:11px;color:var(--t2);margin-top:3px">
+          ${row.word ? `<span style="color:#CE93D8;font-weight:700;margin-right:4px">${escapeHtml(row.word)}</span>` : ''}
+          ${meanings ? `<span>${escapeHtml(meanings)}</span>` : ''}
+        </div>`;
+    }
+  } else if (row.type === 'eng') {
+    // 영어 스펠링 — 영단어만 표시 (한글은 절대 표시 X)
+    // word 비어있으면 corrects에서 영어인 첫 항목 찾기
+    let word = row.word || '';
+    if (!word && row.corrects) {
+      // corrects에서 한글이 없는 항목(영단어) 찾기
+      word = row.corrects.find(c => c && !hasKorean(c)) || '';
+    }
+    if (word) {
+      infoHTML = `
+        <div style="font-size:11px;color:var(--t2);margin-top:3px">
+          <span style="color:#29B6F6;font-weight:700">${escapeHtml(word)}</span>
+        </div>`;
+    }
+    // 영단어를 찾지 못하면 아무것도 표시 안 함 (한글이 정답으로 나오는 일 방지)
   } else if (corrStr) {
-    // type 정보 없으면 정답만
+    // type 정보 없는 옛 기록 — 정답 후보 전부
     infoHTML = `
       <div style="font-size:11px;color:var(--t2);margin-top:3px">정답: ${escapeHtml(corrStr)}</div>`;
   }
