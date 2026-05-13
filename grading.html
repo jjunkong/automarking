@@ -1930,8 +1930,107 @@ function answerSimilarity(student, correct) {
   return editDistance(s, c);
 }
 
-// ── Claude Vision API 호출 ────────────────────────────────
+// ── TYPE A 전용 추출 (5지선다) ─────────────────────────────
+async function extractAnswersTypeA() {
+  const total = state.keyData?.total || 30;
+  const userProvidedName = state.studentName && state.studentName.trim();
+  const photoCount = state.photos.length;
+  const isMultiPage = photoCount > 1;
+
+  const multiPagePrompt = isMultiPage
+    ? `\n⚠ 답안지가 ${photoCount}장입니다. 모든 사진을 함께 보고 1~${total}번까지 모든 답을 추출해주세요.\n`
+    : '';
+
+  const prompt = `이것은 5지선다 답안지(OMR) 사진${isMultiPage?'들':''}입니다. 총 ${total}문항.${multiPagePrompt}
+
+【 작업 】
+각 문항(Q1, Q2, ..., Q${total})에서 학생이 표시한 답을 읽어주세요.
+
+【 ⚠ 마킹 인식 규칙 — 매우 중요 】
+각 문항에는 ①②③④⑤ 5개 원형 보기가 있습니다.
+학생이 표시한 방법은 다양합니다:
+- 원 안을 까맣게 채워 마킹 (가장 일반적)
+- 원 위에 굵게 ✓ 또는 × 표시
+- 원 위에 점이나 짧은 선
+- 원 주위에 동그라미 표시
+- 원에 빗금 표시
+
+**조금이라도 표시 흔적이 있는 원을 정답으로 인식하세요.**
+- 사진이 살짝 어둡거나 흐릿해도 학생이 의도한 답을 추정
+- 마킹이 다른 원에 비해 진하거나 다른 표시가 있는 원이 답
+- 다른 원들은 모두 비어있는 상태와 비교해서 판단
+- 절대 "마킹이 약해서 모르겠다"고 null로 답하지 말 것 → 가장 표시된 원을 선택
+
+【 답이 여러 개인 경우 】
+- 학생이 한 문항에서 여러 원을 표시했다면 가장 진하게 마킹한 원 선택
+- 만약 진하기가 비슷하면 첫 번째 마킹된 원 선택
+
+【 빈칸 처리 】
+- 진짜 아무 표시도 없는 문항만 null로
+- 표시가 흐릿해도 어떤 원에 표시가 있으면 그 번호 선택
+
+【 응답 형식 】
+번호(1~5)로만 응답 (0이나 null은 진짜 빈칸일 때만)
+반드시 아래 JSON 형식 (다른 텍스트 없이):
+${userProvidedName
+  ? '{"answers":[{"num":1,"answer":3},{"num":2,"answer":5},{"num":3,"answer":null}]}'
+  : '{"student_name":"홍길동","answers":[{"num":1,"answer":3},{"num":2,"answer":5}]}'}`;
+
+  // 이미지 + 프롬프트로 API 호출
+  const accuracyMode = state.accuracyMode || getAccuracyMode();
+  const model = accuracyMode === 'accurate'
+    ? 'claude-opus-4-6'
+    : 'claude-sonnet-4-6';
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error('API 키가 없어요. PC에서 먼저 설정해주세요');
+
+  // 멀티 사진 지원
+  const content = [];
+  state.photos.forEach(p => {
+    content.push({ type: 'image', source: { type: 'base64', media_type: p.mime, data: p.b64 } });
+  });
+  content.push({ type: 'text', text: prompt });
+
+  console.log('[typea] 모델:', model, '사진:', photoCount);
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({ model, max_tokens: 4000, messages: [{ role:'user', content }] })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+
+  const text = data.content?.find(b => b.type === 'text')?.text || '{}';
+  const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+  // 학생 이름
+  if (!userProvidedName && parsed.student_name) {
+    state.studentName = parsed.student_name;
+    state.nameFromAI = true;
+  }
+
+  // answers를 일관된 형태로 (num: int, answer: number|null)
+  const answers = (parsed.answers || []).map(a => ({
+    num: parseInt(a.num),
+    answer: a.answer === null || a.answer === 0 ? null : parseInt(a.answer)
+  }));
+
+  console.log('[typea] 추출 결과:', answers.slice(0,5), '...');
+  return answers;
+}
+
+// ── Claude Vision API 호출 (단어시험 / TYPE C) ─────────────
 async function extractAnswers() {
+  // ★ TYPE A (5지선다)는 별도 처리
+  if (state.type === 'typea') {
+    return await extractAnswersTypeA();
+  }
   const total    = state.keyData?.total || 60;
   const types    = state.keyData?.types || [{type:'kor',from:1,to:total,label:'영→한 뜻쓰기'}];
   // ★ 답안지 양식 안내 — 각 섹션이 1번부터 다시 시작함
@@ -2091,6 +2190,63 @@ ${userProvidedName
 function gradeAnswers(extracted) {
   const keyData  = state.keyData;
   const results  = [];
+
+  // ★ TYPE A (5지선다) 별도 처리 — 정답이 숫자(1~5)
+  if (state.type === 'typea') {
+    const key = keyData?.key || {};
+    extracted.forEach(item => {
+      const num = item.num;
+      const studentAns = item.answer; // 숫자 또는 null
+      const correctAns = key[num];     // 정답 (숫자)
+      const symbols = ['','①','②','③','④','⑤'];
+
+      if (studentAns === null || studentAns === undefined) {
+        // 학생이 마킹 안 함
+        results.push({
+          num,
+          student: '(빈칸)',
+          correct: false,
+          auto: true,
+          status: 'err',
+          corrects: correctAns ? [symbols[correctAns]] : [],
+          word: correctAns ? symbols[correctAns] : '',
+          type: 'typea',
+        });
+        return;
+      }
+
+      const studentSym = symbols[studentAns] || String(studentAns);
+
+      if (!correctAns) {
+        // 정답 미설정
+        results.push({
+          num,
+          student: studentSym,
+          correct: null,
+          auto: false,
+          status: 'unc',
+          corrects: [],
+          word: '',
+          type: 'typea',
+        });
+        return;
+      }
+
+      const isCorrect = parseInt(studentAns) === parseInt(correctAns);
+      results.push({
+        num,
+        student: studentSym,
+        correct: isCorrect,
+        auto: true,
+        status: isCorrect ? 'ok' : 'err',
+        corrects: [symbols[correctAns]],
+        word: symbols[correctAns],
+        type: 'typea',
+      });
+    });
+    console.log('[typea] 채점 결과:', results.slice(0,5));
+    return results;
+  }
 
   // ★ 답안 정규화 — 보이지 않는 차이 제거
   // - 모든 공백/탭/줄바꿈 제거
