@@ -388,6 +388,20 @@ select option{background:#282828}
               </select>
             </div>
           </div>
+
+          <div class="fr c2" style="margin-bottom:0;margin-top:8px">
+            <div><label>5지선다 열 수</label>
+              <select id="fiveCols">
+                <option value="auto" selected>자동 (크기에 따라)</option>
+                <option value="2">2열</option>
+                <option value="3">3열</option>
+                <option value="4">4열</option>
+                <option value="5">5열</option>
+                <option value="6">6열</option>
+              </select>
+            </div>
+            <div></div>
+          </div>
         </div>
       </div>
 
@@ -2497,7 +2511,11 @@ function showPreview() {
   const bub  = sz==='large'?22:sz==='medium'?19:16;
   const rowH = sz==='large'?38:sz==='medium'?32:28;
   const esH  = sz==='large'?52:sz==='medium'?44:38;
-  const c5   = sz==='large'?4:sz==='medium'?5:6;
+  // ★ 사용자 지정 열 수 (자동이면 크기에 따라 결정)
+  const userFiveCols = document.getElementById('fiveCols')?.value || 'auto';
+  const c5   = userFiveCols === 'auto'
+    ? (sz==='large'?4:sz==='medium'?5:6)
+    : parseInt(userFiveCols);
   const fs   = sz==='large'?13:sz==='medium'?12:11;
 
   const sub = [grade,author,date].filter(Boolean).join('  ·  ');
@@ -2584,15 +2602,20 @@ function showPreview() {
       continue;
     }
     const c   = c5;
-    const col = Math.ceil(n/c);
+    // ★ 가로 배치 (row-major): 1, 2, 3, 4가 가로로
+    const perRow = c;
+    // 각 열에 들어갈 문항들 미리 계산
+    const colArrays = Array.from({length: c}, () => []);
+    for (let i = 0; i < n; i++) {
+      const colIdx = i % perRow;
+      colArrays[colIdx].push({ qn: sec.from + i, sectionIdx: i });
+    }
     let cols = '';
     for (let ci=0; ci<c; ci++) {
       let rows='';
-      for (let ri=0; ri<col; ri++) {
-        const idx = ci*col+ri;
-        if (idx>=n) break;
-        const qn = sec.from+idx;
-        const bg = idx%2===0?'#f8fafc':'#fff';
+      for (const item of colArrays[ci]) {
+        const qn = item.qn;
+        const bg = item.sectionIdx%2===0?'#f8fafc':'#fff';
         const bubs = ['①','②','③','④','⑤'].map(x=>
           `<div style="width:${bub}px;height:${bub}px;border-radius:50%;border:1.5px solid #c8d4e0;display:inline-flex;align-items:center;justify-content:center;font-size:${fs-3}px;font-weight:700;color:#8898aa;background:#fff;margin-right:4px;flex-shrink:0">${x}</div>`
         ).join('');
