@@ -2491,7 +2491,21 @@ function renderResultItem(r, withBtns) {
   // r.word, r.corrects 등은 무시하고 정답표를 진실의 원천으로 사용
   const buildExpectHTML = () => {
     const keyData = state.keyData;
-    if (!keyData || !keyData.answerMap) return '';
+    if (!keyData) return '';
+
+    // ★ TYPE A (5지선다) — 정답이 숫자(1~5)
+    if (state.type === 'typea' || r.type === 'typea') {
+      const correctNum = keyData.key?.[r.num];
+      if (!correctNum) return '';
+      const symbols = ['','①','②','③','④','⑤'];
+      const correctSym = symbols[correctNum] || String(correctNum);
+      return `<div class="rexpect">
+        <span style="color:#29B6F6;font-weight:700">정답: ${escapeHtml(correctSym)}</span>
+      </div>`;
+    }
+
+    // 이하 TYPE C (단어시험) 처리
+    if (!keyData.answerMap) return '';
 
     // 이 번호의 type 찾기
     const types = keyData.types || [];
@@ -3130,10 +3144,15 @@ function buildAnswerInfoFromKey(num) {
   // editState에 keyData 캐시 (없으면 로드)
   if (!editState._keyDataCache) {
     const record = editState.record;
-    if (record && record.keyName && record.type === 'typec') {
+    if (record && record.keyName) {
       try {
-        const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
-        editState._keyDataCache = vocab[record.keyName] || null;
+        if (record.type === 'typec') {
+          const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+          editState._keyDataCache = vocab[record.keyName] || null;
+        } else if (record.type === 'typea') {
+          const keys = JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}');
+          editState._keyDataCache = keys[record.keyName] || null;
+        }
         if (!editState._keyDataCache) {
           console.warn(`[edit] 정답표 '${record.keyName}'을 찾을 수 없음. 클라우드 동기화 필요`);
         }
@@ -3145,7 +3164,22 @@ function buildAnswerInfoFromKey(num) {
     }
   }
   const keyData = editState._keyDataCache;
-  if (!keyData || !keyData.answerMap) return '';
+  if (!keyData) return '';
+
+  // ★ TYPE A (5지선다) — 정답이 숫자
+  if (editState.record?.type === 'typea') {
+    const correctNum = keyData.key?.[num];
+    if (!correctNum) return '';
+    const symbols = ['','①','②','③','④','⑤'];
+    const correctSym = symbols[correctNum] || String(correctNum);
+    return `
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">
+        <span style="color:#29B6F6;font-weight:700">정답: ${escapeHtml(correctSym)}</span>
+      </div>`;
+  }
+
+  // 이하 TYPE C (단어시험) 처리
+  if (!keyData.answerMap) return '';
 
   // 이 번호의 type 찾기
   const types = keyData.types || [];
