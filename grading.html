@@ -3236,7 +3236,25 @@ function openEditRecord(id) {
   // 수정용 깊은 복사 (취소 시 원본 보존)
   editState.recordId = id;
   editState.record = JSON.parse(JSON.stringify(rec));
-  editState._keyDataCache = null; // ★ 정답표 캐시 리셋 (새 기록 열 때마다)
+
+  // ★ 정답표 캐시 미리 로드 (틀린 번호 요약 + 정답 표시에 필요)
+  editState._keyDataCache = null;
+  if (rec.keyName) {
+    try {
+      if (rec.type === 'typec') {
+        const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+        editState._keyDataCache = vocab[rec.keyName] || null;
+      } else if (rec.type === 'typea' || rec.type === 'typeb') {
+        const keys = JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}');
+        editState._keyDataCache = keys[rec.keyName] || null;
+      }
+      if (!editState._keyDataCache) {
+        console.warn(`[edit] 정답표 '${rec.keyName}'을 찾을 수 없음. 🔄 새로고침 필요`);
+      }
+    } catch (e) {
+      editState._keyDataCache = null;
+    }
+  }
 
   // ★ 옛 기록 호환성 — word/type 없는 results를 keyData에서 보강
   enrichRecordWithKeyData(editState.record);
