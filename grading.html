@@ -596,6 +596,9 @@ body{padding-bottom:52px}
           <div style="font-size:12px;color:var(--t2)">현재 점수</div>
           <div id="editCurrentScore" style="font-family:var(--m);font-size:18px;font-weight:800"></div>
         </div>
+
+        <!-- ★ 틀린 번호 요약 (학생별 약점 파악용) -->
+        <div id="editWrongSummary" style="margin-bottom:8px"></div>
       </div>
       <div id="editResultsList" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto"></div>
     </div>
@@ -3292,6 +3295,12 @@ function renderEditScreen() {
   // 점수 표시
   updateEditScoreDisplay();
 
+  // ★ 틀린 번호 요약 표시
+  const summaryEl = document.getElementById('editWrongSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = buildEditWrongSummary();
+  }
+
   // 결과 목록 (탭하면 O ↔ X ↔ 빈칸 토글)
   const list = document.getElementById('editResultsList');
   if (!r.results || r.results.length === 0) {
@@ -3299,6 +3308,58 @@ function renderEditScreen() {
     return;
   }
   list.innerHTML = r.results.map((row, i) => renderEditRow(row, i)).join('');
+}
+
+// ★ 편집 화면용 틀린 번호 요약 (editState.record 기반)
+function buildEditWrongSummary() {
+  const record = editState.record;
+  if (!record || !record.results) return '';
+  const wrongs = record.results.filter(x => x.correct === false);
+  if (wrongs.length === 0) {
+    return `
+      <div style="padding:10px 14px;background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.3);border-radius:var(--r);text-align:center;font-size:12px;color:var(--ok);font-weight:700">
+        🎉 모든 문제 정답!
+      </div>`;
+  }
+
+  const keyData = editState._keyDataCache;
+  // 섹션 정보가 없거나 섹션 1개면 단순 표시
+  if (!keyData || !keyData.types || keyData.types.length < 2 || record.type !== 'typec') {
+    const nums = wrongs.map(w => w.num).sort((a,b) => a-b);
+    return `
+      <div style="padding:10px 14px;background:rgba(255,107,107,.06);border:1px solid rgba(255,107,107,.25);border-radius:var(--r)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:700;color:var(--err)">❌ 틀린 문제</span>
+          <span style="font-size:10px;color:var(--t2)">${wrongs.length}개</span>
+        </div>
+        <div style="font-size:13px;color:var(--t0);font-family:var(--m);font-weight:600;line-height:1.5">${nums.join(', ')}</div>
+      </div>`;
+  }
+
+  // 섹션별로 그룹핑
+  let sectionHtml = '';
+  keyData.types.forEach((t) => {
+    const sectionWrongs = wrongs.filter(w => w.num >= t.from && w.num <= t.to);
+    if (sectionWrongs.length === 0) return;
+    const displayNums = sectionWrongs.map(w => w.num - t.from + 1).sort((a,b) => a-b);
+    const sectionColor = t.type === 'kor' ? '#CE93D8' : '#29B6F6';
+    const sectionBgRgba = t.type === 'kor' ? 'rgba(206,147,216,.15)' : 'rgba(41,182,246,.15)';
+    const sectionLabel = t.type === 'kor' ? '영→한' : '한→영';
+    sectionHtml += `
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-top:5px">
+        <span style="font-size:10px;font-weight:700;color:${sectionColor};padding:2px 8px;background:${sectionBgRgba};border-radius:10px;flex-shrink:0;margin-top:1px">${sectionLabel}</span>
+        <div style="font-size:13px;color:var(--t0);font-family:var(--m);font-weight:600;line-height:1.5">${displayNums.join(', ')}</div>
+      </div>`;
+  });
+
+  return `
+    <div style="padding:10px 14px;background:rgba(255,107,107,.06);border:1px solid rgba(255,107,107,.25);border-radius:var(--r)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+        <span style="font-size:11px;font-weight:700;color:var(--err)">❌ 틀린 문제</span>
+        <span style="font-size:10px;color:var(--t2)">${wrongs.length}개</span>
+      </div>
+      ${sectionHtml}
+    </div>`;
 }
 
 function renderEditRow(row, idx) {
@@ -3439,6 +3500,11 @@ function setRowResult(idx, correct) {
   document.getElementById('editResultsList').innerHTML =
     r.results.map((row, i) => renderEditRow(row, i)).join('');
   updateEditScoreDisplay();
+  // ★ 틀린 번호 요약도 갱신
+  const summaryEl = document.getElementById('editWrongSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = buildEditWrongSummary();
+  }
 }
 
 function recalculateScore() {
