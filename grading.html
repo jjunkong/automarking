@@ -2918,7 +2918,12 @@ function renderResult(r) {
   const ok  = r.results.filter(x=>x.correct===true).length;
   const err = r.results.filter(x=>x.correct===false).length;
   const unc = r.results.filter(x=>x.correct===null).length;
+
+  // ★ 틀린 번호 목록 (섹션별 + 표시 번호로)
+  const wrongHTML = buildWrongNumbersHTML(r);
+
   bd.innerHTML = `
+    ${wrongHTML}
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bo)">
       <span style="font-size:13px;color:var(--t1)">정답</span>
       <span style="font-size:14px;font-weight:700;color:var(--ok);font-family:var(--m)">${ok}개</span>
@@ -2937,6 +2942,62 @@ function renderResult(r) {
     </div>`;
 
   showScreen('result',`${r.student} — 결과`);
+}
+
+// ★ 틀린 번호 목록 HTML 생성 — 섹션별로 그룹핑 + 표시 번호 (1~35로 변환)
+function buildWrongNumbersHTML(record) {
+  const wrongs = record.results.filter(x => x.correct === false);
+  if (wrongs.length === 0) {
+    return `
+      <div style="padding:14px;background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.3);border-radius:var(--r);text-align:center;margin-bottom:8px">
+        <div style="font-size:24px;margin-bottom:4px">🎉</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ok)">완벽! 모든 문제 정답</div>
+      </div>`;
+  }
+
+  // 정답표 가져오기 (TYPE에 따라)
+  let keyData = null;
+  try {
+    if (record.type === 'typec') {
+      const vocab = JSON.parse(localStorage.getItem('kkj_vocab')||'{}');
+      keyData = vocab[record.keyName];
+    } else if (record.type === 'typea' || record.type === 'typeb') {
+      const keys = JSON.parse(localStorage.getItem('kkj_answer_keys')||'{}');
+      keyData = keys[record.keyName];
+    }
+  } catch (e) {}
+
+  // 섹션 정보가 없거나 섹션이 1개면 그냥 번호만 나열
+  if (!keyData || !keyData.types || keyData.types.length < 2) {
+    const nums = wrongs.map(w => w.num).sort((a,b) => a-b);
+    return `
+      <div style="padding:12px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);border-radius:var(--r);margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--err);margin-bottom:6px;letter-spacing:.5px">❌ 틀린 문제 (${wrongs.length}개)</div>
+        <div style="font-size:13px;color:var(--t0);font-family:var(--m);font-weight:600;line-height:1.6">${nums.join(', ')}</div>
+      </div>`;
+  }
+
+  // 섹션별로 틀린 번호 그룹핑
+  let html = `
+    <div style="padding:12px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);border-radius:var(--r);margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--err);margin-bottom:8px;letter-spacing:.5px">❌ 틀린 문제 (${wrongs.length}개)</div>`;
+
+  keyData.types.forEach((t) => {
+    const sectionWrongs = wrongs.filter(w => w.num >= t.from && w.num <= t.to);
+    if (sectionWrongs.length === 0) return;
+    // 섹션 내 1번부터 시작하는 표시 번호로 변환
+    const displayNums = sectionWrongs.map(w => w.num - t.from + 1).sort((a,b) => a-b);
+    const sectionColor = t.type === 'kor' ? '#CE93D8' : '#29B6F6';
+    const sectionLabel = t.type === 'kor' ? '영→한' : '한→영';
+    html += `
+      <div style="margin-top:6px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:10px;font-weight:700;color:${sectionColor};padding:2px 8px;background:${t.type==='kor'?'rgba(206,147,216,.15)':'rgba(41,182,246,.15)'};border-radius:10px;flex-shrink:0;margin-top:2px">${sectionLabel}</span>
+        <div style="font-size:13px;color:var(--t0);font-family:var(--m);font-weight:600;line-height:1.6">${displayNums.join(', ')}</div>
+      </div>`;
+  });
+
+  html += `</div>`;
+  return html;
 }
 
 function gradeNext() {
