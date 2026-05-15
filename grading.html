@@ -1011,32 +1011,57 @@ function renderKeyPreview(name, data) {
   const listEl = document.getElementById('keyPreviewList');
 
   if (state.type === 'typec') {
-    // TYPE C: 단어시험
+    // TYPE C: 단어시험 — 섹션별로 그룹핑 + 섹션 내 번호 1부터
     const answerMap = data.answerMap || {};
-    const nums = Object.keys(answerMap).map(Number).sort((a,b) => a-b);
-    if (nums.length === 0) {
+    const types = data.types || [];
+    if (Object.keys(answerMap).length === 0) {
       listEl.innerHTML = '<div style="font-size:12px;color:var(--t2);text-align:center;padding:24px">정답 데이터가 없어요</div>';
       return;
     }
-    const types = data.types || [];
-    const getNumType = (n) => {
-      const t = types.find(x => n >= x.from && n <= x.to);
-      return t?.type || 'kor';
-    };
-    listEl.innerHTML = nums.map((n, idx) => {
-      const ans = answerMap[n];
-      const t = getNumType(n);
-      const numColor = t === 'kor' ? '#CE93D8' : '#29B6F6';
-      const bg = idx%2===0 ? 'var(--b2)' : 'transparent';
-      return `
-        <div style="display:grid;grid-template-columns:36px 1fr;gap:8px;padding:7px 12px;background:${bg};border-bottom:1px solid var(--bo);font-size:11px">
-          <span style="font-family:var(--m);font-weight:700;color:${numColor};text-align:right">${n}.</span>
-          <div style="min-width:0">
-            <div style="font-weight:600;color:var(--t0);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(ans.word||'')}</div>
-            <div style="color:var(--t1);margin-top:1px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml((ans.meanings||[]).join(' / '))}</div>
-          </div>
+
+    let html = '';
+    types.forEach((t, sectionIdx) => {
+      const sectionColor = t.type === 'kor' ? '#CE93D8' : '#29B6F6';
+      const sectionBg = t.type === 'kor' ? 'rgba(206,147,216,.1)' : 'rgba(41,182,246,.1)';
+      const sectionLabel = t.type === 'kor' ? '영→한 뜻쓰기' : '한→영 단어쓰기';
+      const n = t.to - t.from + 1;
+
+      // 섹션 헤더
+      html += `
+        <div style="background:${sectionBg};padding:8px 12px;font-size:11px;font-weight:700;color:${sectionColor};border-top:${sectionIdx>0?'1px solid var(--bo)':'none'};border-bottom:1px solid var(--bo);display:flex;justify-content:space-between;align-items:center">
+          <span>${sectionLabel}</span>
+          <span style="font-size:10px;opacity:.8">Q1 – Q${n} (${n}문항)</span>
         </div>`;
-    }).join('');
+
+      // 섹션 내 항목들 (1부터 시작하는 번호로 표시)
+      for (let i = 0; i < n; i++) {
+        const internalNum = t.from + i;  // 내부 번호 (1~70)
+        const displayNum = i + 1;          // 표시 번호 (1~35)
+        const ans = answerMap[internalNum];
+        if (!ans) continue;
+        const bg = i%2===0 ? 'var(--b2)' : 'transparent';
+
+        // ★ 정답표 데이터 자동 분류 (영어/한글)
+        const allItems = [];
+        if (ans.word) allItems.push(ans.word);
+        if (ans.meanings && Array.isArray(ans.meanings)) allItems.push(...ans.meanings);
+        const hasKor = (s) => /[가-힣]/.test(s || '');
+        const englishItems = allItems.filter(s => s && !hasKor(s));
+        const koreanItems = allItems.filter(s => s && hasKor(s));
+        const englishWord = englishItems[0] || '';
+        const koreanMeanings = koreanItems.slice(0,3).join(', ');
+
+        html += `
+          <div style="display:grid;grid-template-columns:36px 1fr;gap:8px;padding:7px 12px;background:${bg};border-bottom:1px solid var(--bo);font-size:11px">
+            <span style="font-family:var(--m);font-weight:700;color:${sectionColor};text-align:right">${displayNum}.</span>
+            <div style="min-width:0">
+              ${englishWord ? `<div style="font-weight:600;color:var(--t0);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(englishWord)}</div>` : ''}
+              ${koreanMeanings ? `<div style="color:var(--t1);margin-top:1px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(koreanMeanings)}</div>` : ''}
+            </div>
+          </div>`;
+      }
+    });
+    listEl.innerHTML = html || '<div style="font-size:12px;color:var(--t2);text-align:center;padding:24px">정답 데이터가 없어요</div>';
   } else if (state.type === 'typea') {
     // TYPE A: 5지선다 + bracket + 서술형
     const html = [];
@@ -2472,8 +2497,8 @@ function renderReview() {
     uncSec.style.display='none';
   }
 
-  // 자동 채점
-  document.getElementById('autoList').innerHTML = auto.map(r=>renderResultItem(r,false)).join('');
+  // 자동 채점 — 섹션별로 그룹핑 (단어시험 type C일 때만)
+  document.getElementById('autoList').innerHTML = renderAutoListBySection(auto);
 
   // 확정 버튼
   document.getElementById('confirmBtn').textContent =
@@ -2482,10 +2507,53 @@ function renderReview() {
   showScreen('review', state.studentName ? `${state.studentName} 검토` : '채점 검토');
 }
 
+// ★ 내부 번호(1~70) → 섹션 내 표시 번호(1~35)로 변환
+// 예: state.keyData가 [1~35:kor, 36~70:eng]일 때
+//     internalNum=36 → displayNum=1 (한→영 섹션의 1번)
+function getDisplayNum(internalNum) {
+  const keyData = state.keyData || editState?._keyDataCache;
+  if (!keyData || !keyData.types) return internalNum;
+  const section = keyData.types.find(t => internalNum >= t.from && internalNum <= t.to);
+  if (!section) return internalNum;
+  return internalNum - section.from + 1;
+}
+
+// ★ 자동 채점 리스트를 섹션별로 그룹핑 + 섹션 헤더 추가
+function renderAutoListBySection(items) {
+  if (!items || items.length === 0) return '';
+  const keyData = state.keyData;
+  // TYPE C가 아니거나 섹션이 1개뿐이면 그냥 일반 렌더링
+  if (!keyData || !keyData.types || keyData.types.length < 2 || state.type !== 'typec') {
+    return items.map(r=>renderResultItem(r,false)).join('');
+  }
+
+  let html = '';
+  keyData.types.forEach((t, idx) => {
+    const sectionItems = items.filter(r => r.num >= t.from && r.num <= t.to);
+    if (sectionItems.length === 0) return;
+    const sectionColor = t.type === 'kor' ? '#CE93D8' : '#29B6F6';
+    const sectionBg = t.type === 'kor' ? 'rgba(206,147,216,.1)' : 'rgba(41,182,246,.1)';
+    const sectionLabel = t.type === 'kor' ? '영→한 뜻쓰기' : '한→영 단어쓰기';
+    const n = t.to - t.from + 1;
+    // 섹션 헤더
+    html += `
+      <div style="background:${sectionBg};padding:8px 12px;font-size:11px;font-weight:700;color:${sectionColor};border-radius:6px;margin-top:${idx>0?'12':'0'}px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>${sectionLabel}</span>
+        <span style="font-size:10px;opacity:.8">${sectionItems.length}/${n}문항</span>
+      </div>`;
+    // 섹션 항목들
+    html += sectionItems.map(r=>renderResultItem(r,false)).join('');
+  });
+  return html;
+}
+
 function renderResultItem(r, withBtns) {
   // "원래 미확인이었지만 직접 결정한" 항목 표시 (auto:false)
   const wasUnc = !r.auto && r.status !== 'unc';
   const manualMark = wasUnc ? '<span style="font-size:9px;color:var(--t2);font-weight:500;margin-left:4px">✎ 직접 결정</span>' : '';
+
+  // ★ 표시용 번호 — 섹션 내 1부터 (예: 36번 → 한→영 섹션의 1번)
+  const displayNum = getDisplayNum(r.num);
 
   // ★ 정답 표시 — 정답표(state.keyData)에서 직접 조회 (가장 정확한 데이터)
   // r.word, r.corrects 등은 무시하고 정답표를 진실의 원천으로 사용
@@ -2550,7 +2618,7 @@ function renderResultItem(r, withBtns) {
 
   if (withBtns) {
     return `<div class="result-item unc" id="ritem-${r.num}">
-      <span class="rnum">${r.num}.</span>
+      <span class="rnum">${displayNum}.</span>
       <div style="flex:1;min-width:0">
         <div class="ranswer">${r.student}</div>
         ${buildExpectHTML()}
@@ -2564,7 +2632,7 @@ function renderResultItem(r, withBtns) {
   // ★ 자동 채점 항목도 ⭕/❌ 배지 클릭으로 토글 가능
   // O인 항목 클릭 → X로, X인 항목 클릭 → O로
   return `<div class="result-item ${r.status}">
-    <span class="rnum">${r.num}.</span>
+    <span class="rnum">${displayNum}.</span>
     <div style="flex:1;min-width:0">
       <div class="ranswer">${r.student}${manualMark}</div>
       ${r.status==='err' ? buildExpectHTML() : ''}
@@ -3118,13 +3186,14 @@ function renderEditRow(row, idx) {
   const statusBorder = status === 'ok' ? 'rgba(29,185,84,.3)' : status === 'err' ? 'rgba(255,107,107,.3)' : 'var(--bo)';
 
   // ★ 정답 표시 — 정답표(keyData)에서 직접 조회 (가장 정확)
-  // r.word, r.corrects 등 record에 저장된 데이터는 무시하고
-  // 정답표 데이터를 직접 사용 → 데이터 일관성 보장
   let infoHTML = buildAnswerInfoFromKey(row.num);
+
+  // ★ 표시용 번호 — 섹션 내 1부터
+  const displayNum = getEditDisplayNum(row.num);
 
   return `
     <div style="display:flex;align-items:center;gap:8px;padding:10px;background:${statusBg};border:1px solid ${statusBorder};border-radius:8px">
-      <div style="width:32px;font-family:var(--m);font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0">${row.num}.</div>
+      <div style="width:32px;font-family:var(--m);font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0">${displayNum}.</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;${row.student ? 'color:var(--t0);font-weight:600' : 'color:var(--t2);font-style:italic'}">${row.student ? escapeHtml(row.student) : '(빈칸)'}</div>
         ${infoHTML}
@@ -3136,6 +3205,15 @@ function renderEditRow(row, idx) {
           style="width:32px;height:32px;border-radius:50%;border:1px solid ${row.correct===false?'var(--err)':'var(--bm)'};background:${row.correct===false?'var(--err)':'transparent'};color:${row.correct===false?'#fff':'var(--t2)'};font-weight:700;cursor:pointer;font-size:13px">X</button>
       </div>
     </div>`;
+}
+
+// ★ 편집 화면용 — 내부 번호 → 섹션 내 표시 번호
+function getEditDisplayNum(internalNum) {
+  const keyData = editState._keyDataCache;
+  if (!keyData || !keyData.types) return internalNum;
+  const section = keyData.types.find(t => internalNum >= t.from && internalNum <= t.to);
+  if (!section) return internalNum;
+  return internalNum - section.from + 1;
 }
 
 // ★ 정답표(keyData)에서 직접 정답 정보를 조회해 HTML 생성
