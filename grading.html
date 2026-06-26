@@ -294,7 +294,7 @@ body{padding-bottom:52px}
       <div class="type-card" onclick="selectType('typec')" id="tc-typec">
         <div class="type-icon" style="background:rgba(206,147,216,.15)">📝</div>
         <div class="type-info">
-          <div class="type-name">TYPE C — 단어시험</div>
+          <div class="type-name">A-TEST — 단어시험</div>
           <div class="type-desc">영→한 뜻쓰기 / 한→영 스펠링</div>
         </div>
         <div class="type-check">✓</div>
@@ -302,7 +302,7 @@ body{padding-bottom:52px}
       <div class="type-card" onclick="selectType('typea')" id="tc-typea">
         <div class="type-icon" style="background:rgba(29,185,84,.12)">📄</div>
         <div class="type-info">
-          <div class="type-name">TYPE A — 모의고사 / 내신</div>
+          <div class="type-name">O-TEST — 영상 후 확인</div>
           <div class="type-desc">5지선다 / Bracket형 / 서술형</div>
         </div>
         <div class="type-check">✓</div>
@@ -310,7 +310,7 @@ body{padding-bottom:52px}
       <div class="type-card" onclick="selectType('typeb')" id="tc-typeb">
         <div class="type-icon" style="background:rgba(41,182,246,.12)">📋</div>
         <div class="type-info">
-          <div class="type-name">TYPE B — 워크북</div>
+          <div class="type-name">하빵 — 내신 빈칸시험</div>
           <div class="type-desc">BLANK / QUESTION / T·N / SUMMARY</div>
         </div>
         <div class="type-check">✓</div>
@@ -1201,7 +1201,7 @@ window.addEventListener('popstate', (e) => {
       if (prev === 'home') {
         goHome();
       } else if (prev === 'setup') {
-        const titles = { typec:'단어시험 설정', typea:'TYPE A 설정', typeb:'TYPE B 설정' };
+        const titles = { typec:'A-TEST 설정', typea:'O-TEST 설정', typeb:'하빵 설정' };
         showScreen('setup', titles[state.type]||'시험 설정');
       } else if (prev === 'photo') {
         showScreen('photo', '사진 촬영');
@@ -1265,7 +1265,7 @@ async function goToSetup() {
   updatePreviewBtnState();
   // 정확도 모드 초기화 (이전 선택 복원)
   setAccuracyMode(getAccuracyMode());
-  const titles = { typec:'단어시험 설정', typea:'TYPE A 설정', typeb:'TYPE B 설정' };
+  const titles = { typec:'A-TEST 설정', typea:'O-TEST 설정', typeb:'하빵 설정' };
   document.getElementById('setupTitle').textContent = titles[state.type]||'시험 설정';
   showScreen('setup', titles[state.type]);
 }
@@ -3788,7 +3788,7 @@ function handleAnswerParsed(parsed, fileName) {
   const mm = String(today.getMonth()+1).padStart(2,'0');
   const dd = String(today.getDate()).padStart(2,'0');
   const baseName = (fileName || '').replace(/\.(pdf|docx?)$/i, '').slice(0, 30);
-  document.getElementById('answerSaveName').value = baseName || `단어시험_${mm}${dd}_${parsed.answers.length}문항`;
+  document.getElementById('answerSaveName').value = baseName || `A-TEST_${mm}${dd}_${parsed.answers.length}문항`;
 
   showToast(`✓ ${parsed.answers.length}개 정답 추출 완료`, 'ok');
 }
