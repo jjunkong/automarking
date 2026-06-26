@@ -327,9 +327,9 @@ select option{background:#282828}
   <div class="hdr-bottom">
     <div class="tabs-wrap">
       <div class="tabs">
-        <button class="tab active" onclick="switchTab('omr')">📄 TYPE A 생성</button>
-        <button class="tab" onclick="switchTab('typeb')">📋 TYPE B 생성</button>
-        <button class="tab" onclick="switchTab('typec')">📝 TYPE C 단어시험</button>
+        <button class="tab active" onclick="switchTab('omr')">📄 O-TEST 생성</button>
+        <button class="tab" onclick="switchTab('typeb')">📋 하빵 생성</button>
+        <button class="tab" onclick="switchTab('typec')">📝 A-TEST 생성</button>
         <button class="tab" onclick="switchTab('key')">✏️ 정답 관리</button>
       </div>
     </div>
@@ -615,9 +615,9 @@ select option{background:#282828}
       </div>
 
       <button class="btn" onclick="showVocabPreview()">
-        <span style="font-size:16px">⊞</span> TYPE C 답안지 미리보기 &amp; 인쇄
+        <span style="font-size:16px">⊞</span> A-TEST 답안지 미리보기 &amp; 인쇄
       </button>
-      <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
+      <button class="btn secondary" onclick="switchTab('omr')">← O-TEST 생성으로</button>
 
     </div>
 
@@ -627,9 +627,9 @@ select option{background:#282828}
       <!-- 정답 관리 타입 전환 -->
       <div style="display:flex;gap:6px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--rl);padding:5px">
         <button id="keyTypeA" onclick="switchKeyType('A')"
-          style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:var(--b3);color:var(--t0);font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:all .2s">📄 TYPE A 정답</button>
+          style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:var(--b3);color:var(--t0);font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:all .2s">📄 O-TEST 정답</button>
         <button id="keyTypeB" onclick="switchKeyType('B')"
-          style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:transparent;color:var(--t2);font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s">📋 TYPE B 정답</button>
+          style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:transparent;color:var(--t2);font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s">📋 하빵 정답</button>
       </div>
 
       <!-- 저장된 정답 불러오기 -->
@@ -662,7 +662,7 @@ select option{background:#282828}
         </div>
         <div class="cb" style="padding:16px 22px" id="bracketCard">
           <div id="bracketKeyGrid">
-            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">TYPE A 생성 탭에서 Bracket 구간을 먼저 설정해 주세요</div>
+            <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">O-TEST 생성 탭에서 Bracket 구간을 먼저 설정해 주세요</div>
           </div>
         </div>
       </div>
@@ -713,7 +713,7 @@ select option{background:#282828}
         </div>
       </div>
 
-      <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
+      <button class="btn secondary" onclick="switchTab('omr')">← O-TEST 생성으로</button>
       </div><!-- /keyTypeAArea -->
 
       <!-- ═══════════ TYPE B 정답 영역 ═══════════ -->
@@ -722,7 +722,7 @@ select option{background:#282828}
         <!-- 정답표 선택 (TYPE B 답안지) -->
         <div class="card">
           <div class="ch">
-            <div><div class="ct">대상 답안지 선택</div><div class="cd">먼저 TYPE B 생성 탭에서 저장한 지문을 선택해주세요</div></div>
+            <div><div class="ct">대상 답안지 선택</div><div class="cd">먼저 하빵 생성 탭에서 저장한 지문을 선택해주세요</div></div>
           </div>
           <div class="cb" style="padding:16px 22px">
             <select id="typebPassageSelect" onchange="onTypebPassageSelected()" style="width:100%;height:42px">
@@ -795,7 +795,7 @@ select option{background:#282828}
           </div>
         </div>
 
-        <button class="btn secondary" onclick="switchTab('typeb')">← TYPE B 생성으로</button>
+        <button class="btn secondary" onclick="switchTab('typeb')">← 하빵 생성으로</button>
       </div><!-- /keyTypeBArea -->
     </div><!-- /tab-key -->
 
@@ -894,9 +894,9 @@ select option{background:#282828}
       </div>
 
       <button class="btn" onclick="showTypeBPreview()">
-        <span style="font-size:16px">⊞</span> TYPE B 답안지 미리보기 &amp; 인쇄
+        <span style="font-size:16px">⊞</span> 하빵 답안지 미리보기 &amp; 인쇄
       </button>
-      <button class="btn secondary" onclick="switchTab('omr')">← TYPE A 생성으로</button>
+      <button class="btn secondary" onclick="switchTab('omr')">← O-TEST 생성으로</button>
 
     </div>
 
@@ -1100,7 +1100,7 @@ select option{background:#282828}
 
     <!-- 안내 (TYPE C 이동) -->
     <div style="background:rgba(29,185,84,.05);border:1px solid rgba(29,185,84,.2);border-radius:var(--r);padding:12px 14px;margin-bottom:18px;line-height:1.6;font-size:12px;color:var(--t1)">
-      💡 [재시험지 만들기] 클릭 시 → TYPE C 화면으로 이동해서 시험지가 자동 생성돼요. 정보 확인 후 PDF로 인쇄하세요.
+      💡 [재시험지 만들기] 클릭 시 → A-TEST 화면으로 이동해서 시험지가 자동 생성돼요. 정보 확인 후 PDF로 인쇄하세요.
     </div>
 
     <!-- 버튼 -->
@@ -1864,7 +1864,7 @@ function renderBracketKey() {
   if (!el) return;
   const brackets = sections.filter(s=>s.active&&s.type==='bracket');
   if (!brackets.length) {
-    el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">TYPE A 생성 탭에서 Bracket 구간을 먼저 설정해 주세요</div>';
+    el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">O-TEST 생성 탭에서 Bracket 구간을 먼저 설정해 주세요</div>';
     return;
   }
   let html='';
