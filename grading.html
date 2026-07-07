@@ -259,6 +259,9 @@ body{padding-bottom:52px}
       <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.8px;text-transform:uppercase">학원 코드</div>
       <div id="academyCodeBadge" style="font-family:var(--m);font-size:13px;font-weight:600;color:#CE93D8;margin-top:1px">—</div>
     </div>
+    <button onclick="openImportKeyModal()" title="외부 시스템 전송 키 설정 (관리자용)"
+      id="importKeyBtn"
+      style="width:32px;height:32px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t2);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">⚙</button>
     <button onclick="openAnswerUpload()" title="정답표 업로드 (PDF/DOCX)"
       style="height:32px;padding:0 12px;background:rgba(255,183,77,.1);border:1px solid rgba(255,183,77,.4);border-radius:16px;color:#FFB74D;font-family:var(--f);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">📄 정답</button>
     <button onclick="refreshFromCloud()" style="height:32px;padding:0 12px;background:transparent;border:1px solid var(--bm);border-radius:16px;color:var(--t1);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">🔄</button>
@@ -610,6 +613,44 @@ body{padding-bottom:52px}
   <button class="btn btn-o" onclick="cancelEditRecord()">취소</button>
 </div>
 
+<!-- ══ MODAL: 외부 시스템 전송 키 (관리자용) ══ -->
+<div id="importKeyModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px;overflow:auto">
+  <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--r);padding:20px;max-width:460px;width:100%">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px">⚙ 외부 시스템 전송 키</div>
+        <div style="font-size:11px;color:var(--t2)">관리자용 · KKJ Grammar System 연동</div>
+      </div>
+      <button onclick="closeImportKeyModal()"
+        style="height:30px;padding:0 12px;background:transparent;border:1px solid var(--bm);border-radius:15px;color:var(--t1);font-family:var(--f);font-size:11px;cursor:pointer">닫기</button>
+    </div>
+
+    <!-- 현재 상태 -->
+    <div id="importKeyStatus" style="padding:8px 12px;border-radius:var(--r);font-size:12px;margin-bottom:10px"></div>
+
+    <label style="display:block;font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase">API 키</label>
+    <input type="password" id="importKeyInput" placeholder="키를 입력하세요"
+      style="width:100%;height:40px;padding:0 12px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);font-family:var(--m);font-size:13px;outline:none;margin-bottom:8px">
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t2);margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="importKeyShow" onchange="toggleImportKeyVisibility()">
+      키 보기
+    </label>
+
+    <div style="display:flex;gap:8px">
+      <button onclick="saveImportKey()"
+        style="flex:1;height:40px;background:#CE93D8;border:none;border-radius:20px;color:#000;font-family:var(--f);font-size:13px;font-weight:800;cursor:pointer">💾 저장</button>
+      <button onclick="clearImportKey()" id="importKeyClearBtn"
+        style="height:40px;padding:0 14px;background:transparent;border:1px solid var(--bm);border-radius:20px;color:var(--t2);font-family:var(--f);font-size:12px;cursor:pointer">삭제</button>
+    </div>
+
+    <div style="margin-top:10px;font-size:10px;color:var(--t2);line-height:1.4">
+      💡 이 키는 이 기기의 로컬에만 저장돼요. GitHub이나 서버엔 올라가지 않아요.<br>
+      키가 없으면 외부 전송은 건너뜁니다 (다른 기능은 정상 작동).
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: 정답 업로드 ══ -->
 <div id="answerUploadModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px;overflow:auto">
   <div style="background:var(--b1);border:1px solid var(--bm);border-radius:var(--r);padding:20px;max-width:520px;width:100%;max-height:92vh;overflow:auto">
@@ -737,6 +778,90 @@ body{padding-bottom:52px}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── 외부 시스템 전송 ─────────────────────────────────────
+// 채점 결과를 KKJ Grammar System에도 전송 (백그라운드)
+// 키는 localStorage('kkj_import_key')에서 읽음 (레포 public이라 파일에 박지 않음)
+const KKJ_IMPORT_URL = "https://kkj-grammar-system.vercel.app/api/results/import";
+const KKJ_IMPORT_KEY_LS = 'kkj_import_key';
+
+function getKkjImportKey() {
+  try { return localStorage.getItem(KKJ_IMPORT_KEY_LS) || ''; }
+  catch (e) { return ''; }
+}
+function setKkjImportKey(key) {
+  try {
+    if (key) localStorage.setItem(KKJ_IMPORT_KEY_LS, key);
+    else localStorage.removeItem(KKJ_IMPORT_KEY_LS);
+    return true;
+  } catch (e) { return false; }
+}
+
+// ── 외부 전송 키 모달 (관리자용) ─────────────────────────
+function openImportKeyModal() {
+  const currentKey = getKkjImportKey();
+  const input = document.getElementById('importKeyInput');
+  const status = document.getElementById('importKeyStatus');
+  const clearBtn = document.getElementById('importKeyClearBtn');
+  const showCheckbox = document.getElementById('importKeyShow');
+
+  // 현재 상태 표시
+  if (currentKey) {
+    status.style.background = 'rgba(29,185,84,.1)';
+    status.style.border = '1px solid rgba(29,185,84,.3)';
+    status.style.color = 'var(--ok)';
+    // 마스킹된 미리보기 (앞 3자 + ***)
+    const masked = currentKey.length > 6
+      ? currentKey.slice(0,3) + '***' + currentKey.slice(-2)
+      : '***';
+    status.innerHTML = `✓ 설정됨 <span style="font-family:var(--m);color:var(--t2);margin-left:4px">(${masked})</span>`;
+    input.value = currentKey;
+    clearBtn.style.display = '';
+  } else {
+    status.style.background = 'rgba(255,183,77,.1)';
+    status.style.border = '1px solid rgba(255,183,77,.3)';
+    status.style.color = '#FFB74D';
+    status.innerHTML = '⚠ 키가 설정되지 않았어요';
+    input.value = '';
+    clearBtn.style.display = 'none';
+  }
+  input.type = 'password';
+  if (showCheckbox) showCheckbox.checked = false;
+
+  document.getElementById('importKeyModal').style.display = 'flex';
+}
+
+function closeImportKeyModal() {
+  document.getElementById('importKeyModal').style.display = 'none';
+}
+
+function toggleImportKeyVisibility() {
+  const input = document.getElementById('importKeyInput');
+  const cb = document.getElementById('importKeyShow');
+  input.type = cb.checked ? 'text' : 'password';
+}
+
+function saveImportKey() {
+  const input = document.getElementById('importKeyInput');
+  const key = (input.value || '').trim();
+  if (!key) {
+    showToast('키를 입력해주세요', 'err');
+    return;
+  }
+  if (setKkjImportKey(key)) {
+    showToast('✓ 키 저장됨', 'ok');
+    closeImportKeyModal();
+  } else {
+    showToast('저장 실패', 'err');
+  }
+}
+
+function clearImportKey() {
+  if (!confirm('저장된 키를 삭제할까요? 외부 시스템 전송이 중단됩니다.')) return;
+  setKkjImportKey('');
+  showToast('키 삭제됨', '');
+  closeImportKeyModal();
+}
+
 // ── 상태 ──────────────────────────────────────────────────
 let state = {
   type: null,        // 'typec' | 'typea' | 'typeb'
@@ -1177,7 +1302,7 @@ window.addEventListener('popstate', (e) => {
   _navInProgress = true;
   try {
     // 1) 모달이 열려있으면 모달부터 닫기
-    const modalIds = ['answerUploadModal', 'keyPreviewModal'];
+    const modalIds = ['answerUploadModal', 'keyPreviewModal', 'importKeyModal'];
     let modalClosed = false;
     for (const mid of modalIds) {
       const m = document.getElementById(mid);
@@ -2856,6 +2981,45 @@ async function confirmResult() {
         console.warn('[record] cloud upload failed:', r.error);
       }
     });
+  }
+
+  // 4. 외부 시스템 전송 (KKJ Grammar System) — 비동기, 백그라운드
+  // 실패해도 조교 화면에 지장 없게 조용히 처리
+  // 키는 localStorage에서 읽음 (레포 public이라 파일에 박지 않음)
+  const importKey = getKkjImportKey();
+  if (!importKey) {
+    console.log('[kkj-import] skip: no key in localStorage (관리자가 설정해야 함)');
+  } else {
+    try {
+      fetch(KKJ_IMPORT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-import-key': importKey,
+        },
+        body: JSON.stringify({
+          exam_title: record.keyName,
+          student_name: record.student,
+          answers: (record.results || []).map(r => ({
+            no: r.num,
+            is_correct: r.correct === true,
+          })),
+        }),
+      })
+        .then(res => {
+          if (res.ok) {
+            console.log('[kkj-import] sent:', record.student, record.keyName);
+            showToast('결과 전송됨', '');
+          } else {
+            console.warn('[kkj-import] failed:', res.status, res.statusText);
+          }
+        })
+        .catch(err => {
+          console.warn('[kkj-import] error:', err);
+        });
+    } catch (err) {
+      console.warn('[kkj-import] threw:', err);
+    }
   }
 
   // ★ 일괄 채점 모드면 — 다음 학생으로 자동 이동 (또는 종료 시 요약 화면)
