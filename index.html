@@ -707,6 +707,17 @@ select option{background:#282828}
           </div>
         </div>
         <div class="cb" style="padding:16px 22px" id="essayCard">
+          <div style="background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">빠른 붙여넣기</div>
+            <div style="display:flex;gap:8px;align-items:flex-start">
+              <textarea id="essayBulkInput" placeholder="예) 여러 줄 붙여넣기&#10;9. had been waiting&#10;10. the other&#10;11. some advice&#10;&#10;또는 번호 없이 순서대로만" rows="3" style="flex:1;font-family:var(--m);font-size:13px;padding:8px 10px;resize:vertical;min-height:60px;line-height:1.5"></textarea>
+              <button onclick="parseEssayBulk()" style="height:36px;padding:0 14px;background:var(--b3);border:1px solid var(--bm);border-radius:var(--r);color:var(--t1);font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0" onmouseover="this.style.borderColor='var(--amb)';this.style.color='var(--amb)'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t1)'">적용</button>
+            </div>
+            <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.6">
+              번호 있음 → <span style="color:var(--amb);font-weight:600">9. had been waiting</span> &nbsp;|&nbsp;
+              번호 없음 → 서술형 구간 시작 번호부터 순서대로 채움
+            </div>
+          </div>
           <div id="essayKeyGrid">
             <div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">서술형 구간을 먼저 설정해 주세요</div>
           </div>
@@ -2030,6 +2041,93 @@ function clearBracketAnswers() {
 function clearEssayAnswers() {
   if (!confirm('서술형 정답을 모두 초기화할까요?')) return;
   essayAnswers = {}; renderEssayKey();
+}
+
+// ── 서술형 빠른 붙여넣기 ─────────────────────────────────
+// 지원 형식:
+//   (1) 번호 있음:
+//       9. had been waiting
+//       10. the other
+//   (2) 번호 없음 (순서대로):
+//       had been waiting
+//       the other
+function parseEssayBulk() {
+  const raw = document.getElementById('essayBulkInput').value;
+  if (!raw || !raw.trim()) return;
+
+  // 서술형 구간 찾기
+  const essays = sections.filter(s => s.active && s.type === 'essay');
+  if (!essays.length) {
+    showToast('서술형 구간이 없어요. O-TEST 생성 탭에서 먼저 설정해주세요', 'err');
+    return;
+  }
+
+  // 서술형 문항 번호 목록 (전 구간 통합)
+  const essayNums = [];
+  for (const sec of essays) {
+    for (let n = sec.from; n <= sec.to; n++) essayNums.push(n);
+  }
+
+  // 각 줄 파싱
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (!lines.length) return;
+
+  // 각 줄에서 "숫자." 또는 "숫자)" 로 시작하는지 검사
+  const hasNumberPrefix = lines.every(l => /^\d+\s*[.)]/.test(l));
+  const anyNumberPrefix = lines.some(l => /^\d+\s*[.)]/.test(l));
+
+  let updated = 0, skipped = 0;
+  const updatedNums = [];
+
+  if (hasNumberPrefix) {
+    // 모든 줄이 "번호. 정답" 형식 — 명시된 번호로 채움
+    for (const line of lines) {
+      const m = line.match(/^(\d+)\s*[.)]\s*(.*)$/);
+      if (!m) continue;
+      const qn = parseInt(m[1]);
+      const answer = m[2].trim();
+      // 서술형 구간에 속하는 번호인지 검증
+      if (!essayNums.includes(qn)) { skipped++; continue; }
+      if (!answer) continue;
+      essayAnswers[qn] = Object.assign(essayAnswers[qn] || {}, { answer });
+      updated++;
+      updatedNums.push(qn);
+    }
+  } else {
+    // 번호 없음 — 서술형 시작 번호부터 순서대로
+    // (일부만 번호 있는 혼합은 지원 안 함, 안전을 위해 순서대로 처리)
+    if (anyNumberPrefix) {
+      showToast('일부 줄만 번호가 있어요. 전부 번호를 붙이거나 전부 빼주세요', 'err');
+      return;
+    }
+    for (let i = 0; i < lines.length && i < essayNums.length; i++) {
+      const qn = essayNums[i];
+      const answer = lines[i];
+      if (!answer) continue;
+      essayAnswers[qn] = Object.assign(essayAnswers[qn] || {}, { answer });
+      updated++;
+      updatedNums.push(qn);
+    }
+    if (lines.length > essayNums.length) {
+      skipped = lines.length - essayNums.length;
+    }
+  }
+
+  if (updated === 0) {
+    showToast('반영된 줄이 없어요. 형식을 확인해주세요', 'err');
+    return;
+  }
+
+  // 화면 다시 그리기 (각 문항 칸에 반영됨)
+  renderEssayKey();
+
+  // 입력창 비우기
+  document.getElementById('essayBulkInput').value = '';
+
+  const msg = skipped > 0
+    ? `✓ ${updated}개 문항 반영 (${skipped}개 건너뜀)`
+    : `✓ ${updated}개 문항 반영`;
+  showToast(msg, 'ok');
 }
 
 function toggleCard(cardId) {
