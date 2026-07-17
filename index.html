@@ -702,6 +702,7 @@ select option{background:#282828}
         <div class="ch">
           <div><div class="ct" style="color:var(--amb)">③ 서술형 정답 / 채점 기준</div><div class="cd">핵심 키워드 또는 모범 답안 입력</div></div>
           <div style="display:flex;gap:6px;align-items:center">
+            <div id="essayProgressBadge" style="font-family:var(--m);font-size:11px;color:var(--t2);background:var(--b2);padding:3px 10px;border-radius:20px;border:1px solid var(--bo)">0 / 0</div>
             <button onclick="clearEssayAnswers()" style="height:28px;padding:0 10px;background:transparent;border:1px solid var(--bm);border-radius:14px;color:var(--t2);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer" onmouseover="this.style.borderColor='#ff6b6b';this.style.color='#ff6b6b'" onmouseout="this.style.borderColor='var(--bm)';this.style.color='var(--t2)'">초기화</button>
             <button onclick="toggleCard('essayCard')" id="essayCardToggle" style="width:28px;height:28px;background:transparent;border:1px solid var(--bm);border-radius:6px;color:var(--t2);cursor:pointer;font-size:14px;transition:all .2s">▾</button>
           </div>
@@ -1943,6 +1944,36 @@ function renderEssayKey() {
   const el = document.getElementById('essayKeyGrid');
   if (!el) return;
   const essays = sections.filter(s=>s.active&&s.type==='essay');
+
+  // ★ 진행 배지 업데이트
+  const badge = document.getElementById('essayProgressBadge');
+  if (badge) {
+    let totalEssay = 0, filledEssay = 0;
+    for (const sec of essays) {
+      for (let n = sec.from; n <= sec.to; n++) {
+        totalEssay++;
+        const ea = essayAnswers[n];
+        const answer = (ea && typeof ea === 'object') ? (ea.answer || '') : '';
+        if (answer && answer.trim()) filledEssay++;
+      }
+    }
+    badge.textContent = `${filledEssay} / ${totalEssay}`;
+    // 완성도에 따라 색상 변경
+    if (totalEssay > 0 && filledEssay === totalEssay) {
+      badge.style.color = 'var(--amb)';
+      badge.style.background = 'rgba(255,183,77,.15)';
+      badge.style.borderColor = 'rgba(255,183,77,.4)';
+    } else if (filledEssay > 0) {
+      badge.style.color = 'var(--amb)';
+      badge.style.background = 'var(--b2)';
+      badge.style.borderColor = 'rgba(255,183,77,.25)';
+    } else {
+      badge.style.color = 'var(--t2)';
+      badge.style.background = 'var(--b2)';
+      badge.style.borderColor = 'var(--bo)';
+    }
+  }
+
   if (!essays.length) {
     el.innerHTML='<div style="font-size:13px;color:var(--t2);text-align:center;padding:20px">서술형 구간을 먼저 설정해 주세요</div>';
     return;
@@ -1959,10 +1990,11 @@ function renderEssayKey() {
       const qn = sec.from+i;
       const ea = essayAnswers[qn] || {};
       html += `
-        <div style="padding:10px 12px;background:var(--b2);border-radius:var(--r);
+        <div data-essay-qn="${qn}" style="padding:10px 12px;background:var(--b2);border-radius:var(--r);
           border:1px solid ${ea.answer?'rgba(255,183,77,.3)':'var(--bo)'};margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span style="font-size:12px;font-weight:800;color:var(--amb);font-family:var(--m)">Q${qn}</span>
+            ${ea.answer ? `<span style="font-size:9px;font-weight:700;color:var(--amb);background:rgba(255,183,77,.15);padding:2px 6px;border-radius:8px;letter-spacing:.4px">✓ 저장됨</span>` : ''}
             <div style="flex:1"></div>
             <label style="font-size:10px;color:var(--t2);margin:0">배점</label>
             <input type="number" min="1" max="20" value="${ea.score||5}"
@@ -2118,11 +2150,26 @@ function parseEssayBulk() {
     return;
   }
 
-  // 화면 다시 그리기 (각 문항 칸에 반영됨)
+  // 화면 다시 그리기 (각 문항 칸에 반영됨 + 진행 배지 갱신)
   renderEssayKey();
 
   // 입력창 비우기
   document.getElementById('essayBulkInput').value = '';
+
+  // ★ 첫 번째로 반영된 문항으로 스크롤 (사용자가 반영 여부 즉시 확인 가능)
+  if (updatedNums.length > 0) {
+    setTimeout(() => {
+      const firstQn = Math.min(...updatedNums);
+      const firstEl = document.querySelector(`[data-essay-qn="${firstQn}"]`);
+      if (firstEl) {
+        firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 짧게 하이라이트
+        firstEl.style.transition = 'box-shadow .3s';
+        firstEl.style.boxShadow = '0 0 0 2px rgba(255,183,77,.6)';
+        setTimeout(() => { firstEl.style.boxShadow = ''; }, 1500);
+      }
+    }, 50);
+  }
 
   const msg = skipped > 0
     ? `✓ ${updated}개 문항 반영 (${skipped}개 건너뜀)`
