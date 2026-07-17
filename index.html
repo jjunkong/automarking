@@ -2256,18 +2256,41 @@ function saveAnswerKey() {
     };
   } else {
     // TYPE A 저장 (기존 로직)
-    const fives = sections.filter(s=>s.active&&s.type==='five');
-    const allQns = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
-    const filled = allQns.filter(q=>answerKey[q]>0).length;
-    if (!filled) { showToast('입력된 정답이 없습니다','err'); return; }
+    // ★ 5지선다 / bracket / 서술형 모든 구간 포함해서 total 계산
+    const fives    = sections.filter(s=>s.active&&s.type==='five');
+    const brackets = sections.filter(s=>s.active&&s.type==='bracket');
+    const essays   = sections.filter(s=>s.active&&s.type==='essay');
+
+    const fiveQns    = fives.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+    const bracketQns = brackets.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+    const essayQns   = essays.flatMap(s=>Array.from({length:Math.max(0,s.to-s.from+1)},(_,i)=>s.from+i));
+
+    // 채워진 문항 수
+    const filledFive    = fiveQns.filter(q=>answerKey[q]>0).length;
+    const filledBracket = bracketQns.filter(q=>Array.isArray(bracketAnswers[q]) && bracketAnswers[q].length>0).length;
+    const filledEssay   = essayQns.filter(q=>{
+      const ea = essayAnswers[q];
+      const answer = (ea && typeof ea === 'object') ? (ea.answer || '') : '';
+      return answer && answer.trim();
+    }).length;
+
+    const totalCount  = fiveQns.length + bracketQns.length + essayQns.length;
+    const filledCount = filledFive + filledBracket + filledEssay;
+
+    if (!filledCount) { showToast('입력된 정답이 없습니다','err'); return; }
+
+    // 마지막 문항 번호 (total로도 활용)
+    const allQnsForTotal = [...fiveQns, ...bracketQns, ...essayQns];
+    const maxQn = allQnsForTotal.length > 0 ? Math.max(...allQnsForTotal) : totalCount;
+
     config = {
       type: 'A',
       key: JSON.parse(JSON.stringify(answerKey)),
       bracketKey: JSON.parse(JSON.stringify(bracketAnswers)),
       essayKey: JSON.parse(JSON.stringify(essayAnswers)),
-      count: filled,
+      count: filledCount,
       date: new Date().toLocaleDateString('ko-KR'),
-      total: allQns.length,
+      total: maxQn,
     };
   }
 
