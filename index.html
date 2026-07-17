@@ -643,7 +643,11 @@ select option{background:#282828}
           </div>
           <div style="display:flex;gap:8px">
             <input type="text" id="saveKeyName" placeholder="정답 이름 (예: 2026년 3월 모의고사)" style="flex:1;height:38px">
+            <input type="number" id="saveKeyExamId" placeholder="시험 코드 (선택)" title="KKJ Grammar System의 시험 코드 (숫자). 있으면 이름 대신 이 코드로 매칭됨" style="width:130px;height:38px;font-family:var(--m)">
             <button onclick="saveAnswerKey()" style="height:38px;padding:0 16px;background:var(--g);border:none;border-radius:var(--r);color:#000;font-family:var(--f);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#1ed760'" onmouseout="this.style.background='var(--g)'">💾 저장</button>
+          </div>
+          <div style="font-size:10px;color:var(--t2);margin-top:6px;line-height:1.4">
+            💡 <strong>시험 코드</strong>: KKJ Grammar System의 시험 코드(숫자)를 넣으면 이름과 상관없이 정확히 매칭됩니다. 비워두면 이름으로 매칭.
           </div>
         </div>
       </div>
@@ -2228,6 +2232,15 @@ function saveAnswerKey() {
   const name = document.getElementById('saveKeyName').value.trim();
   if (!name) { showToast('정답 이름을 입력해 주세요','err'); return; }
 
+  // ★ 시험 코드 (선택 입력) — KKJ Grammar System 매칭용
+  const examIdInput = document.getElementById('saveKeyExamId');
+  const examIdRaw = examIdInput ? examIdInput.value.trim() : '';
+  const examId = examIdRaw ? parseInt(examIdRaw) : null;
+  if (examIdRaw && (isNaN(examId) || examId <= 0)) {
+    showToast('시험 코드는 양의 숫자여야 합니다', 'err');
+    return;
+  }
+
   const saved = getSavedKeys();
   let config;
 
@@ -2253,6 +2266,7 @@ function saveAnswerKey() {
       summary: typebAnswers.summary,
       count: totalAnswers,
       date: new Date().toLocaleDateString('ko-KR'),
+      examId: examId,  // ★ KKJ Grammar System 매칭용 (없으면 null)
     };
   } else {
     // TYPE A 저장 (기존 로직)
@@ -2291,12 +2305,15 @@ function saveAnswerKey() {
       count: filledCount,
       date: new Date().toLocaleDateString('ko-KR'),
       total: maxQn,
+      examId: examId,  // ★ KKJ Grammar System 매칭용 (없으면 null)
     };
   }
 
   saved[name] = config;
   localStorage.setItem('kkj_answer_keys', JSON.stringify(saved));
   document.getElementById('saveKeyName').value = '';
+  const examIdEl = document.getElementById('saveKeyExamId');
+  if (examIdEl) examIdEl.value = '';
   renderSavedKeys();
 
   // 클라우드 동기화
@@ -2340,6 +2357,11 @@ function loadAnswerKey(name) {
     essayAnswers = JSON.parse(JSON.stringify(config.essayKey||{}));
     renderAnswerKey(); renderBracketKey(); renderEssayKey();
   }
+  // ★ 이름 + 시험 코드 입력칸 복원 (편집 후 재저장 편의)
+  const nameEl = document.getElementById('saveKeyName');
+  if (nameEl) nameEl.value = name;
+  const examIdEl = document.getElementById('saveKeyExamId');
+  if (examIdEl) examIdEl.value = config.examId ? String(config.examId) : '';
   showToast(`✓  "${name}" 불러오기 완료`,'ok');
 }
 
@@ -2649,9 +2671,12 @@ function renderSavedKeys() {
   }
   el.innerHTML = keys.map(name => {
     const d = saved[name];
+    const examIdBadge = d.examId
+      ? `<span style="display:inline-block;font-size:10px;font-weight:700;color:#29B6F6;background:rgba(41,182,246,.15);padding:2px 7px;border-radius:10px;margin-left:6px;font-family:var(--m)">#${d.examId}</span>`
+      : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--b2);border-radius:var(--r);border:1px solid var(--bo);transition:border-color .2s" onmouseover="this.style.borderColor='var(--bm)'" onmouseout="this.style.borderColor='var(--bo)'">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:var(--t0);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--t0);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${examIdBadge}</div>
         <div style="font-size:11px;color:var(--t2)">${d.count}/${d.total}문항 · ${d.date}</div>
       </div>
       <button onclick="loadAnswerKey('${name.replace(/'/g,"\\\'")}')"
