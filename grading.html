@@ -839,11 +839,29 @@ function sendToKkjImport(record) {
     } catch (e) { /* ignore */ }
   }
 
+  // ★ 학생 응답을 서버 형식으로 변환
+  // - 객관식 원문자(①②③④⑤) → 숫자 문자열("1"~"5")
+  // - 서술형/단어 텍스트 → 그대로
+  // - 빈칸/(빈칸) → null
+  const toResponse = (r) => {
+    const s = r.student;
+    if (s === null || s === undefined) return null;
+    const str = String(s).trim();
+    if (!str || str === '(빈칸)') return null;
+    // 원문자 → 숫자 매핑
+    const circleMap = { '①':'1','②':'2','③':'3','④':'4','⑤':'5' };
+    if (circleMap[str]) return circleMap[str];
+    // 여러 글자 중 원문자만 있는 경우 (예: "③" 앞뒤 공백) — 이미 trim됨
+    // 서술형이나 단어시험 답: 문자열 그대로
+    return str;
+  };
+
   // body 구성 — examId 있으면 exam_id로, 없으면 exam_title로
   const body = {
     student_name: record.student,
     answers: (record.results || []).map(r => ({
       no: r.num,
+      response: toResponse(r),
       is_correct: r.correct === true,
     })),
   };
