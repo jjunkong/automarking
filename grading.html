@@ -815,6 +815,10 @@ function setKkjImportKey(key) {
 // - saveEditRecord (기록 수정 저장 시 자동)
 // - resendCurrentRecord (편집 화면에서 수동 재전송)
 // 실패해도 로컬 저장은 이미 됐으므로 화면 흐름 방해 X
+//
+// body 규칙:
+//   1) record.examId 있음 → { exam_id, student_name, answers } (정확 매칭)
+//   2) 없음 → { exam_title, student_name, answers } (이름 매칭, 실패 가능)
 function sendToKkjImport(record) {
   const importKey = getKkjImportKey();
   if (!importKey) {
@@ -822,7 +826,35 @@ function sendToKkjImport(record) {
     console.log('[kkj-import] skip: no key set');
     return;
   }
-  console.log('[kkj-import] sending:', record.student, record.keyName);
+
+  // ★ examId 찾기 — record에 없으면 저장된 정답표에서 조회
+  let examId = record.examId;
+  if (!examId && record.keyName) {
+    try {
+      // TYPE C (단어시험): kkj_vocab / TYPE A,B: kkj_answer_keys
+      const vocab = JSON.parse(localStorage.getItem('kkj_vocab') || '{}');
+      const keys  = JSON.parse(localStorage.getItem('kkj_answer_keys') || '{}');
+      const src = vocab[record.keyName] || keys[record.keyName];
+      if (src && src.examId) examId = src.examId;
+    } catch (e) { /* ignore */ }
+  }
+
+  // body 구성 — examId 있으면 exam_id로, 없으면 exam_title로
+  const body = {
+    student_name: record.student,
+    answers: (record.results || []).map(r => ({
+      no: r.num,
+      is_correct: r.correct === true,
+    })),
+  };
+  if (examId) {
+    body.exam_id = examId;
+    console.log('[kkj-import] sending with exam_id:', examId, record.student);
+  } else {
+    body.exam_title = record.keyName;
+    console.log('[kkj-import] sending with exam_title:', record.keyName, record.student);
+  }
+
   try {
     fetch(KKJ_IMPORT_URL, {
       method: 'POST',
@@ -830,24 +862,40 @@ function sendToKkjImport(record) {
         'Content-Type': 'application/json',
         'x-import-key': importKey,
       },
-      body: JSON.stringify({
-        exam_title: record.keyName,
-        student_name: record.student,
-        answers: (record.results || []).map(r => ({
-          no: r.num,
-          is_correct: r.correct === true,
-        })),
-      }),
+      body: JSON.stringify(body),
     })
       .then(async res => {
         if (res.ok) {
           console.log('[kkj-import] ✓ sent');
           showToast('✓ 결과 전송됨', 'ok');
+          return;
+        }
+        // 실패 — 응답 본문 파싱해서 상세 안내
+        let bodyText = '';
+        let bodyJson = null;
+        try {
+          bodyText = await res.text();
+          bodyJson = JSON.parse(bodyText);
+        } catch(e) { /* not JSON */ }
+        console.warn('[kkj-import] ✗ failed:', res.status, bodyText);
+
+        if (res.status === 404) {
+          // 시험을 못 찾음 — 조교/원장이 알 수 있게 상세히
+          const serverMsg = bodyJson?.error || bodyText || '시험을 찾을 수 없어요';
+          const similar = bodyJson?.similar;
+          let msg = `✗ 전송 실패: ${serverMsg}`;
+          if (Array.isArray(similar) && similar.length > 0) {
+            msg += ` (비슷한 시험: ${similar.slice(0,2).join(', ')})`;
+          }
+          if (!examId) {
+            msg += ' — 정답표에 시험 코드를 넣으면 정확히 매칭돼요';
+          }
+          showToast(msg, 'err');
+        } else if (res.status === 401 || res.status === 403) {
+          showToast(`✗ 전송 실패: 인증 오류 (⚙ 키 확인)`, 'err');
         } else {
-          let bodyText = '';
-          try { bodyText = await res.text(); } catch(e) {}
-          console.warn('[kkj-import] ✗ failed:', res.status, bodyText);
-          showToast(`✗ 전송 실패 (${res.status})`, 'err');
+          const serverMsg = bodyJson?.error || `${res.status} 오류`;
+          showToast(`✗ 전송 실패: ${serverMsg}`, 'err');
         }
       })
       .catch(err => {
@@ -3163,6 +3211,7 @@ async function confirmResult() {
     time: new Date(now).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
     student: finalName,
     keyName: state.keyName,
+    examId: state.keyData?.examId || null,  // ★ KKJ Grammar System 매칭용
     type: state.type,
     score: okCount,
     total,
