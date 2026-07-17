@@ -811,21 +811,18 @@ function setKkjImportKey(key) {
 }
 
 // ★ KKJ Grammar System으로 채점 결과 전송 (재사용 가능한 함수)
-// - confirmResult (신규 채점 확정 시)
-// - saveEditRecord (기록 수정 저장 시)
-// - resendToKkjImport (수동 재전송 시)
-// 모두 이 함수를 호출
+// - confirmResult (신규 채점 확정 시 자동)
+// - saveEditRecord (기록 수정 저장 시 자동)
+// - resendCurrentRecord (편집 화면에서 수동 재전송)
+// 실패해도 로컬 저장은 이미 됐으므로 화면 흐름 방해 X
 function sendToKkjImport(record) {
-  // ★ 버전 마커: v-kkj-import-2026-07-18b (배포 확인용)
-  showToast('🔧 확인:v-kkj-import-2026-07-18b', '');
   const importKey = getKkjImportKey();
   if (!importKey) {
-    setTimeout(() => showToast('⚠ 전송 키 없음 (⚙ 버튼에서 설정)', 'err'), 400);
-    console.log('[kkj-import] skip: no key in localStorage');
+    // 키 없으면 조용히 (⚙에서 설정 안 한 상태 — 정상 케이스일 수도)
+    console.log('[kkj-import] skip: no key set');
     return;
   }
-  setTimeout(() => showToast(`📤 전송 시도 중... (키:${importKey.length}자)`, ''), 400);
-  console.log('[kkj-import] sending to:', KKJ_IMPORT_URL, 'for', record.student, record.keyName);
+  console.log('[kkj-import] sending:', record.student, record.keyName);
   try {
     fetch(KKJ_IMPORT_URL, {
       method: 'POST',
@@ -844,25 +841,21 @@ function sendToKkjImport(record) {
     })
       .then(async res => {
         if (res.ok) {
-          console.log('[kkj-import] ✓ sent status:', res.status);
-          setTimeout(() => showToast('✓ 결과 전송됨', 'ok'), 900);
+          console.log('[kkj-import] ✓ sent');
+          showToast('✓ 결과 전송됨', 'ok');
         } else {
           let bodyText = '';
           try { bodyText = await res.text(); } catch(e) {}
           console.warn('[kkj-import] ✗ failed:', res.status, bodyText);
-          const shortBody = bodyText.slice(0, 80);
-          setTimeout(() => showToast(`✗ 전송실패 ${res.status}: ${shortBody}`, 'err'), 900);
+          showToast(`✗ 전송 실패 (${res.status})`, 'err');
         }
       })
       .catch(err => {
-        const errMsg = (err.message || String(err)).slice(0, 80);
-        console.warn('[kkj-import] ✗ network/CORS error:', err);
-        setTimeout(() => showToast(`✗ 네트워크/CORS 오류: ${errMsg}`, 'err'), 900);
+        console.warn('[kkj-import] ✗ network error:', err);
+        showToast('✗ 전송 실패 (네트워크)', 'err');
       });
   } catch (err) {
-    const errMsg = (err.message || String(err)).slice(0, 80);
     console.warn('[kkj-import] ✗ threw:', err);
-    showToast(`✗ 예외: ${errMsg}`, 'err');
   }
 }
 
