@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>KKJ marking</title>
+<!-- ★ 모바일 콘솔 (진단용) - URL에 ?debug=1 붙이면 활성화 -->
+<script>
+if (location.search.includes('debug=1') || localStorage.getItem('kkj_debug') === '1') {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+  s.onload = () => { window.eruda && window.eruda.init(); };
+  document.head.appendChild(s);
+  localStorage.setItem('kkj_debug', '1');
+}
+</script>
 <!-- PWA — 홈 화면 추가용 -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1DB954">
