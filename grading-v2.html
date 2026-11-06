@@ -423,18 +423,20 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
       <div class="ch">
         <div>
           <div class="ct">학원 코드</div>
-          <div class="cd">클라우드 동기화에 사용</div>
+          <div class="cd">클라우드 동기화에 사용 — 기존 앱과 공유</div>
         </div>
+        <div class="badge" id="academyCodeBadge">미설정</div>
       </div>
       <div class="cb">
-        <label>현재 학원 코드</label>
+        <label>학원 코드 (예: KKJ-ABCDEF)</label>
         <div class="row">
-          <input type="text" id="academyCodeInput" placeholder="예: KKJ-ABCDEF" readonly>
-          <button class="btn btn-sm btn-o" style="flex:0 0 auto;width:auto" onclick="refreshCloud()">🔄 동기화</button>
+          <input type="text" id="academyCodeInput" placeholder="KKJ-XXXXXX">
+          <button class="btn btn-sm btn-g" style="flex:0 0 auto;width:auto" onclick="saveAcademyCode()">저장</button>
         </div>
         <div class="sp"></div>
         <div style="font-size:11px;color:var(--t2);line-height:1.5">
-          기존 automarking 앱에서 쓰시는 학원 코드와 동일해야 데이터가 공유됩니다.
+          기존 automarking 앱(/grading)에서 쓰시는 학원 코드와 동일하게 입력하세요.<br>
+          PC의 /grading 홈 화면 상단에 표시된 "KKJ-XXXXXX" 그대로 복사.
         </div>
       </div>
     </div>
@@ -1151,7 +1153,12 @@ function deleteBook(id) {
 // ══════════════════════════════════════════════════════════════
 function renderSettings() {
   const code = localStorage.getItem(LS.academyCode) || '';
-  document.getElementById('academyCodeInput').value = code || '(학원 코드가 설정되어 있지 않아요)';
+  document.getElementById('academyCodeInput').value = code;
+  const codeBadge = document.getElementById('academyCodeBadge');
+  if (codeBadge) {
+    if (code) { codeBadge.textContent = '✓ 설정됨'; codeBadge.className = 'badge g'; }
+    else { codeBadge.textContent = '미설정'; codeBadge.className = 'badge o'; }
+  }
 
   // API 키 상태
   const key = getApiKey();
