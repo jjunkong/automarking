@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KKJ 채점 앱 v2</title>
+<!-- 모바일 콘솔 (?debug=1) -->
+<script>
+if (location.search.includes('debug=1') || localStorage.getItem('kkj_debug') === '1') {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+  s.onload = () => { window.eruda && window.eruda.init(); };
+  document.head.appendChild(s);
+  localStorage.setItem('kkj_debug', '1');
+}
+</script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1DB954">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1DB954;--gg:rgba(29,185,84,.18);--gl:rgba(29,185,84,.1);
+  --b0:#121212;--b1:#181818;--b2:#242424;--b3:#2a2a2a;
+  --bo:rgba(255,255,255,.08);--bm:rgba(255,255,255,.14);
+  --t0:#fff;--t1:#B3B3B3;--t2:#6A6A6A;
+  --ok:#1DB954;--err:#FF4D4D;--warn:#FFB74D;--sky:#29B6F6;--purple:#CE93D8;
+  --r:10px;--rl:16px;
+  --f:'DM Sans',system-ui,sans-serif;--m:'DM Mono',monospace;
+}
+html{font-family:var(--f);background:var(--b0);color:var(--t0);height:100%;-webkit-text-size-adjust:100%}
+body{min-height:100vh;max-width:720px;margin:0 auto;background:var(--b0);padding-bottom:40px}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+button{font-family:var(--f);cursor:pointer}
+input,select,textarea{font-family:var(--f);background:var(--b2);border:1px solid var(--bm);border-radius:var(--r);color:var(--t0);padding:10px 12px;font-size:14px;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--g)}
+textarea{resize:vertical;min-height:80px;line-height:1.5}
+
+/* ── HEADER ── */
+.hdr{
+  background:rgba(18,18,18,.96);backdrop-filter:blur(12px);
+  padding:14px 18px 12px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--bo);
+  position:sticky;top:0;z-index:100;
+}
+.logo{width:32px;height:32px;background:var(--g);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:800;color:#000;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.hdr-sub{font-size:11px;color:var(--t2);margin-top:1px}
+.hdr-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.icon-btn{width:34px;height:34px;background:transparent;border:1px solid var(--bm);
+  border-radius:50%;color:var(--t1);font-size:15px;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{border-color:var(--g);color:var(--g)}
+.icon-btn.active{background:var(--gl);border-color:var(--g);color:var(--g)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+  border-radius:12px;font-size:10px;font-weight:700;letter-spacing:.3px;
+  background:var(--b2);border:1px solid var(--bo);color:var(--t1);font-family:var(--m)}
+.badge.g{background:var(--gl);border-color:rgba(29,185,84,.3);color:var(--g)}
+.badge.o{background:rgba(255,183,77,.1);border-color:rgba(255,183,77,.3);color:var(--warn)}
+.badge.r{background:rgba(255,77,77,.1);border-color:rgba(255,77,77,.3);color:var(--err)}
+.badge.p{background:rgba(206,147,216,.1);border-color:rgba(206,147,216,.3);color:var(--purple)}
+.badge.s{background:rgba(41,182,246,.1);border-color:rgba(41,182,246,.3);color:var(--sky)}
+
+/* ── SCREENS ── */
+.screen{display:none;padding:18px;flex-direction:column;gap:14px;min-height:calc(100vh - 60px)}
+.screen.active{display:flex}
+
+/* ── CARDS ── */
+.card{background:var(--b1);border:1px solid var(--bo);border-radius:var(--rl);overflow:hidden}
+.ch{padding:13px 16px 11px;border-bottom:1px solid var(--bo);
+  display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ct{font-size:14px;font-weight:700}
+.cd{font-size:11px;color:var(--t2);margin-top:2px}
+.cb{padding:14px 16px}
+
+/* ── BUTTONS ── */
+.btn{width:100%;padding:12px 16px;border-radius:var(--r);font-size:14px;font-weight:700;
+  border:1px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.btn-g{background:var(--g);color:#000;border-color:var(--g)}
+.btn-g:hover{background:#1ed760}
+.btn-o{background:transparent;border-color:var(--bm);color:var(--t0)}
+.btn-o:hover{border-color:var(--g);color:var(--g)}
+.btn-r{background:transparent;border-color:rgba(255,77,77,.3);color:var(--err)}
+.btn-r:hover{background:rgba(255,77,77,.08)}
+.btn-sm{padding:7px 12px;font-size:12px;font-weight:600;border-radius:14px;width:auto}
+.btn-xl{padding:18px 20px;font-size:16px;font-weight:800;border-radius:28px}
+
+/* ── FORM ── */
+label{display:block;font-size:10px;font-weight:700;color:var(--t2);
+  letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px}
+.row{display:flex;gap:10px;align-items:stretch}
+.row>*{flex:1}
+
+/* ── HERO (holme) ── */
+.hero{background:linear-gradient(135deg,rgba(29,185,84,.08) 0%,rgba(29,185,84,.02) 100%);
+  border:1px solid rgba(29,185,84,.2);border-radius:var(--rl);
+  padding:22px 20px;display:flex;flex-direction:column;gap:14px}
+.hero-top{display:flex;align-items:center;gap:12px}
+.hero-icon{width:46px;height:46px;background:var(--g);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:22px;color:#000}
+.hero-title{font-size:18px;font-weight:800}
+.hero-sub{font-size:12px;color:var(--t1);margin-top:2px}
+.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);
+  padding:10px 12px;text-align:center}
+.stat-n{font-family:var(--m);font-size:18px;font-weight:700;color:var(--g)}
+.stat-l{font-size:10px;color:var(--t2);margin-top:2px;letter-spacing:.3px}
+
+/* ── MODE PICKER (3 modes) ── */
+.mode-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.mode{display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:var(--b1);border:1px solid var(--bo);border-radius:var(--rl);transition:all .15s}
+.mode:hover{border-color:var(--bm)}
+.mode.active{background:var(--gl);border-color:var(--g)}
+.mode-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex-shrink:0}
+.mode-info{flex:1;min-width:0}
+.mode-name{font-size:14px;font-weight:700}
+.mode-desc{font-size:11px;color:var(--t2);margin-top:2px}
+.mode-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--bm);
+  display:flex;align-items:center;justify-content:center;color:#000;font-size:11px;font-weight:800;flex-shrink:0}
+.mode.active .mode-check{background:var(--g);border-color:var(--g)}
+.mode.active .mode-check::after{content:'✓'}
+
+/* ── LIST ROWS ── */
+.lst{display:flex;flex-direction:column;gap:6px}
+.lst-row{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--b2);border:1px solid var(--bo);border-radius:var(--r)}
+.lst-row:hover{border-color:var(--bm)}
+.lst-main{flex:1;min-width:0}
+.lst-name{font-size:13px;font-weight:600}
+.lst-sub{font-size:10px;color:var(--t2);margin-top:2px}
+
+/* ── PHOTO GRID ── */
+.photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.photo-tile{aspect-ratio:1;background:var(--b2);border:1px dashed var(--bm);border-radius:var(--r);
+  position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.photo-tile img{width:100%;height:100%;object-fit:cover}
+.photo-tile .photo-x{position:absolute;top:4px;right:4px;width:22px;height:22px;
+  background:rgba(0,0,0,.7);border:none;border-radius:50%;color:#fff;font-size:12px;cursor:pointer}
+.photo-tile .photo-n{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.65);
+  color:#fff;font-size:9px;padding:2px 6px;border-radius:8px;font-family:var(--m)}
+.photo-add{background:var(--b2);border:1px dashed var(--bm);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;color:var(--t2);font-size:10px;aspect-ratio:1}
+.photo-add:hover{border-color:var(--g);color:var(--g)}
+.photo-add-ic{font-size:20px}
+
+/* ── TOAST ── */
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(100px);
+  background:var(--b3);color:var(--t0);padding:12px 20px;border-radius:24px;
+  font-size:13px;font-weight:600;border:1px solid var(--bm);
+  box-shadow:0 8px 20px rgba(0,0,0,.4);z-index:1000;transition:transform .3s,opacity .3s;
+  opacity:0;pointer-events:none;max-width:90%;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.ok{border-color:var(--g);color:var(--g)}
+#toast.err{border-color:var(--err);color:var(--err)}
+
+/* ── MODAL ── */
+.modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);
+  backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px;overflow:auto}
+.modal.show{display:flex}
+.modal-card{background:var(--b1);border:1px solid var(--bm);border-radius:var(--rl);
+  padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-title{font-size:16px;font-weight:700}
+
+/* ── EMPTY STATE ── */
+.empty{padding:28px 16px;text-align:center;color:var(--t2);font-size:12px}
+.empty-ic{font-size:30px;margin-bottom:8px;opacity:.5}
+
+/* ── EDIT LOCK (관리 모드) ── */
+.lock-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.25);
+  border-radius:var(--r);font-size:12px;color:var(--warn)}
+.lock-banner.unlocked{background:rgba(29,185,84,.08);border-color:rgba(29,185,84,.25);color:var(--g)}
+.lock-banner > div{flex:1}
+
+/* ── TABS (관리 모드) ── */
+.tabs{display:flex;gap:4px;background:var(--b2);border-radius:var(--r);padding:4px;margin-bottom:12px}
+.tab{flex:1;padding:8px 10px;background:transparent;border:none;border-radius:6px;
+  color:var(--t2);font-size:12px;font-weight:700;letter-spacing:.3px}
+.tab.active{background:var(--b1);color:var(--t0)}
+
+/* ── RESULT ── */
+.step-head{display:flex;align-items:center;gap:8px;margin:14px 0 8px;
+  padding-bottom:6px;border-bottom:1px solid var(--bo)}
+.step-title{font-size:13px;font-weight:700;color:var(--t0)}
+.step-score{font-family:var(--m);font-size:11px;color:var(--t2)}
+.q-row{display:flex;gap:10px;padding:10px 12px;background:var(--b2);
+  border:1px solid var(--bo);border-radius:var(--r);margin-bottom:6px}
+.q-mark{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.q-mark.ok{background:var(--gl);color:var(--g)}
+.q-mark.err{background:rgba(255,77,77,.15);color:var(--err)}
+.q-mark.unc{background:rgba(255,183,77,.15);color:var(--warn)}
+.q-body{flex:1;font-size:13px;line-height:1.5}
+.q-note{font-size:11px;color:var(--t2);margin-top:3px;line-height:1.5}
+
+/* ── SMALL HELPERS ── */
+.sp{height:4px}
+.sep{height:1px;background:var(--bo);margin:4px 0}
+.mt{margin-top:10px}
+.center{text-align:center}
+.flex{display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<div class="hdr">
+  <div class="logo">KKJ</div>
+  <div>
+    <div class="hdr-title" id="hdrTitle">채점 앱 v2</div>
+    <div class="hdr-sub" id="hdrSub">김기준영어학원</div>
+  </div>
+  <div class="hdr-right">
+    <button class="icon-btn" id="btnSettings" onclick="toggleMode()" title="관리 모드">⚙</button>
+    <button class="icon-btn" id="btnBack" onclick="goBack()" title="뒤로" style="display:none">←</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: HOME (채점 모드 기본) ══ -->
+<div class="screen active" id="scrHome">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="hero-icon">✎</div>
+      <div style="flex:1">
+        <div class="hero-title">사진 기반 채점</div>
+        <div class="hero-sub">책/프린트를 바로 촬영 → AI가 채점</div>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-n" id="statToday">0</div>
+        <div class="stat-l">오늘 채점</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" id="statStudents">0</div>
+        <div class="stat-l">학생</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" id="statBooks">0</div>
+        <div class="stat-l">교재</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 새 채점 시작 (가장 크게) -->
+  <button class="btn btn-g btn-xl" onclick="startNewGrading()">
+    <span style="font-size:22px">📷</span>
+    새 채점 시작
+  </button>
+
+  <!-- 빠른 시작 / 최근 기록 -->
+  <div class="card">
+    <div class="ch">
+      <div>
+        <div class="ct">오늘 채점 기록</div>
+        <div class="cd">최근 완료된 채점</div>
+      </div>
+      <button class="btn btn-o btn-sm" onclick="showAllHistory()">전체 보기</button>
+    </div>
+    <div class="cb">
+      <div id="todayHistory">
+        <div class="empty">
+          <div class="empty-ic">🌱</div>
+          아직 오늘 채점한 기록이 없어요
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ SCREEN: ADMIN (관리 모드) ══ -->
+<div class="screen" id="scrAdmin">
+
+  <!-- 잠금 배너 -->
+  <div class="lock-banner" id="lockBanner">
+    <span style="font-size:16px">🔒</span>
+    <div>관리 데이터는 조회만 가능해요. 수정하려면 활성화하세요.</div>
+    <button class="btn btn-sm btn-o" onclick="toggleEditLock()" id="btnLock">수정 활성화</button>
+  </div>
+
+  <!-- 탭 -->
+  <div class="tabs">
+    <button class="tab active" data-tab="classes" onclick="switchTab('classes')">반·학생</button>
+    <button class="tab" data-tab="books" onclick="switchTab('books')">교재</button>
+    <button class="tab" data-tab="reports" onclick="switchTab('reports')">리포트</button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">설정</button>
+  </div>
+
+  <!-- 탭 콘텐츠: 반·학생 -->
+  <div id="tabClasses">
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">반 목록</div>
+          <div class="cd">드롭다운으로 선택되는 반 이름</div>
+        </div>
+        <button class="btn btn-sm btn-g lock-req" onclick="openClassModal()" disabled>+ 반 추가</button>
+      </div>
+      <div class="cb">
+        <div id="classList"></div>
+      </div>
+    </div>
+
+    <div class="sp"></div>
+
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">학생 목록</div>
+          <div class="cd">반별로 묶여 관리</div>
+        </div>
+        <button class="btn btn-sm btn-g lock-req" onclick="openStudentModal()" disabled>+ 학생 추가</button>
+      </div>
+      <div class="cb">
+        <div id="studentList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 콘텐츠: 교재 -->
+  <div id="tabBooks" style="display:none">
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">교재 목록</div>
+          <div class="cd">표지 촬영으로 자동 등록</div>
+        </div>
+        <button class="btn btn-sm btn-g lock-req" onclick="openBookModal()" disabled>+ 교재 추가</button>
+      </div>
+      <div class="cb">
+        <div id="bookList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 콘텐츠: 리포트 -->
+  <div id="tabReports" style="display:none">
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">학생별 누적 오답 패턴</div>
+          <div class="cd">반복 틀리는 유형 자동 추출</div>
+        </div>
+      </div>
+      <div class="cb">
+        <div id="reportStudent">
+          <div class="empty">
+            <div class="empty-ic">📊</div>
+            아직 분석할 데이터가 부족해요<br>
+            <span style="font-size:11px">3회 이상 채점 기록이 쌓이면 패턴이 나타나요</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp"></div>
+
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">반별 공통 오답</div>
+          <div class="cd">여러 학생이 같이 틀리는 유형</div>
+        </div>
+      </div>
+      <div class="cb">
+        <div id="reportClass">
+          <div class="empty">
+            <div class="empty-ic">👥</div>
+            반별 집계가 나올 때까지 기다려 주세요
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 콘텐츠: 설정 -->
+  <div id="tabSettings" style="display:none">
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">학원 코드</div>
+          <div class="cd">클라우드 동기화에 사용</div>
+        </div>
+      </div>
+      <div class="cb">
+        <label>현재 학원 코드</label>
+        <div class="row">
+          <input type="text" id="academyCodeInput" placeholder="예: KKJ-ABCDEF" readonly>
+          <button class="btn btn-sm btn-o" style="flex:0 0 auto;width:auto" onclick="refreshCloud()">🔄 동기화</button>
+        </div>
+        <div class="sp"></div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.5">
+          기존 automarking 앱에서 쓰시는 학원 코드와 동일해야 데이터가 공유됩니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="sp"></div>
+
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">앱 정보</div>
+          <div class="cd">KKJ 채점 앱 v2 (리뉴얼)</div>
+        </div>
+      </div>
+      <div class="cb">
+        <div style="font-size:12px;color:var(--t1);line-height:1.6">
+          <div>버전: v2.0.0-beta</div>
+          <div>빌드: 2026-11-06</div>
+          <div>모드: 사진 기반 AI 채점</div>
+          <div class="sp"></div>
+          <div style="font-size:11px;color:var(--t2)">
+            기존 앱(/grading)은 그대로 쓸 수 있어요. 이 리뉴얼 버전은 테스트용이에요.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: NEW GRADING (채점 플로우) ══ -->
+<div class="screen" id="scrNew">
+
+  <!-- Step indicator -->
+  <div style="display:flex;gap:4px;margin-bottom:4px">
+    <div style="flex:1;height:4px;background:var(--g);border-radius:2px" id="stp1"></div>
+    <div style="flex:1;height:4px;background:var(--b3);border-radius:2px" id="stp2"></div>
+    <div style="flex:1;height:4px;background:var(--b3);border-radius:2px" id="stp3"></div>
+    <div style="flex:1;height:4px;background:var(--b3);border-radius:2px" id="stp4"></div>
+  </div>
+
+  <!-- 1. 학생 선택 -->
+  <div class="card">
+    <div class="ch">
+      <div>
+        <div class="ct">① 학생</div>
+        <div class="cd">반과 학생을 선택하세요</div>
+      </div>
+    </div>
+    <div class="cb">
+      <div class="row">
+        <div>
+          <label>반</label>
+          <select id="pickClass" onchange="onPickClass()">
+            <option value="">반 선택</option>
+          </select>
+        </div>
+        <div>
+          <label>학생</label>
+          <select id="pickStudent" onchange="onPickStudent()">
+            <option value="">반을 먼저 선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="sp"></div>
+      <button class="btn btn-sm btn-o" onclick="openQuickAddStudent()">+ 새 학생 빠른 추가</button>
+    </div>
+  </div>
+
+  <!-- 2. 모드 -->
+  <div class="card">
+    <div class="ch">
+      <div>
+        <div class="ct">② 채점 유형</div>
+        <div class="cd">교재에 맞는 유형을 선택</div>
+      </div>
+    </div>
+    <div class="cb">
+      <div class="mode-grid">
+        <div class="mode" data-mode="book" onclick="pickMode('book')">
+          <div class="mode-icon" style="background:rgba(29,185,84,.15)">📘</div>
+          <div class="mode-info">
+            <div class="mode-name">일반 교재 채점</div>
+            <div class="mode-desc">문법/독해 교재 · 객관식+서술형+영작</div>
+          </div>
+          <div class="mode-check"></div>
+        </div>
+        <div class="mode" data-mode="habbang" onclick="pickMode('habbang')">
+          <div class="mode-icon" style="background:rgba(41,182,246,.15)">📋</div>
+          <div class="mode-info">
+            <div class="mode-name">하빵 — 내신 빈칸시험</div>
+            <div class="mode-desc">BLANK / QUESTION / T·N / SUMMARY</div>
+          </div>
+          <div class="mode-check"></div>
+        </div>
+        <div class="mode" data-mode="atest" onclick="pickMode('atest')">
+          <div class="mode-icon" style="background:rgba(206,147,216,.15)">📝</div>
+          <div class="mode-info">
+            <div class="mode-name">A-TEST — 단어시험</div>
+            <div class="mode-desc">영→한 뜻 · 한→영 스펠링</div>
+          </div>
+          <div class="mode-check"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 교재 -->
+  <div class="card" id="cardBook" style="display:none">
+    <div class="ch">
+      <div>
+        <div class="ct">③ 교재 (선택)</div>
+        <div class="cd">반복 교재는 미리 등록하면 편해요</div>
+      </div>
+    </div>
+    <div class="cb">
+      <select id="pickBook">
+        <option value="">교재 선택 (선택사항)</option>
+      </select>
+      <div class="sp"></div>
+      <div class="row">
+        <input type="text" id="pickPage" placeholder="페이지 (예: p.121~125)" style="flex:1">
+        <button class="btn btn-sm btn-o" style="flex:0 0 auto;width:auto" onclick="openQuickAddBook()">+ 새 교재</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 사진 -->
+  <div class="card" id="cardPhoto" style="display:none">
+    <div class="ch">
+      <div>
+        <div class="ct">④ 답안지 사진 (최대 8장)</div>
+        <div class="cd">학생이 푼 페이지를 그대로 촬영</div>
+      </div>
+      <div class="badge" id="photoCount">0 / 8</div>
+    </div>
+    <div class="cb">
+      <input type="file" id="photoInput" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'answer')">
+      <button class="btn btn-o" onclick="document.getElementById('photoInput').click()">
+        <span style="font-size:18px">📷</span>
+        답안지 촬영 / 선택
+      </button>
+      <div class="photo-grid" id="photoGrid"></div>
+
+      <div class="sp"></div>
+      <div class="sep"></div>
+      <div class="sp"></div>
+
+      <label>정답지 (선택 — 있으면 더 정확)</label>
+      <div class="row" style="margin-top:4px">
+        <select id="pickAnswerType" onchange="onAnswerTypeChange()" style="flex:1">
+          <option value="none">정답지 없음 (AI가 추론)</option>
+          <option value="photo">정답지 사진 촬영</option>
+          <option value="text">정답지 텍스트 입력</option>
+        </select>
+      </div>
+      <div id="answerPhotoArea" style="display:none;margin-top:10px">
+        <input type="file" id="answerPhotoInput" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'key')">
+        <button class="btn btn-o" onclick="document.getElementById('answerPhotoInput').click()">
+          <span style="font-size:18px">📄</span>
+          정답지 촬영 / 선택
+        </button>
+        <div class="photo-grid" id="keyPhotoGrid"></div>
+      </div>
+      <div id="answerTextArea" style="display:none;margin-top:10px">
+        <textarea id="answerText" placeholder="예:&#10;1. ③&#10;2. had been waiting&#10;3. the other" rows="5"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 실행 -->
+  <button class="btn btn-g btn-xl" id="btnGrade" onclick="runGrading()" disabled>
+    <span style="font-size:22px">⚡</span>
+    AI 채점 시작
+  </button>
+
+</div>
+
+<!-- ══ SCREEN: RESULT ══ -->
+<div class="screen" id="scrResult">
+  <div class="card">
+    <div class="ch">
+      <div>
+        <div class="ct" id="resultTitle">채점 결과</div>
+        <div class="cd" id="resultMeta"></div>
+      </div>
+      <div class="badge g" id="resultScore">—</div>
+    </div>
+    <div class="cb" id="resultBody">
+      <div class="empty">
+        <div class="empty-ic">⏳</div>
+        채점 중...
+      </div>
+    </div>
+  </div>
+
+  <!-- 확인 필요 모아보기 -->
+  <div class="card" id="cardUnc" style="display:none">
+    <div class="ch">
+      <div>
+        <div class="ct">△ 확인 필요</div>
+        <div class="cd">AI가 판단을 보류한 항목</div>
+      </div>
+      <div class="badge o" id="uncCount">0개</div>
+    </div>
+    <div class="cb" id="uncBody"></div>
+  </div>
+
+  <!-- 패턴 분석 -->
+  <div class="card" id="cardPattern" style="display:none">
+    <div class="ch">
+      <div>
+        <div class="ct">📊 패턴 분석</div>
+        <div class="cd">이 학생의 반복 오답</div>
+      </div>
+    </div>
+    <div class="cb" id="patternBody"></div>
+  </div>
+
+  <div class="row">
+    <button class="btn btn-o" onclick="goHome()">홈으로</button>
+    <button class="btn btn-g" onclick="saveResult()">✓ 저장</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: 반 추가/수정 ══ -->
+<div class="modal" id="modalClass">
+  <div class="modal-card">
+    <div class="modal-top">
+      <div class="modal-title" id="modalClassTitle">+ 반 추가</div>
+      <button class="icon-btn" onclick="closeModal('modalClass')">✕</button>
+    </div>
+    <label>반 이름</label>
+    <input type="text" id="modalClassName" placeholder="예: 중급A">
+    <div class="sp"></div>
+    <label>간단 설명 (선택)</label>
+    <input type="text" id="modalClassDesc" placeholder="예: 중3 심화반">
+    <div class="sp"></div>
+    <div class="row mt">
+      <button class="btn btn-o" onclick="closeModal('modalClass')">취소</button>
+      <button class="btn btn-g" onclick="saveClass()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: 학생 추가/수정 ══ -->
+<div class="modal" id="modalStudent">
+  <div class="modal-card">
+    <div class="modal-top">
+      <div class="modal-title" id="modalStudentTitle">+ 학생 추가</div>
+      <button class="icon-btn" onclick="closeModal('modalStudent')">✕</button>
+    </div>
+    <label>반</label>
+    <select id="modalStudentClass"></select>
+    <div class="sp"></div>
+    <label>학생 이름</label>
+    <input type="text" id="modalStudentName" placeholder="예: 유시후">
+    <div style="font-size:11px;color:var(--t2);margin-top:5px">
+      💡 동명이인은 이름 뒤에 숫자를 붙여주세요 (유시후, 유시후2)
+    </div>
+    <div class="row mt">
+      <button class="btn btn-o" onclick="closeModal('modalStudent')">취소</button>
+      <button class="btn btn-g" onclick="saveStudent()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: 교재 추가 ══ -->
+<div class="modal" id="modalBook">
+  <div class="modal-card">
+    <div class="modal-top">
+      <div class="modal-title">+ 교재 추가</div>
+      <button class="icon-btn" onclick="closeModal('modalBook')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--t1);margin-bottom:12px;line-height:1.5">
+      💡 교재 표지를 촬영하면 AI가 자동으로 정보를 채워요
+    </div>
+    <input type="file" id="bookCoverInput" accept="image/*" capture="environment" style="display:none" onchange="onBookCoverSelect(event)">
+    <button class="btn btn-o" onclick="document.getElementById('bookCoverInput').click()">
+      <span style="font-size:18px">📷</span>
+      <span id="bookCoverBtnText">교재 표지 촬영</span>
+    </button>
+    <div id="bookCoverPreview" style="margin-top:10px;display:none">
+      <img id="bookCoverImg" style="width:100%;max-height:200px;object-fit:contain;border-radius:var(--r);background:var(--b2)">
+    </div>
+    <div class="sp"></div>
+    <label>책 제목</label>
+    <input type="text" id="modalBookTitle" placeholder="예: 중등영문법 3800제">
+    <div class="sp"></div>
+    <div class="row">
+      <div>
+        <label>학년</label>
+        <input type="text" id="modalBookGrade" placeholder="예: 1학년">
+      </div>
+      <div>
+        <label>출판사</label>
+        <input type="text" id="modalBookPublisher" placeholder="예: 능률">
+      </div>
+    </div>
+    <div class="row mt">
+      <button class="btn btn-o" onclick="closeModal('modalBook')">취소</button>
+      <button class="btn btn-g" onclick="saveBook()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// KKJ 채점 앱 v2 — 사진 기반 리뉴얼 (Phase 2 1차)
+// 옵션 3: 1-트랙 + 관리/채점 모드 분리
+// ══════════════════════════════════════════════════════════════
+
+// ── 상수 ──
+const APP_VERSION = 'v2.0.0-beta';
+const LS_PREFIX = 'kkjv2_';
+const LS = {
+  academyCode: 'kkj_academy_code',   // 기존 앱과 공유
+  classes:     LS_PREFIX + 'classes',
+  students:    LS_PREFIX + 'students',
+  books:       LS_PREFIX + 'books',
+  history:     LS_PREFIX + 'history',
+  patterns:    LS_PREFIX + 'patterns',
+};
+
+// ── 전역 상태 ──
+let state = {
+  screen: 'Home',           // 'Home' | 'Admin' | 'New' | 'Result'
+  prevScreen: null,
+  adminTab: 'classes',
+  editLocked: true,         // 관리 모드 수정 잠금
+  editing: {                // 모달 편집 중 아이템
+    classId: null,
+    studentId: null,
+    bookId: null,
+  },
+  // 새 채점 세션
+  grading: {
+    classId: null,
+    studentId: null,
+    mode: null,             // 'book' | 'habbang' | 'atest'
+    bookId: null,
+    page: '',
+    photos: [],             // {id, dataUrl, name, size}
+    keyPhotos: [],          // 정답지 사진
+    answerType: 'none',     // 'none' | 'photo' | 'text'
+    answerText: '',
+  },
+  currentResult: null,
+};
+
+// ── 유틸 ──
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function getLS(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e) { return fallback; }
+}
+function setLS(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch(e) { console.warn('[storage]', e); return false; }
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg, kind='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = kind;
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Screen 전환 ──
+function showScreen(name) {
+  state.prevScreen = state.screen;
+  state.screen = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('scr' + name).classList.add('active');
+  // 헤더 뒤로가기 버튼
+  document.getElementById('btnBack').style.display = (name === 'Home') ? 'none' : 'flex';
+  document.getElementById('btnSettings').classList.toggle('active', name === 'Admin');
+  // 헤더 타이틀
+  const titles = {Home:'채점 앱', Admin:'관리 모드', New:'새 채점', Result:'채점 결과'};
+  document.getElementById('hdrTitle').textContent = titles[name] || '채점 앱';
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  if (state.screen === 'Admin') { showScreen('Home'); return; }
+  if (state.screen === 'New')   { if (confirm('채점을 취소할까요?')) { resetGrading(); showScreen('Home'); } return; }
+  if (state.screen === 'Result'){ showScreen('Home'); return; }
+  showScreen('Home');
+}
+
+function goHome() { showScreen('Home'); updateHomeStats(); renderTodayHistory(); }
+
+// ── 관리 모드 토글 ──
+function toggleMode() {
+  if (state.screen === 'Admin') { showScreen('Home'); }
+  else { showScreen('Admin'); renderAdmin(); }
+}
+
+function toggleEditLock() {
+  state.editLocked = !state.editLocked;
+  applyLockState();
+  showToast(state.editLocked ? '🔒 수정 잠김' : '🔓 수정 활성화됨', state.editLocked ? '' : 'ok');
+}
+
+function applyLockState() {
+  const banner = document.getElementById('lockBanner');
+  const btn = document.getElementById('btnLock');
+  if (state.editLocked) {
+    banner.classList.remove('unlocked');
+    banner.querySelector('div').textContent = '관리 데이터는 조회만 가능해요. 수정하려면 활성화하세요.';
+    btn.textContent = '수정 활성화';
+  } else {
+    banner.classList.add('unlocked');
+    banner.querySelector('div').textContent = '수정 모드가 활성화됐어요. 작업 후 다시 잠가주세요.';
+    btn.textContent = '수정 잠금';
+  }
+  document.querySelectorAll('.lock-req').forEach(b => b.disabled = state.editLocked);
+}
+
+// ── Admin 탭 ──
+function switchTab(tab) {
+  state.adminTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  ['Classes','Books','Reports','Settings'].forEach(name => {
+    const el = document.getElementById('tab' + name);
+    if (el) el.style.display = (name.toLowerCase() === tab) ? '' : 'none';
+  });
+  renderAdmin();
+}
+
+function renderAdmin() {
+  applyLockState();
+  if (state.adminTab === 'classes') { renderClasses(); renderStudents(); }
+  else if (state.adminTab === 'books') { renderBooks(); }
+  else if (state.adminTab === 'reports') { renderReports(); }
+  else if (state.adminTab === 'settings') { renderSettings(); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 반 관리
+// ══════════════════════════════════════════════════════════════
+function getClasses() { return getLS(LS.classes, []); }
+function setClasses(arr) { setLS(LS.classes, arr); }
+
+function renderClasses() {
+  const list = getClasses();
+  const el = document.getElementById('classList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ic">🏫</div>등록된 반이 없어요<br><span style="font-size:11px">수정 활성화 후 + 반 추가를 눌러주세요</span></div>`;
+    return;
+  }
+  const students = getStudents();
+  el.innerHTML = '<div class="lst">' + list.map(c => {
+    const n = students.filter(s => s.classId === c.id).length;
+    return `<div class="lst-row">
+      <div class="lst-main">
+        <div class="lst-name">${esc(c.name)} <span class="badge">${n}명</span></div>
+        <div class="lst-sub">${esc(c.desc || '')}</div>
+      </div>
+      <button class="btn btn-sm btn-o lock-req" onclick="editClass('${c.id}')" ${state.editLocked?'disabled':''}>수정</button>
+      <button class="btn btn-sm btn-r lock-req" onclick="deleteClass('${c.id}')" ${state.editLocked?'disabled':''}>×</button>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function openClassModal() {
+  state.editing.classId = null;
+  document.getElementById('modalClassTitle').textContent = '+ 반 추가';
+  document.getElementById('modalClassName').value = '';
+  document.getElementById('modalClassDesc').value = '';
+  document.getElementById('modalClass').classList.add('show');
+}
+
+function editClass(id) {
+  const c = getClasses().find(x => x.id === id);
+  if (!c) return;
+  state.editing.classId = id;
+  document.getElementById('modalClassTitle').textContent = '반 수정';
+  document.getElementById('modalClassName').value = c.name;
+  document.getElementById('modalClassDesc').value = c.desc || '';
+  document.getElementById('modalClass').classList.add('show');
+}
+
+function saveClass() {
+  const name = document.getElementById('modalClassName').value.trim();
+  const desc = document.getElementById('modalClassDesc').value.trim();
+  if (!name) { showToast('반 이름을 입력해주세요', 'err'); return; }
+  let list = getClasses();
+  if (state.editing.classId) {
+    list = list.map(c => c.id === state.editing.classId ? {...c, name, desc} : c);
+  } else {
+    if (list.some(c => c.name === name)) { showToast('같은 이름의 반이 이미 있어요', 'err'); return; }
+    list.push({ id: uid(), name, desc, createdAt: Date.now() });
+  }
+  setClasses(list);
+  closeModal('modalClass');
+  renderClasses();
+  renderStudents();
+  showToast('✓ 저장됨', 'ok');
+}
+
+function deleteClass(id) {
+  const c = getClasses().find(x => x.id === id);
+  if (!c) return;
+  const students = getStudents().filter(s => s.classId === id);
+  if (students.length && !confirm(`"${c.name}" 반에 학생 ${students.length}명이 있어요. 모두 삭제할까요?`)) return;
+  if (!students.length && !confirm(`"${c.name}" 반을 삭제할까요?`)) return;
+  setClasses(getClasses().filter(x => x.id !== id));
+  setStudents(getStudents().filter(s => s.classId !== id));
+  renderClasses(); renderStudents();
+  showToast('삭제됨');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 학생 관리
+// ══════════════════════════════════════════════════════════════
+function getStudents() { return getLS(LS.students, []); }
+function setStudents(arr) { setLS(LS.students, arr); }
+
+function renderStudents() {
+  const list = getStudents();
+  const classes = getClasses();
+  const el = document.getElementById('studentList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ic">👥</div>등록된 학생이 없어요</div>`;
+    return;
+  }
+  const byClass = {};
+  list.forEach(s => { (byClass[s.classId] = byClass[s.classId] || []).push(s); });
+  let html = '';
+  classes.forEach(c => {
+    const arr = byClass[c.id] || [];
+    if (!arr.length) return;
+    html += `<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.5px;margin-bottom:5px">${esc(c.name)}</div>
+      <div class="lst">` + arr.map(s => `
+        <div class="lst-row">
+          <div class="lst-main">
+            <div class="lst-name">${esc(s.name)}</div>
+          </div>
+          <button class="btn btn-sm btn-o lock-req" onclick="editStudent('${s.id}')" ${state.editLocked?'disabled':''}>수정</button>
+          <button class="btn btn-sm btn-r lock-req" onclick="deleteStudent('${s.id}')" ${state.editLocked?'disabled':''}>×</button>
+        </div>`).join('') + '</div></div>';
+  });
+  // 반이 지정되지 않은 학생
+  const orphan = list.filter(s => !classes.some(c => c.id === s.classId));
+  if (orphan.length) {
+    html += `<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:var(--err);letter-spacing:.5px;margin-bottom:5px">반 없음</div>
+      <div class="lst">` + orphan.map(s => `
+        <div class="lst-row">
+          <div class="lst-main"><div class="lst-name">${esc(s.name)}</div></div>
+          <button class="btn btn-sm btn-r lock-req" onclick="deleteStudent('${s.id}')" ${state.editLocked?'disabled':''}>×</button>
+        </div>`).join('') + '</div></div>';
+  }
+  el.innerHTML = html || `<div class="empty"><div class="empty-ic">👥</div>등록된 학생이 없어요</div>`;
+}
+
+function openStudentModal() {
+  const classes = getClasses();
+  if (!classes.length) { showToast('먼저 반을 등록해주세요', 'err'); return; }
+  state.editing.studentId = null;
+  document.getElementById('modalStudentTitle').textContent = '+ 학생 추가';
+  const sel = document.getElementById('modalStudentClass');
+  sel.innerHTML = classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('modalStudentName').value = '';
+  document.getElementById('modalStudent').classList.add('show');
+}
+
+function openQuickAddStudent() {
+  openStudentModal();
+  // 현재 선택된 반이 있으면 기본 선택
+  const cid = document.getElementById('pickClass').value;
+  if (cid) document.getElementById('modalStudentClass').value = cid;
+}
+
+function editStudent(id) {
+  const s = getStudents().find(x => x.id === id);
+  if (!s) return;
+  const classes = getClasses();
+  state.editing.studentId = id;
+  document.getElementById('modalStudentTitle').textContent = '학생 수정';
+  const sel = document.getElementById('modalStudentClass');
+  sel.innerHTML = classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  sel.value = s.classId;
+  document.getElementById('modalStudentName').value = s.name;
+  document.getElementById('modalStudent').classList.add('show');
+}
+
+function saveStudent() {
+  const classId = document.getElementById('modalStudentClass').value;
+  const name = document.getElementById('modalStudentName').value.trim();
+  if (!name) { showToast('학생 이름을 입력해주세요', 'err'); return; }
+  let list = getStudents();
+  if (state.editing.studentId) {
+    list = list.map(s => s.id === state.editing.studentId ? {...s, classId, name} : s);
+  } else {
+    list.push({ id: uid(), classId, name, createdAt: Date.now() });
+  }
+  setStudents(list);
+  closeModal('modalStudent');
+  renderStudents();
+  // 새 채점 중이면 드롭다운 갱신
+  if (state.screen === 'New') refreshGradingPickers();
+  showToast('✓ 저장됨', 'ok');
+}
+
+function deleteStudent(id) {
+  const s = getStudents().find(x => x.id === id);
+  if (!s) return;
+  if (!confirm(`"${s.name}" 학생을 삭제할까요? (채점 기록은 유지됩니다)`)) return;
+  setStudents(getStudents().filter(x => x.id !== id));
+  renderStudents();
+  showToast('삭제됨');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 교재 관리
+// ══════════════════════════════════════════════════════════════
+function getBooks() { return getLS(LS.books, []); }
+function setBooks(arr) { setLS(LS.books, arr); }
+
+function renderBooks() {
+  const list = getBooks();
+  const el = document.getElementById('bookList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ic">📚</div>등록된 교재가 없어요<br><span style="font-size:11px">표지를 촬영하면 AI가 자동 등록해요</span></div>`;
+    return;
+  }
+  el.innerHTML = '<div class="lst">' + list.map(b => `
+    <div class="lst-row">
+      <div class="lst-main">
+        <div class="lst-name">${esc(b.title)}</div>
+        <div class="lst-sub">${esc([b.grade, b.publisher].filter(Boolean).join(' · '))}</div>
+      </div>
+      <button class="btn btn-sm btn-r lock-req" onclick="deleteBook('${b.id}')" ${state.editLocked?'disabled':''}>×</button>
+    </div>`).join('') + '</div>';
+}
+
+let bookCoverData = null;
+
+function openBookModal() {
+  document.getElementById('modalBookTitle').value = '';
+  document.getElementById('modalBookGrade').value = '';
+  document.getElementById('modalBookPublisher').value = '';
+  document.getElementById('bookCoverPreview').style.display = 'none';
+  document.getElementById('bookCoverBtnText').textContent = '교재 표지 촬영';
+  bookCoverData = null;
+  document.getElementById('modalBook').classList.add('show');
+}
+
+function openQuickAddBook() { openBookModal(); }
+
+function onBookCoverSelect(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    bookCoverData = reader.result;
+    document.getElementById('bookCoverImg').src = bookCoverData;
+    document.getElementById('bookCoverPreview').style.display = 'block';
+    document.getElementById('bookCoverBtnText').textContent = '다시 촬영';
+    showToast('✨ AI 분석은 다음 버전에서 지원됩니다', '');
+    // TODO Phase 2-B: AI 호출로 자동 파싱
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveBook() {
+  const title = document.getElementById('modalBookTitle').value.trim();
+  const grade = document.getElementById('modalBookGrade').value.trim();
+  const publisher = document.getElementById('modalBookPublisher').value.trim();
+  if (!title) { showToast('책 제목을 입력해주세요', 'err'); return; }
+  const list = getBooks();
+  list.push({
+    id: uid(),
+    title, grade, publisher,
+    cover: bookCoverData,
+    createdAt: Date.now(),
+  });
+  setBooks(list);
+  closeModal('modalBook');
+  renderBooks();
+  if (state.screen === 'New') refreshGradingPickers();
+  showToast('✓ 교재 저장됨', 'ok');
+}
+
+function deleteBook(id) {
+  const b = getBooks().find(x => x.id === id);
+  if (!b) return;
+  if (!confirm(`"${b.title}" 교재를 삭제할까요?`)) return;
+  setBooks(getBooks().filter(x => x.id !== id));
+  renderBooks();
+  showToast('삭제됨');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 설정 / 리포트 (스텁)
+// ══════════════════════════════════════════════════════════════
+function renderSettings() {
+  const code = localStorage.getItem(LS.academyCode) || '';
+  document.getElementById('academyCodeInput').value = code || '(학원 코드가 설정되어 있지 않아요)';
+}
+
+function refreshCloud() {
+  showToast('🔄 클라우드 동기화는 다음 버전에서 지원됩니다', '');
+  // TODO Phase 2-B: 기존 automarking cloudSync API 재사용
+}
+
+function renderReports() {
+  // 데이터 집계 로직은 Phase 5에서 고도화
+  // 현재는 플레이스홀더
+}
+
+// ══════════════════════════════════════════════════════════════
+// Modal 공통
+// ══════════════════════════════════════════════════════════════
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ══════════════════════════════════════════════════════════════
+// 새 채점 (New Grading)
+// ══════════════════════════════════════════════════════════════
+function startNewGrading() {
+  resetGrading();
+  showScreen('New');
+  refreshGradingPickers();
+  updateStepIndicator();
+}
+
+function resetGrading() {
+  state.grading = {
+    classId: null, studentId: null, mode: null,
+    bookId: null, page: '',
+    photos: [], keyPhotos: [],
+    answerType: 'none', answerText: '',
+  };
+  document.getElementById('photoGrid').innerHTML = '';
+  document.getElementById('keyPhotoGrid').innerHTML = '';
+  document.getElementById('photoCount').textContent = '0 / 8';
+  document.getElementById('cardBook').style.display = 'none';
+  document.getElementById('cardPhoto').style.display = 'none';
+  document.getElementById('btnGrade').disabled = true;
+  document.querySelectorAll('.mode').forEach(m => m.classList.remove('active'));
+}
+
+function refreshGradingPickers() {
+  const classes = getClasses();
+  const selC = document.getElementById('pickClass');
+  selC.innerHTML = '<option value="">반 선택</option>' + classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if (state.grading.classId) selC.value = state.grading.classId;
+  onPickClass();
+
+  const books = getBooks();
+  const selB = document.getElementById('pickBook');
+  selB.innerHTML = '<option value="">교재 선택 (선택사항)</option>' + books.map(b => `<option value="${b.id}">${esc(b.title)} ${b.grade?'· '+esc(b.grade):''}</option>`).join('');
+  if (state.grading.bookId) selB.value = state.grading.bookId;
+}
+
+function onPickClass() {
+  const cid = document.getElementById('pickClass').value;
+  state.grading.classId = cid;
+  const selS = document.getElementById('pickStudent');
+  if (!cid) {
+    selS.innerHTML = '<option value="">반을 먼저 선택</option>';
+    return;
+  }
+  const students = getStudents().filter(s => s.classId === cid);
+  if (!students.length) {
+    selS.innerHTML = '<option value="">학생 없음 — 추가하세요</option>';
+  } else {
+    selS.innerHTML = '<option value="">학생 선택</option>' + students.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    if (state.grading.studentId) selS.value = state.grading.studentId;
+  }
+  updateStepIndicator();
+}
+
+function onPickStudent() {
+  state.grading.studentId = document.getElementById('pickStudent').value;
+  updateStepIndicator();
+}
+
+function pickMode(mode) {
+  state.grading.mode = mode;
+  document.querySelectorAll('.mode').forEach(m => m.classList.toggle('active', m.dataset.mode === mode));
+  document.getElementById('cardBook').style.display = '';
+  document.getElementById('cardPhoto').style.display = '';
+  updateStepIndicator();
+}
+
+function onAnswerTypeChange() {
+  const v = document.getElementById('pickAnswerType').value;
+  state.grading.answerType = v;
+  document.getElementById('answerPhotoArea').style.display = (v === 'photo') ? '' : 'none';
+  document.getElementById('answerTextArea').style.display = (v === 'text') ? '' : 'none';
+}
+
+function onPhotoSelect(ev, kind) {
+  const files = Array.from(ev.target.files || []);
+  if (!files.length) return;
+  const bucket = (kind === 'key') ? 'keyPhotos' : 'photos';
+  const max = (kind === 'key') ? 4 : 8;
+  if (state.grading[bucket].length + files.length > max) {
+    showToast(`최대 ${max}장까지 올릴 수 있어요`, 'err');
+    return;
+  }
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.grading[bucket].push({
+        id: uid(),
+        dataUrl: reader.result,
+        name: file.name,
+        size: file.size,
+      });
+      loaded++;
+      if (loaded === files.length) {
+        renderPhotoGrid(kind);
+        updateStepIndicator();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  ev.target.value = '';
+}
+
+function renderPhotoGrid(kind) {
+  const bucket = (kind === 'key') ? 'keyPhotos' : 'photos';
+  const gridId = (kind === 'key') ? 'keyPhotoGrid' : 'photoGrid';
+  const arr = state.grading[bucket];
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = arr.map((p, i) => `
+    <div class="photo-tile">
+      <img src="${p.dataUrl}" alt="">
+      <span class="photo-n">${i+1}</span>
+      <button class="photo-x" onclick="removePhoto('${kind}','${p.id}')">×</button>
+    </div>`).join('');
+  if (kind === 'answer') {
+    document.getElementById('photoCount').textContent = `${arr.length} / 8`;
+  }
+}
+
+function removePhoto(kind, id) {
+  const bucket = (kind === 'key') ? 'keyPhotos' : 'photos';
+  state.grading[bucket] = state.grading[bucket].filter(p => p.id !== id);
+  renderPhotoGrid(kind);
+  updateStepIndicator();
+}
+
+function updateStepIndicator() {
+  const g = state.grading;
+  const steps = [
+    !!(g.classId && g.studentId),
+    !!g.mode,
+    true,  // 교재는 선택 사항이라 항상 OK
+    g.photos.length > 0,
+  ];
+  ['stp1','stp2','stp3','stp4'].forEach((id, i) => {
+    document.getElementById(id).style.background = steps[i] ? 'var(--g)' : 'var(--b3)';
+  });
+  document.getElementById('btnGrade').disabled = !(steps[0] && steps[1] && steps[3]);
+}
+
+// ── 채점 실행 (Phase 2-B에서 실제 AI 연동) ──
+async function runGrading() {
+  const g = state.grading;
+  g.bookId = document.getElementById('pickBook').value || null;
+  g.page = document.getElementById('pickPage').value.trim();
+  g.answerText = document.getElementById('answerText').value.trim();
+
+  showScreen('Result');
+  const student = getStudents().find(s => s.id === g.studentId);
+  const cls = getClasses().find(c => c.id === g.classId);
+  document.getElementById('resultTitle').textContent = `${student?.name || '?'} 채점 결과`;
+  document.getElementById('resultMeta').textContent = `${cls?.name || ''} · ${new Date().toLocaleString('ko-KR')}`;
+  document.getElementById('resultScore').textContent = '채점 중';
+  document.getElementById('resultBody').innerHTML = `
+    <div class="empty">
+      <div class="empty-ic" style="animation:spin 1.6s linear infinite">⚙</div>
+      사진 ${g.photos.length}장 분석 중...<br>
+      <span style="font-size:11px;color:var(--t2);margin-top:6px;display:inline-block">
+        AI 채점 로직은 다음 버전에서 연결됩니다 (현재는 UI 흐름 확인용)
+      </span>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  `;
+
+  // TODO Phase 2-B: 실제 Claude API 호출
+  // 지금은 2초 뒤 데모 결과 표시
+  setTimeout(renderDemoResult, 2000);
+}
+
+function renderDemoResult() {
+  // 데모용 — Phase 2-B에서 실제 결과로 대체
+  const g = state.grading;
+  const demoResult = {
+    score: 14, total: 16,
+    steps: [
+      { name: 'STEP 1', score: '4/4', items: [
+        {mark:'ok', text:'when', note:''},
+        {mark:'ok', text:'how', note:''},
+        {mark:'ok', text:'where', note:''},
+        {mark:'ok', text:'why', note:''},
+      ]},
+      { name: 'STEP 2', score: '4/4', items: [
+        {mark:'ok', text:'where', note:''},
+        {mark:'ok', text:'how', note:''},
+        {mark:'ok', text:'when', note:''},
+        {mark:'ok', text:'why', note:''},
+      ]},
+      { name: 'STEP 3', score: '1/3', items: [
+        {mark:'unc', text:'Tomorrow is the day when the shopping mall starts its big sale.', note:'원문의 will start를 starts로 바꿨습니다. 두 문장을 합치는 문제라 원문 시제를 그대로 써야 합니다.'},
+        {mark:'ok', text:'I don\'t know the reason why my grades are lower than I expected.', note:''},
+        {mark:'err', text:'The video clip shows the way how rice cakes are cooked.', note:'the way와 how는 함께 쓸 수 없습니다.'},
+      ]},
+      { name: 'STEP 4', score: '4/4', items: [
+        {mark:'ok', text:'the reason why', note:''},
+        {mark:'ok', text:'how you fixed', note:''},
+        {mark:'ok', text:'the day when', note:''},
+        {mark:'ok', text:'the store where', note:''},
+      ]},
+    ],
+    uncertainties: [
+      '동그라미가 두 선택지에 걸침 (That/What)',
+      '필체 때문에 생기는 철자 판정 (yo/you)',
+    ],
+    patterns: [
+      '객관식에서는 the way how를 피했지만, 영작에서는 다시 썼습니다. 개념과 활용이 아직 연결되지 않은 상태입니다.',
+      '문장을 합칠 때 원문의 시제를 그대로 옮기는 습관이 필요합니다.',
+    ],
+  };
+
+  document.getElementById('resultScore').textContent = `${demoResult.score} / ${demoResult.total}`;
+
+  let html = '';
+  demoResult.steps.forEach(step => {
+    html += `<div class="step-head">
+      <div class="step-title">${esc(step.name)}</div>
+      <div class="step-score">(${esc(step.score)})</div>
+    </div>`;
+    step.items.forEach(it => {
+      const markLabel = it.mark === 'ok' ? '✓' : (it.mark === 'err' ? '✗' : '△');
+      html += `<div class="q-row">
+        <div class="q-mark ${it.mark}">${markLabel}</div>
+        <div class="q-body">
+          ${esc(it.text)}
+          ${it.note ? `<div class="q-note">${esc(it.note)}</div>` : ''}
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('resultBody').innerHTML = html;
+
+  // 확인 필요 섹션
+  if (demoResult.uncertainties.length) {
+    document.getElementById('cardUnc').style.display = '';
+    document.getElementById('uncCount').textContent = `${demoResult.uncertainties.length}개`;
+    document.getElementById('uncBody').innerHTML = demoResult.uncertainties.map(u => `
+      <div class="q-row">
+        <div class="q-mark unc">△</div>
+        <div class="q-body">${esc(u)}</div>
+      </div>`).join('');
+  }
+
+  // 패턴 분석
+  if (demoResult.patterns.length) {
+    document.getElementById('cardPattern').style.display = '';
+    document.getElementById('patternBody').innerHTML = demoResult.patterns.map(p => `
+      <div style="padding:10px 12px;background:var(--b2);border-left:3px solid var(--warn);border-radius:0 var(--r) var(--r) 0;margin-bottom:6px;font-size:13px;line-height:1.5">${esc(p)}</div>
+    `).join('');
+  }
+
+  state.currentResult = demoResult;
+}
+
+function saveResult() {
+  if (!state.currentResult) { showToast('저장할 결과가 없어요', 'err'); return; }
+  const g = state.grading;
+  const student = getStudents().find(s => s.id === g.studentId);
+  const cls = getClasses().find(c => c.id === g.classId);
+  const book = getBooks().find(b => b.id === g.bookId);
+  const record = {
+    id: uid(),
+    savedAt: new Date().toISOString(),
+    date: new Date().toLocaleDateString('ko-KR'),
+    classId: g.classId,
+    className: cls?.name || '',
+    studentId: g.studentId,
+    studentName: student?.name || '',
+    bookId: g.bookId,
+    bookTitle: book?.title || '',
+    page: g.page,
+    mode: g.mode,
+    result: state.currentResult,
+  };
+  const history = getLS(LS.history, []);
+  history.unshift(record);
+  // 최근 500개만 유지
+  if (history.length > 500) history.length = 500;
+  setLS(LS.history, history);
+  showToast('✓ 저장되었습니다', 'ok');
+  setTimeout(goHome, 800);
+}
+
+// ══════════════════════════════════════════════════════════════
+// 홈 스탯 / 최근 기록
+// ══════════════════════════════════════════════════════════════
+function updateHomeStats() {
+  const history = getLS(LS.history, []);
+  const today = new Date().toLocaleDateString('ko-KR');
+  const todayCount = history.filter(h => h.date === today).length;
+  document.getElementById('statToday').textContent = todayCount;
+  document.getElementById('statStudents').textContent = getStudents().length;
+  document.getElementById('statBooks').textContent = getBooks().length;
+}
+
+function renderTodayHistory() {
+  const history = getLS(LS.history, []);
+  const today = new Date().toLocaleDateString('ko-KR');
+  const todays = history.filter(h => h.date === today).slice(0, 5);
+  const el = document.getElementById('todayHistory');
+  if (!todays.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ic">🌱</div>아직 오늘 채점한 기록이 없어요</div>`;
+    return;
+  }
+  el.innerHTML = '<div class="lst">' + todays.map(h => {
+    const r = h.result || {};
+    return `<div class="lst-row">
+      <div class="lst-main">
+        <div class="lst-name">${esc(h.studentName)} <span class="badge">${esc(h.className)}</span></div>
+        <div class="lst-sub">${esc(h.bookTitle || '교재 없음')} ${h.page ? '· '+esc(h.page) : ''}</div>
+      </div>
+      <div class="badge g">${r.score || 0}/${r.total || 0}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function showAllHistory() {
+  showToast('전체 기록 화면은 다음 버전에서 지원됩니다', '');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════════════════════════
+function init() {
+  // 샘플 데이터 (처음 쓰는 사람을 위한 가이드 — 없으면 추가)
+  if (!getLS(LS.classes, null)) {
+    setClasses([
+      { id: uid(), name: '중급A', desc: '중3 심화반', createdAt: Date.now() },
+      { id: uid(), name: '고급B', desc: '고1 내신반', createdAt: Date.now() },
+    ]);
+  }
+  updateHomeStats();
+  renderTodayHistory();
+  console.log(`[KKJ v2] ${APP_VERSION} initialized`);
+}
+
+// 모달 밖 클릭 시 닫기
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', ev => {
+    if (ev.target === m) m.classList.remove('show');
+  });
+});
+
+init();
+</script>
+</body>
+</html>
