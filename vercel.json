@@ -1,7 +1,8 @@
 {
   "rewrites": [
-    { "source": "/grading", "destination": "/grading.html" },
-    { "source": "/",        "destination": "/index.html"   }
+    { "source": "/grading",    "destination": "/grading.html"    },
+    { "source": "/grading-v2", "destination": "/grading-v2.html" },
+    { "source": "/",           "destination": "/index.html"      }
   ],
   "headers": [
     {
@@ -18,6 +19,12 @@
     },
     {
       "source": "/grading",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/grading-v2",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
