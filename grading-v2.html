@@ -410,9 +410,15 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
           <input type="checkbox" id="apiKeyShow" onchange="toggleApiKeyVisibility()" style="width:auto"> 키 보기
         </label>
         <div class="sp"></div>
+        <div class="sep"></div>
+        <div class="sp"></div>
+        <label>AI 모델</label>
+        <select id="apiModelSelect" onchange="saveApiModel()"></select>
+        <div class="sp"></div>
         <div style="font-size:11px;color:var(--t2);line-height:1.6">
           💡 이 키는 이 기기의 로컬에만 저장돼요. GitHub·서버로 올라가지 않아요.<br>
-          💡 기존 /grading 앱과 같은 키를 쓰면 한 번만 설정하면 돼요.
+          💡 기존 /grading 앱과 같은 키를 쓰면 한 번만 설정하면 돼요.<br>
+          💡 모델이 "not_found" 오류를 내면 다른 모델로 바꿔보세요.
         </div>
       </div>
     </div>
@@ -572,11 +578,17 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
       <div class="badge" id="photoCount">0 / 8</div>
     </div>
     <div class="cb">
-      <input type="file" id="photoInput" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'answer')">
-      <button class="btn btn-o" onclick="document.getElementById('photoInput').click()">
-        <span style="font-size:18px">📷</span>
-        답안지 촬영 / 선택
-      </button>
+      <!-- 2개 경로 분리: 촬영(capture) / 갤러리(capture 없음) -->
+      <input type="file" id="photoInputCamera" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'answer')">
+      <input type="file" id="photoInputGallery" accept="image/*" multiple style="display:none" onchange="onPhotoSelect(event, 'answer')">
+      <div class="row">
+        <button class="btn btn-o" onclick="document.getElementById('photoInputCamera').click()">
+          <span style="font-size:18px">📷</span> 사진 촬영
+        </button>
+        <button class="btn btn-o" onclick="document.getElementById('photoInputGallery').click()">
+          <span style="font-size:18px">🖼</span> 갤러리에서 선택
+        </button>
+      </div>
       <div class="photo-grid" id="photoGrid"></div>
 
       <div class="sp"></div>
@@ -592,11 +604,17 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
         </select>
       </div>
       <div id="answerPhotoArea" style="display:none;margin-top:10px">
-        <input type="file" id="answerPhotoInput" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'key')">
-        <button class="btn btn-o" onclick="document.getElementById('answerPhotoInput').click()">
-          <span style="font-size:18px">📄</span>
-          정답지 촬영 / 선택
-        </button>
+        <!-- 2개 경로 분리 -->
+        <input type="file" id="answerPhotoInputCamera" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'key')">
+        <input type="file" id="answerPhotoInputGallery" accept="image/*" multiple style="display:none" onchange="onPhotoSelect(event, 'key')">
+        <div class="row">
+          <button class="btn btn-o" onclick="document.getElementById('answerPhotoInputCamera').click()">
+            <span style="font-size:18px">📄</span> 정답지 촬영
+          </button>
+          <button class="btn btn-o" onclick="document.getElementById('answerPhotoInputGallery').click()">
+            <span style="font-size:18px">🖼</span> 갤러리에서 선택
+          </button>
+        </div>
         <div class="photo-grid" id="keyPhotoGrid"></div>
       </div>
       <div id="answerTextArea" style="display:none;margin-top:10px">
@@ -712,11 +730,17 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
     <div style="font-size:12px;color:var(--t1);margin-bottom:12px;line-height:1.5">
       💡 교재 표지를 촬영하면 AI가 자동으로 정보를 채워요
     </div>
-    <input type="file" id="bookCoverInput" accept="image/*" capture="environment" style="display:none" onchange="onBookCoverSelect(event)">
-    <button class="btn btn-o" onclick="document.getElementById('bookCoverInput').click()">
-      <span style="font-size:18px">📷</span>
-      <span id="bookCoverBtnText">교재 표지 촬영</span>
-    </button>
+    <input type="file" id="bookCoverInputCamera" accept="image/*" capture="environment" style="display:none" onchange="onBookCoverSelect(event)">
+    <input type="file" id="bookCoverInputGallery" accept="image/*" style="display:none" onchange="onBookCoverSelect(event)">
+    <div class="row">
+      <button class="btn btn-o" onclick="document.getElementById('bookCoverInputCamera').click()">
+        <span style="font-size:18px">📷</span> 표지 촬영
+      </button>
+      <button class="btn btn-o" onclick="document.getElementById('bookCoverInputGallery').click()">
+        <span style="font-size:18px">🖼</span> 갤러리
+      </button>
+    </div>
+    <div id="bookCoverLabel" style="font-size:11px;color:var(--t2);margin-top:6px;text-align:center" data-default="아직 표지를 선택하지 않았어요"></div>
     <div id="bookCoverPreview" style="margin-top:10px;display:none">
       <img id="bookCoverImg" style="width:100%;max-height:200px;object-fit:contain;border-radius:var(--r);background:var(--b2)">
     </div>
@@ -763,10 +787,22 @@ const LS = {
   patterns:    LS_PREFIX + 'patterns',
 };
 
-// Claude API — Opus 5.5 Vision
+// Claude API — Vision
 const API_URL = 'https://api.anthropic.com/v1/messages';
-const API_MODEL = 'claude-opus-5-5';
 const API_MAX_TOKENS = 8000;
+// 모델명은 설정에서 선택 (기존 /grading이 쓰던 키 그대로 공유)
+const API_MODELS = [
+  { id: 'claude-opus-4-5',         label: 'Opus 4.5 (추천, 정확)' },
+  { id: 'claude-sonnet-4-5',       label: 'Sonnet 4.5 (빠름, 저렴)' },
+  { id: 'claude-3-5-sonnet-latest',label: 'Claude 3.5 Sonnet' },
+  { id: 'claude-3-5-haiku-latest', label: 'Haiku 3.5 (가장 저렴)' },
+];
+const LS_MODEL = 'kkj_api_model';
+function getApiModel() {
+  const saved = localStorage.getItem(LS_MODEL);
+  if (saved) return saved;
+  return 'claude-opus-4-5';
+}
 
 // ── 전역 상태 ──
 let state = {
@@ -1098,7 +1134,8 @@ function openBookModal() {
   document.getElementById('modalBookGrade').value = '';
   document.getElementById('modalBookPublisher').value = '';
   document.getElementById('bookCoverPreview').style.display = 'none';
-  document.getElementById('bookCoverBtnText').textContent = '교재 표지 촬영';
+  const lbl = document.getElementById('bookCoverLabel');
+  if (lbl) lbl.textContent = '아직 표지를 선택하지 않았어요';
   bookCoverData = null;
   document.getElementById('modalBook').classList.add('show');
 }
@@ -1113,11 +1150,13 @@ function onBookCoverSelect(ev) {
     bookCoverData = reader.result;
     document.getElementById('bookCoverImg').src = bookCoverData;
     document.getElementById('bookCoverPreview').style.display = 'block';
-    document.getElementById('bookCoverBtnText').textContent = '다시 촬영';
-    showToast('✨ AI 분석은 다음 버전에서 지원됩니다', '');
-    // TODO Phase 2-B: AI 호출로 자동 파싱
+    const lbl = document.getElementById('bookCoverLabel');
+    if (lbl) lbl.textContent = '✓ 표지 선택됨 — 다시 촬영/선택하려면 위 버튼';
+    showToast('✨ 표지 AI 자동 파싱은 다음 버전 예정 — 지금은 제목·학년·출판사 직접 입력', '');
+    // TODO Phase 3: AI 호출로 자동 파싱
   };
   reader.readAsDataURL(file);
+  ev.target.value = '';  // 같은 파일 다시 선택 가능하도록
 }
 
 function saveBook() {
@@ -1159,6 +1198,12 @@ function renderSettings() {
     if (code) { codeBadge.textContent = '✓ 설정됨'; codeBadge.className = 'badge g'; }
     else { codeBadge.textContent = '미설정'; codeBadge.className = 'badge o'; }
   }
+  // 모델 셀렉트
+  const selM = document.getElementById('apiModelSelect');
+  if (selM) {
+    const cur = getApiModel();
+    selM.innerHTML = API_MODELS.map(m => `<option value="${m.id}" ${m.id===cur?'selected':''}>${m.label}</option>`).join('');
+  }
 
   // API 키 상태
   const key = getApiKey();
@@ -1198,9 +1243,18 @@ function toggleApiKeyVisibility() {
   input.type = document.getElementById('apiKeyShow').checked ? 'text' : 'password';
 }
 
-function refreshCloud() {
-  showToast('🔄 클라우드 동기화는 다음 버전에서 지원됩니다', '');
-  // TODO Phase 3: 기존 automarking cloudSync API 재사용
+function saveApiModel() {
+  const v = document.getElementById('apiModelSelect').value;
+  localStorage.setItem(LS_MODEL, v);
+  showToast('✓ 모델 저장됨: ' + v, 'ok');
+}
+
+function saveAcademyCode() {
+  const v = document.getElementById('academyCodeInput').value.trim().toUpperCase();
+  if (!v) { showToast('학원 코드를 입력해주세요', 'err'); return; }
+  localStorage.setItem(LS.academyCode, v);
+  renderSettings();
+  showToast('✓ 학원 코드 저장됨', 'ok');
 }
 
 function renderReports() {
@@ -1415,14 +1469,28 @@ async function runGrading() {
   } catch (err) {
     console.error('[runGrading]', err);
     document.getElementById('resultScore').textContent = '오류';
+    const rawPreview = (window.__lastAIResponse || '').slice(0, 2000);
     document.getElementById('resultBody').innerHTML = `
-      <div class="empty">
-        <div class="empty-ic" style="color:var(--err)">⚠</div>
-        <div style="color:var(--err);font-weight:600;margin-top:10px">채점 실패</div>
-        <div style="font-size:12px;color:var(--t1);margin-top:8px;line-height:1.5">${esc(err.message || String(err))}</div>
+      <div style="padding:16px">
+        <div style="text-align:center;margin-bottom:14px">
+          <div style="font-size:30px;color:var(--err)">⚠</div>
+          <div style="color:var(--err);font-weight:700;margin-top:6px">채점 실패</div>
+        </div>
+        <div style="padding:10px 12px;background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.25);border-radius:var(--r);font-size:12px;color:var(--t0);line-height:1.5;margin-bottom:12px">
+          ${esc(err.message || String(err))}
+        </div>
+        ${rawPreview ? `
+          <details style="margin-top:10px">
+            <summary style="cursor:pointer;font-size:12px;color:var(--t2);padding:6px 0">🔍 AI 응답 원문 보기 (진단용)</summary>
+            <pre style="margin-top:8px;padding:10px;background:var(--b2);border:1px solid var(--bo);border-radius:var(--r);font-size:11px;color:var(--t1);line-height:1.4;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto">${esc(rawPreview)}</pre>
+          </details>
+        ` : ''}
+        <div style="margin-top:14px">
+          <button class="btn btn-o" onclick="goBack()">← 뒤로</button>
+        </div>
       </div>
     `;
-    showToast('✗ 채점 실패: ' + (err.message || '네트워크 오류'), 'err');
+    showToast('✗ 채점 실패', 'err');
   }
 }
 
@@ -1486,7 +1554,13 @@ ${keySection}
 }
 \`\`\`
 
-JSON만 응답하고 다른 말은 쓰지 마세요.`;
+⚠️ 매우 중요:
+- 응답의 첫 글자는 반드시 { 여야 합니다
+- 응답의 마지막 글자는 반드시 } 여야 합니다
+- 코드블록(백틱 세 개)도 쓰지 마세요
+- "네 선생님", "분석 결과입니다" 같은 머리말 절대 금지
+- 설명이나 주석 절대 금지
+- 오직 유효한 JSON 객체만 출력하세요`;
 }
 
 // ── Claude API 호출 ──
@@ -1525,7 +1599,7 @@ async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: API_MODEL,
+      model: getApiModel(),
       max_tokens: API_MAX_TOKENS,
       messages: [{ role: 'user', content }],
     }),
@@ -1542,7 +1616,9 @@ async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos) {
 
   const data = await res.json();
   const text = data.content?.[0]?.text || '';
-  console.log('[AI 응답 원문]', text.slice(0, 500));
+  console.log('[AI 응답 원문 — 전체]\n', text);
+  // 전역에 저장해서 에러 시 진단 가능
+  window.__lastAIResponse = text;
 
   return parseAIResponse(text);
 }
@@ -1557,32 +1633,45 @@ function parseDataUrl(dataUrl) {
 }
 
 function parseAIResponse(text) {
-  // ```json ... ``` 블록 추출
-  let jsonText = text;
+  if (!text || !text.trim()) {
+    throw new Error('AI가 빈 응답을 보냈어요. 다시 시도해주세요.');
+  }
+
+  // 시도 1: ```json ... ``` 코드블록
+  const candidates = [];
   const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlock) {
-    jsonText = codeBlock[1].trim();
-  } else {
-    // 중괄호 처음부터 끝까지만 추출
-    const first = text.indexOf('{');
-    const last = text.lastIndexOf('}');
-    if (first >= 0 && last > first) {
-      jsonText = text.slice(first, last + 1);
-    }
+  if (codeBlock) candidates.push(codeBlock[1].trim());
+
+  // 시도 2: 가장 바깥 중괄호 { ... } 매칭 (정규식)
+  const braceMatch = text.match(/\{[\s\S]*\}/);
+  if (braceMatch) candidates.push(braceMatch[0]);
+
+  // 시도 3: 원문 그대로
+  candidates.push(text.trim());
+
+  let lastErr;
+  for (const c of candidates) {
+    try {
+      const cleaned = c
+        .replace(/^﻿/, '')               // BOM 제거
+        .replace(/,(\s*[}\]])/g, '$1');        // trailing comma 제거
+      const parsed = JSON.parse(cleaned);
+      if (typeof parsed === 'object' && parsed !== null) {
+        // 필드 보정
+        parsed.steps = Array.isArray(parsed.steps) ? parsed.steps : [];
+        parsed.uncertainties = Array.isArray(parsed.uncertainties) ? parsed.uncertainties : [];
+        parsed.patterns = Array.isArray(parsed.patterns) ? parsed.patterns : [];
+        parsed.total = Number(parsed.total) || 0;
+        parsed.score = Number(parsed.score) || 0;
+        return parsed;
+      }
+    } catch(e) { lastErr = e; }
   }
-  try {
-    const parsed = JSON.parse(jsonText);
-    // 필드 보정
-    parsed.steps = parsed.steps || [];
-    parsed.uncertainties = parsed.uncertainties || [];
-    parsed.patterns = parsed.patterns || [];
-    parsed.total = parsed.total || 0;
-    parsed.score = parsed.score || 0;
-    return parsed;
-  } catch(e) {
-    console.error('[parseAIResponse] JSON 파싱 실패:', e, '\n원문:', text);
-    throw new Error('AI 응답을 해석하지 못했어요. 다시 시도해주세요.');
-  }
+
+  // 모두 실패 — 디버깅용 원문 잘라서 노출
+  const preview = text.slice(0, 300).replace(/\n/g, ' ');
+  console.error('[parseAIResponse] 모든 시도 실패. 원문:', text);
+  throw new Error(`AI 응답을 해석하지 못했어요. 원문 앞부분: "${preview}..."`);
 }
 
 // ── 결과 렌더링 ──
