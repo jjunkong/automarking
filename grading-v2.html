@@ -201,8 +201,16 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
 .q-mark.ok{background:var(--gl);color:var(--g)}
 .q-mark.err{background:rgba(255,77,77,.15);color:var(--err)}
 .q-mark.unc{background:rgba(255,183,77,.15);color:var(--warn)}
-.q-body{flex:1;font-size:13px;line-height:1.5}
-.q-note{font-size:11px;color:var(--t2);margin-top:3px;line-height:1.5}
+.q-body{flex:1;font-size:13px;line-height:1.5;min-width:0}
+.q-line{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.q-num{font-family:var(--m);font-size:12px;font-weight:700;color:var(--t2);
+  flex-shrink:0;min-width:24px}
+.q-stu{color:var(--t0);word-break:break-word}
+.q-stu.wrong{color:var(--err)}
+.q-arrow{color:var(--t2);font-size:12px;flex-shrink:0}
+.q-cor{color:var(--g);font-weight:600;word-break:break-word}
+.q-note{font-size:11px;color:var(--t2);margin-top:4px;line-height:1.5;
+  padding-left:31px}
 
 /* ── SMALL HELPERS ── */
 .sp{height:4px}
@@ -1564,37 +1572,65 @@ function buildBookPrompt(student, book, page, answerType, answerText, photoCount
     keySection = `\n【 정답지 없음 】\n정답지가 제공되지 않았습니다. 교재 문제와 선택지를 읽고 문법·독해 지식으로 정답을 먼저 도출한 뒤, 학생 답과 대조해 채점하세요. 정답이 명확하지 않은 문항은 △(확인 필요)로 처리하세요.`;
   }
 
-  return `당신은 한국 영어학원 선생님의 채점 조교입니다. 학생이 영어 교재를 푼 답안지 사진을 보고 **빠르게** 채점합니다.
+  return `당신은 한국 영어학원 선생님의 채점 조교입니다. 학생이 영어 교재를 푼 답안지 사진을 보고 채점합니다.
 
 ${header}
 
-【 핵심 원칙 — 빠름 모드 】
-선생님이 직접 학생에게 설명하실 거라, **디테일한 문법 해설은 쓰지 마세요.** 선생님이 보실 건 "어디서 뭘 틀렸는지"와 "손글씨가 애매한 곳"뿐입니다.
+【 ⚠️ 가장 중요 — 판단은 신중히, 출력은 간결히 】
+출력 문구는 짧게 쓰되, **판단 자체는 절대 서두르지 마세요.**
+잘못된 채점(맞은 걸 틀렸다고 하는 것)은 선생님께 가장 큰 피해를 줍니다.
+확신이 서지 않으면 반드시 △(unc)로 보내고, 추측으로 ✗를 주지 마세요.
 
-【 ⚠️ 문항 번호 — 가장 중요 】
+【 채점 절차 — 반드시 이 순서로 】
+STEP A. 각 문항의 **문제와 선택지를 끝까지 읽습니다.**
+STEP B. 정답을 먼저 확정합니다.
+        - 정답지가 있으면 → 정답지에서 찾음
+        - 정답지가 없으면 → 직접 풀어서 도출. 이때 각 선택지가 왜 맞고 틀리는지
+          속으로 하나씩 검토한 뒤 확정. 두 개 이상이 가능해 보이면 △ 처리.
+STEP C. **학생이 무엇을 표시/작성했는지** 판독합니다. (아래 판독 규칙 참조)
+STEP D. B와 C를 대조해 ✓ / ✗ / △ 판정.
+
+【 ⚠️ 학생 표시 판독 규칙 — 오인식 방지 】
+학생은 다양한 방식으로 답을 표시합니다:
+- 선택지 번호에 동그라미 / 체크(✓) / 빗금(/) / 점 / 밑줄 / 색칠
+- 선택지 문장 전체에 밑줄이나 동그라미
+- 보기 왼쪽 여백에 번호만 적기
+
+판독 시:
+1. **표시가 어느 선택지에 걸려 있는지 위치를 정확히 확인하세요.**
+   선택지는 세로로 나열돼 있으니, 표시의 세로 위치가 몇 번째 줄인지 세어보세요.
+2. 흐릿해도 흔적이 있으면 그 선택지로 봅니다. 섣불리 "무응답" 처리하지 마세요.
+3. 여러 개 표시돼 있으면 → 가장 진하거나 나중에 쓴 것. 우열을 못 가리면 △.
+4. 표시가 두 선택지 경계에 걸쳐 있으면 → 반드시 △ (추측 금지).
+5. 지운 흔적 위에 다시 쓴 경우 → 나중에 쓴 것을 답으로. 애매하면 △.
+6. **진짜로 아무 흔적도 없을 때만** 무응답(✗) 처리.
+
+【 ⚠️ 문항 번호 】
 - 교재 사진에 **인쇄된 실제 번호** 그대로 사용 (예: 37, 38, 39…)
 - 절대 임의로 1부터 매기지 말 것
 - "num" 필드에 실제 번호(문자열) — "37", "p.121-5", "STEP 1-3" 등
 
 【 섹션 구분 】
-- 교재의 실제 섹션/페이지명 그대로 (예: "p.70", "STEP 1", "Ch.2")
+- 교재의 실제 섹션/페이지명 그대로 (예: "p.70", "STEP 1", "BLANK PART")
 - "Page 1" 같은 임의 섹션 만들지 말 것
 
 【 마크 기준 】
-- ✓ (ok): 정답
-- ✗ (err): 오답 또는 무응답
-- △ (unc): **손글씨 판독 불확실 / 동그라미가 두 선택지에 걸침 / 지운 흔적 애매** — 이럴 때만
+- "ok"  : 정답
+- "err" : 오답 또는 무응답 — **정답을 확신할 때만**
+- "unc" : 다음 중 하나라도 해당하면 반드시 unc
+          · 학생 표시가 애매 (두 개 걸침, 판독 불가, 지운 흔적)
+          · 정답지 없이 추론했는데 정답이 둘 이상 가능해 보임
+          · 학생 답이 정답지와 다르지만 문법적으로 맞을 수도 있음
+          · 조금이라도 확신이 없음
 
-【 note 작성 규칙 (짧게!) 】
-- ✓ 정답: note는 빈 문자열 ""
-- ✗ 오답: **키워드만 10자 내외** (예: "과거시제 필요", "주어-동사 수일치", "the way how 불가")
-  - 긴 문법 설명 금지
-- ✗ 무응답: note는 "무응답"
-- △ 애매: 뭐가 애매한지 짧게 (예: "①/② 두 개 걸침", "글자 판독 불가", "지운 흔적")
-
-【 text 필드 】
-- 학생이 고른/쓴 답을 **짧게** (원문자 ②, 짧은 영단어/구 등)
-- 긴 문장은 처음 5~6단어만 + "…"
+【 출력 필드 — 짧게 】
+- "student" : 학생이 표시/작성한 답 (예: "③", "was", "the other")
+              무응답이면 "(무응답)"
+- "correct" : 정답 (예: "①", "were", "another")
+              ✓인 경우에도 정답을 반드시 적으세요
+- "note"    : 15자 이내 핵심만. 긴 문법 해설 금지.
+              예) "과거시제", "수일치", "the way how 불가", "③/④ 걸침", "무응답"
+              ✓(ok)인 경우 note는 빈 문자열 ""
 
 ${keySection}
 
@@ -1608,15 +1644,15 @@ ${keySection}
       "name": "p.70",
       "score": "3/4",
       "items": [
-        {"num": "37", "mark": "ok",  "text": "① am", "note": ""},
-        {"num": "38", "mark": "err", "text": "② was", "note": "과거시제 필요"},
-        {"num": "39", "mark": "unc", "text": "③?", "note": "③/④ 두 개 걸침"},
-        {"num": "40", "mark": "err", "text": "(무응답)", "note": "무응답"}
+        {"num": "37", "mark": "ok",  "student": "①", "correct": "①", "note": ""},
+        {"num": "38", "mark": "err", "student": "② was", "correct": "① am", "note": "현재시제"},
+        {"num": "39", "mark": "unc", "student": "③ 또는 ④", "correct": "④", "note": "③/④ 걸침"},
+        {"num": "40", "mark": "err", "student": "(무응답)", "correct": "⑤", "note": "무응답"}
       ]
     }
   ],
   "uncertainties": [
-    "39번 — 동그라미가 ③/④ 두 선택지에 걸침"
+    "39번 — 동그라미가 ③/④ 두 선택지에 걸침. 사진 확인 필요"
   ],
   "patterns": [
     "시제 혼동 4회 반복"
@@ -1851,12 +1887,28 @@ function renderGradingResult(result) {
       const mark = it.mark === 'ok' || it.mark === 'err' || it.mark === 'unc' ? it.mark : 'unc';
       const markLabel = mark === 'ok' ? '✓' : (mark === 'err' ? '✗' : '△');
       const numLabel = (it.num !== null && it.num !== undefined && it.num !== '')
-        ? `<span style="font-family:var(--m);font-weight:700;color:var(--t1);margin-right:6px">${esc(String(it.num))}.</span>`
+        ? `<span class="q-num">${esc(String(it.num))}</span>`
         : '';
+
+      // 하위 호환: 옛 기록은 text 필드만 있음
+      const stu = (it.student !== undefined && it.student !== null && it.student !== '')
+        ? String(it.student) : String(it.text || '');
+      const cor = (it.correct !== undefined && it.correct !== null) ? String(it.correct) : '';
+
+      // 정답(ok)이면 답 하나만, 오답/애매면 "학생답 → 정답"
+      let answerHtml;
+      if (mark === 'ok' || !cor || cor === stu) {
+        answerHtml = `<span class="q-stu">${esc(stu)}</span>`;
+      } else {
+        answerHtml = `<span class="q-stu wrong">${esc(stu)}</span>`
+                   + `<span class="q-arrow">→</span>`
+                   + `<span class="q-cor">${esc(cor)}</span>`;
+      }
+
       html += `<div class="q-row">
         <div class="q-mark ${mark}">${markLabel}</div>
         <div class="q-body">
-          ${numLabel}${esc(it.text || '')}
+          <div class="q-line">${numLabel}${answerHtml}</div>
           ${it.note ? `<div class="q-note">${esc(it.note)}</div>` : ''}
         </div>
       </div>`;
