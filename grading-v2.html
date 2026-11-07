@@ -600,6 +600,7 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
         <select id="pickAnswerType" onchange="onAnswerTypeChange()" style="flex:1">
           <option value="none">정답지 없음 (AI가 추론)</option>
           <option value="photo">정답지 사진 촬영</option>
+          <option value="pdf">정답지 PDF 업로드 ⭐</option>
           <option value="text">정답지 텍스트 입력</option>
         </select>
       </div>
@@ -616,6 +617,16 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
           </button>
         </div>
         <div class="photo-grid" id="keyPhotoGrid"></div>
+      </div>
+      <div id="answerPdfArea" style="display:none;margin-top:10px">
+        <input type="file" id="answerPdfInput" accept="application/pdf,.pdf" style="display:none" onchange="onKeyPdfSelect(event)">
+        <button class="btn btn-o" onclick="document.getElementById('answerPdfInput').click()">
+          <span style="font-size:18px">📑</span> 정답 PDF 파일 선택
+        </button>
+        <div id="keyPdfInfo" style="margin-top:8px;font-size:12px;color:var(--t2)"></div>
+        <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">
+          💡 학원 자체 제작 워크북 정답 PDF, 교재 뒷면 정답지 스캔본 등 (최대 ~30MB)
+        </div>
       </div>
       <div id="answerTextArea" style="display:none;margin-top:10px">
         <textarea id="answerText" placeholder="예:&#10;1. ③&#10;2. had been waiting&#10;3. the other" rows="5"></textarea>
@@ -789,7 +800,7 @@ const LS = {
 
 // Claude API — Vision
 const API_URL = 'https://api.anthropic.com/v1/messages';
-const API_MAX_TOKENS = 8000;
+const API_MAX_TOKENS = 12000;  // 응답 잘림 방지 (실제 평균은 훨씬 작음)
 // 모델명은 설정에서 선택 (기존 /grading이 쓰던 키 그대로 공유)
 const API_MODELS = [
   { id: 'claude-opus-4-5',         label: 'Opus 4.5 (추천, 정확)' },
@@ -824,7 +835,8 @@ let state = {
     page: '',
     photos: [],             // {id, dataUrl, name, size}
     keyPhotos: [],          // 정답지 사진
-    answerType: 'none',     // 'none' | 'photo' | 'text'
+    keyPdf: null,           // {name, size, base64}
+    answerType: 'none',     // 'none' | 'photo' | 'pdf' | 'text'
     answerText: '',
   },
   currentResult: null,
@@ -1281,7 +1293,7 @@ function resetGrading() {
   state.grading = {
     classId: null, studentId: null, mode: null,
     bookId: null, page: '',
-    photos: [], keyPhotos: [],
+    photos: [], keyPhotos: [], keyPdf: null,
     answerType: 'none', answerText: '',
   };
   document.getElementById('photoGrid').innerHTML = '';
@@ -1291,6 +1303,8 @@ function resetGrading() {
   document.getElementById('cardPhoto').style.display = 'none';
   document.getElementById('btnGrade').disabled = true;
   document.querySelectorAll('.mode').forEach(m => m.classList.remove('active'));
+  const kpi = document.getElementById('keyPdfInfo');
+  if (kpi) kpi.innerHTML = '';
 }
 
 function refreshGradingPickers() {
@@ -1341,7 +1355,46 @@ function onAnswerTypeChange() {
   const v = document.getElementById('pickAnswerType').value;
   state.grading.answerType = v;
   document.getElementById('answerPhotoArea').style.display = (v === 'photo') ? '' : 'none';
-  document.getElementById('answerTextArea').style.display = (v === 'text') ? '' : 'none';
+  document.getElementById('answerPdfArea').style.display   = (v === 'pdf')   ? '' : 'none';
+  document.getElementById('answerTextArea').style.display  = (v === 'text')  ? '' : 'none';
+}
+
+function onKeyPdfSelect(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  if (file.size > 32 * 1024 * 1024) {
+    showToast('PDF는 32MB 이하만 가능해요', 'err');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    // reader.result = "data:application/pdf;base64,JVBERi0..."
+    const base64 = reader.result.split(',')[1];
+    state.grading.keyPdf = {
+      name: file.name,
+      size: file.size,
+      base64: base64,
+    };
+    const sizeKB = Math.round(file.size / 1024);
+    document.getElementById('keyPdfInfo').innerHTML = `
+      <div style="padding:10px 12px;background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.3);border-radius:var(--r);display:flex;align-items:center;gap:8px">
+        <span style="font-size:20px">📑</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--g);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div>
+          <div style="font-size:10px;color:var(--t2)">${sizeKB.toLocaleString()} KB</div>
+        </div>
+        <button class="icon-btn" style="width:28px;height:28px;font-size:12px" onclick="removeKeyPdf()">✕</button>
+      </div>`;
+    showToast('✓ 정답 PDF 업로드됨', 'ok');
+  };
+  reader.readAsDataURL(file);
+  ev.target.value = '';
+}
+
+function removeKeyPdf() {
+  state.grading.keyPdf = null;
+  document.getElementById('keyPdfInfo').innerHTML = '';
+  showToast('정답 PDF 제거됨');
 }
 
 function onPhotoSelect(ev, kind) {
@@ -1451,7 +1504,7 @@ async function runGrading() {
     // 모드별 프롬프트
     let prompt;
     if (g.mode === 'book') {
-      prompt = buildBookPrompt(student, book, g.page, g.answerType, g.answerText, g.photos.length, g.keyPhotos.length);
+      prompt = buildBookPrompt(student, book, g.page, g.answerType, g.answerText, g.photos.length, g.keyPhotos.length, !!g.keyPdf);
     } else if (g.mode === 'habbang') {
       showToast('하빵 모드는 다음 차수에서 지원됩니다', '');
       document.getElementById('resultBody').innerHTML = `<div class="empty"><div class="empty-ic">🚧</div>하빵 모드는 다음 차수에서 지원됩니다<br><span style="font-size:11px">현재는 "일반 교재 채점"만 실제 AI 연동됨</span></div>`;
@@ -1464,7 +1517,7 @@ async function runGrading() {
       return;
     }
 
-    const result = await callClaudeAPI(apiKey, prompt, g.photos, g.keyPhotos);
+    const result = await callClaudeAPI(apiKey, prompt, g.photos, g.keyPhotos, g.keyPdf);
     renderGradingResult(result);
   } catch (err) {
     console.error('[runGrading]', err);
@@ -1495,13 +1548,15 @@ async function runGrading() {
 }
 
 // ── 모드 A: 일반 교재 채점 프롬프트 ──
-function buildBookPrompt(student, book, page, answerType, answerText, photoCount, keyPhotoCount) {
+function buildBookPrompt(student, book, page, answerType, answerText, photoCount, keyPhotoCount, hasKeyPdf) {
   const bookInfo = book ? `교재: ${book.title}${book.grade ? ' ('+book.grade+')' : ''}${book.publisher ? ' · '+book.publisher : ''}` : '';
   const pageInfo = page ? `페이지: ${page}` : '';
   const header = [bookInfo, pageInfo].filter(Boolean).join('\n');
 
   let keySection = '';
-  if (answerType === 'photo' && keyPhotoCount > 0) {
+  if (answerType === 'pdf' && hasKeyPdf) {
+    keySection = `\n【 정답지 (PDF) 】\n학생 답안지 사진 ${photoCount}장 뒤에 **정답지 PDF 1개**가 첨부되어 있습니다. PDF에서 이 학생이 푼 지문/페이지에 해당하는 정답을 찾아 대조 채점하세요.\n- PDF 전체에서 **학생 답안의 지문/번호와 일치하는 부분**만 쓰세요\n- PDF에 지문이 여러 개면, 학생이 푼 지문 번호(예: "3강 10번")를 찾아서 그 정답만 사용\n- 섹션별 정답(빈칸 채우기 / 해석 보기 / 일치 보기 등)을 각각 구분해서 채점`;
+  } else if (answerType === 'photo' && keyPhotoCount > 0) {
     keySection = `\n【 정답지 】\n학생 답안지 사진 ${photoCount}장 뒤에 정답지 사진 ${keyPhotoCount}장이 추가로 첨부되어 있습니다. 정답지를 먼저 읽고 문항별 정답을 파악한 뒤, 학생 답과 대조해 채점하세요.`;
   } else if (answerType === 'text' && answerText) {
     keySection = `\n【 정답 (사용자 제공) 】\n${answerText}\n\n위 정답을 기준으로 채점하세요.`;
@@ -1509,80 +1564,75 @@ function buildBookPrompt(student, book, page, answerType, answerText, photoCount
     keySection = `\n【 정답지 없음 】\n정답지가 제공되지 않았습니다. 교재 문제와 선택지를 읽고 문법·독해 지식으로 정답을 먼저 도출한 뒤, 학생 답과 대조해 채점하세요. 정답이 명확하지 않은 문항은 △(확인 필요)로 처리하세요.`;
   }
 
-  return `당신은 한국 영어학원 베테랑 선생님입니다. 학생이 영어 문법/독해 교재를 푼 답안지 사진을 보고 채점합니다.
+  return `당신은 한국 영어학원 선생님의 채점 조교입니다. 학생이 영어 교재를 푼 답안지 사진을 보고 **빠르게** 채점합니다.
 
 ${header}
 
+【 핵심 원칙 — 빠름 모드 】
+선생님이 직접 학생에게 설명하실 거라, **디테일한 문법 해설은 쓰지 마세요.** 선생님이 보실 건 "어디서 뭘 틀렸는지"와 "손글씨가 애매한 곳"뿐입니다.
+
 【 ⚠️ 문항 번호 — 가장 중요 】
-- 교재 사진에 **인쇄된 실제 번호**를 그대로 사용하세요 (예: 37, 38, 39, 40…)
-- 절대 임의로 1번부터 다시 매기지 마세요
-- 번호가 "37, 38, 39…"면 그대로 "37, 38, 39…"
-- 번호가 "p.121의 1~5번, p.122의 1~5번" 같은 페이지별 체계면 그 체계 그대로 ("p.121-1", "p.122-1" 식)
-- STEP/섹션으로 묶인 교재는 "STEP 1-1, STEP 1-2…" 식으로 그 구조 유지
-- 반드시 각 item에 "num" 필드로 실제 번호를 넣으세요 (문자열)
-- 사진에서 번호가 안 보이면 null
+- 교재 사진에 **인쇄된 실제 번호** 그대로 사용 (예: 37, 38, 39…)
+- 절대 임의로 1부터 매기지 말 것
+- "num" 필드에 실제 번호(문자열) — "37", "p.121-5", "STEP 1-3" 등
 
-【 ⚠️ 섹션(STEP) 구분 】
-- 교재에 "STEP 1", "A", "B", "Ch.2" 같은 섹션 헤더가 보이면 그 이름 그대로 사용
-- 섹션 헤더가 없으면 페이지 번호로 구분 ("p.70", "p.71", "p.72")
-- 임의로 "Page 1", "Page 2" 같은 추상 섹션 만들지 말 것
+【 섹션 구분 】
+- 교재의 실제 섹션/페이지명 그대로 (예: "p.70", "STEP 1", "Ch.2")
+- "Page 1" 같은 임의 섹션 만들지 말 것
 
-【 채점 원칙 】
-1. 각 문항은 ✓(정답) / ✗(오답) / △(확인 필요) 중 하나로 표시
-2. △는 다음 경우에만: 동그라미가 두 선택지에 걸침, 지운 흔적이 애매, 필체로 판독 불확실, 문법적으로 옳지만 출제의도와 어긋나는 답 등
-3. 틀린 문항(✗)에는 **한 줄 설명** (왜 틀렸는지 간단히)
-4. 애매한 문항(△)에는 **무엇이 애매한지 설명**
-5. 정답(✓) 문항에는 설명 불필요
-6. 학생이 아무 표시도 안 한 문항도 반드시 결과에 포함 (mark: "err", note: "무응답")
+【 마크 기준 】
+- ✓ (ok): 정답
+- ✗ (err): 오답 또는 무응답
+- △ (unc): **손글씨 판독 불확실 / 동그라미가 두 선택지에 걸침 / 지운 흔적 애매** — 이럴 때만
 
-【 패턴 분석 — 중요 】
-채점 후, 이 학생의 반복되는 오답 패턴을 2~4개 추출하세요. 예시:
-- "however + 형용사/부사 어순을 3번 연속 틀림. 개념은 아는데 영작할 때 형태가 무너짐"
-- "쉼표 뒤 계속적 용법에 what을 쓰면 안 된다는 점을 놓침"
-"가장 시급한 포인트"부터 우선 배치.
+【 note 작성 규칙 (짧게!) 】
+- ✓ 정답: note는 빈 문자열 ""
+- ✗ 오답: **키워드만 10자 내외** (예: "과거시제 필요", "주어-동사 수일치", "the way how 불가")
+  - 긴 문법 설명 금지
+- ✗ 무응답: note는 "무응답"
+- △ 애매: 뭐가 애매한지 짧게 (예: "①/② 두 개 걸침", "글자 판독 불가", "지운 흔적")
+
+【 text 필드 】
+- 학생이 고른/쓴 답을 **짧게** (원문자 ②, 짧은 영단어/구 등)
+- 긴 문장은 처음 5~6단어만 + "…"
 
 ${keySection}
 
-【 응답 형식 — 반드시 아래 JSON 하나만, 다른 설명 없이 】
+【 응답 형식 — JSON만, 다른 설명 없이 】
 \`\`\`json
 {
-  "total": 전체 문항 수,
-  "score": 맞은 개수,
+  "total": 20,
+  "score": 14,
   "steps": [
     {
-      "name": "교재 섹션명 그대로 (예: p.70, STEP 1, Ch.2 등)",
+      "name": "p.70",
       "score": "3/4",
       "items": [
-        {"num": "37", "mark": "ok",  "text": "학생 답 또는 문항 요약", "note": ""},
-        {"num": "38", "mark": "err", "text": "학생이 고른 답 (예: ② was)", "note": "정답은 ① am. last year니까 과거시제 was가 맞음. 학생 설명 왜 틀렸는지"},
-        {"num": "39", "mark": "unc", "text": "학생 답 또는 애매한 지점", "note": "동그라미가 ①과 ② 두 선택지에 걸쳐있음"},
-        {"num": "40", "mark": "err", "text": "(무응답)", "note": "학생이 답을 적지 않음"}
+        {"num": "37", "mark": "ok",  "text": "① am", "note": ""},
+        {"num": "38", "mark": "err", "text": "② was", "note": "과거시제 필요"},
+        {"num": "39", "mark": "unc", "text": "③?", "note": "③/④ 두 개 걸침"},
+        {"num": "40", "mark": "err", "text": "(무응답)", "note": "무응답"}
       ]
     }
   ],
   "uncertainties": [
-    "선생님이 사진을 보고 확인해야 할 지점. 예: '37번 동그라미가 ③/④ 두 선택지에 걸침'"
+    "39번 — 동그라미가 ③/④ 두 선택지에 걸침"
   ],
   "patterns": [
-    "이 학생의 반복 오답 패턴. 예: '현재시제/과거시제 혼동 4회 반복. 시간부사(last year, yesterday) 보고도 과거로 안 바꿈'"
+    "시제 혼동 4회 반복"
   ]
 }
 \`\`\`
 
-※ "num" 필드는 **사진에 인쇄된 실제 번호 그대로** (문자열). 예: "37", "p.121-5", "STEP 1-3". 임의로 1부터 매기면 안 됨.
-
-⚠️ 매우 중요:
-- 응답의 첫 글자는 반드시 { 여야 합니다
-- 응답의 마지막 글자는 반드시 } 여야 합니다
-- 코드블록(백틱 세 개)도 쓰지 마세요
-- "네 선생님", "분석 결과입니다" 같은 머리말 절대 금지
-- 설명이나 주석 절대 금지
-- 오직 유효한 JSON 객체만 출력하세요`;
+⚠️ 출력 규칙:
+- 첫 글자는 반드시 {, 마지막 글자는 반드시 }
+- 머리말·설명·코드블록 백틱 금지
+- 오직 JSON 객체만`;
 }
 
 // ── Claude API 호출 ──
-async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos) {
-  // 이미지 base64 처리
+async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos, keyPdf) {
+  // 이미지/PDF base64 처리
   const content = [{ type: 'text', text: prompt }];
 
   // 답안지 사진 먼저
@@ -1607,14 +1657,29 @@ async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos) {
     });
   }
 
+  // 정답지 PDF (있으면) — Claude document 블록
+  if (keyPdf && keyPdf.base64) {
+    content.push({ type: 'text', text: `[정답지 PDF: ${keyPdf.name}]` });
+    content.push({
+      type: 'document',
+      source: { type: 'base64', media_type: 'application/pdf', data: keyPdf.base64 },
+    });
+  }
+
+  // PDF 포함 시 beta 헤더 (하위 호환)
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true',
+  };
+  if (keyPdf && keyPdf.base64) {
+    headers['anthropic-beta'] = 'pdfs-2024-09-25';
+  }
+
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: headers,
     body: JSON.stringify({
       model: getApiModel(),
       max_tokens: API_MAX_TOKENS,
@@ -1654,27 +1719,37 @@ function parseAIResponse(text) {
     throw new Error('AI가 빈 응답을 보냈어요. 다시 시도해주세요.');
   }
 
-  // 시도 1: ```json ... ``` 코드블록
+  // 후보들
   const candidates = [];
+
+  // 시도 1: ```json ... ``` 코드블록
   const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlock) candidates.push(codeBlock[1].trim());
 
-  // 시도 2: 가장 바깥 중괄호 { ... } 매칭 (정규식)
+  // 시도 2: 가장 바깥 중괄호 { ... } 매칭
   const braceMatch = text.match(/\{[\s\S]*\}/);
   if (braceMatch) candidates.push(braceMatch[0]);
 
   // 시도 3: 원문 그대로
   candidates.push(text.trim());
 
+  // 시도 4: 잘린 응답 복구 — { 부터 시작해서 뒤에 } 붙이기
+  const firstBrace = text.indexOf('{');
+  if (firstBrace >= 0) {
+    let partial = text.slice(firstBrace);
+    // 열린 중괄호·대괄호 수 세서 닫는 거 추가
+    const repaired = repairTruncatedJson(partial);
+    if (repaired) candidates.push(repaired);
+  }
+
   let lastErr;
   for (const c of candidates) {
     try {
       const cleaned = c
-        .replace(/^﻿/, '')               // BOM 제거
-        .replace(/,(\s*[}\]])/g, '$1');        // trailing comma 제거
+        .replace(/^﻿/, '')
+        .replace(/,(\s*[}\]])/g, '$1');
       const parsed = JSON.parse(cleaned);
       if (typeof parsed === 'object' && parsed !== null) {
-        // 필드 보정
         parsed.steps = Array.isArray(parsed.steps) ? parsed.steps : [];
         parsed.uncertainties = Array.isArray(parsed.uncertainties) ? parsed.uncertainties : [];
         parsed.patterns = Array.isArray(parsed.patterns) ? parsed.patterns : [];
@@ -1685,10 +1760,81 @@ function parseAIResponse(text) {
     } catch(e) { lastErr = e; }
   }
 
-  // 모두 실패 — 디버깅용 원문 잘라서 노출
   const preview = text.slice(0, 300).replace(/\n/g, ' ');
   console.error('[parseAIResponse] 모든 시도 실패. 원문:', text);
-  throw new Error(`AI 응답을 해석하지 못했어요. 원문 앞부분: "${preview}..."`);
+  throw new Error(`AI 응답을 해석하지 못했어요 (응답이 잘렸을 수 있음). 원문 앞부분: "${preview}..."`);
+}
+
+// 잘린 JSON 복구 — 괄호 개수 세서 닫기
+function repairTruncatedJson(text) {
+  // 마지막 완성된 object/array까지만 유지
+  let inStr = false, escape = false;
+  let stack = [];  // '{' or '['
+  let lastCompleteIdx = -1;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+
+    if (c === '{' || c === '[') stack.push(c);
+    else if (c === '}' && stack[stack.length-1] === '{') {
+      stack.pop();
+      if (stack.length === 0) lastCompleteIdx = i;
+    }
+    else if (c === ']' && stack[stack.length-1] === '[') {
+      stack.pop();
+      if (stack.length === 0) lastCompleteIdx = i;
+    }
+  }
+
+  // 완성됐으면 그대로
+  if (stack.length === 0 && lastCompleteIdx >= 0) {
+    return text.slice(0, lastCompleteIdx + 1);
+  }
+
+  // 잘렸으면: 마지막 완성된 item까지 자르고 닫기
+  // items 배열 안에서 잘렸을 때, 쉼표 뒤 미완 item 제거
+  let repaired = text;
+  // 마지막 쉼표 이후 미완성 부분 제거
+  // "items": [ ..., {"num":"38", ← 여기서 잘림
+  // → 마지막 완전한 '}' 까지 자르기
+  let depth = 0, inStr2 = false, esc2 = false, lastGoodComma = -1;
+  const inStackSnapshot = [];
+  for (let i = 0; i < repaired.length; i++) {
+    const c = repaired[i];
+    if (esc2) { esc2 = false; continue; }
+    if (c === '\\') { esc2 = true; continue; }
+    if (c === '"') { inStr2 = !inStr2; continue; }
+    if (inStr2) continue;
+    if (c === '{' || c === '[') inStackSnapshot.push({c, i});
+    else if (c === '}' || c === ']') inStackSnapshot.pop();
+  }
+  // 열린 괄호들에 대해 닫기
+  inStr2 = false; esc2 = false;
+  let open = [];  // chars
+  for (let i = 0; i < repaired.length; i++) {
+    const c = repaired[i];
+    if (esc2) { esc2 = false; continue; }
+    if (c === '\\') { esc2 = true; continue; }
+    if (c === '"') { inStr2 = !inStr2; continue; }
+    if (inStr2) continue;
+    if (c === '{' || c === '[') open.push(c);
+    else if (c === '}' && open[open.length-1] === '{') open.pop();
+    else if (c === ']' && open[open.length-1] === '[') open.pop();
+  }
+  // 문자열 중간에 잘렸으면 " 닫기
+  if (inStr2) repaired += '"';
+  // 마지막 쉼표+공백/개행 제거 (불완전 item)
+  repaired = repaired.replace(/,\s*$/, '');
+  // 열린 괄호들 역순으로 닫기
+  while (open.length > 0) {
+    const c = open.pop();
+    repaired += (c === '{') ? '}' : ']';
+  }
+  return repaired;
 }
 
 // ── 결과 렌더링 ──
