@@ -896,8 +896,11 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_MAX_TOKENS = 12000;  // 응답 잘림 방지 (실제 평균은 훨씬 작음)
 // 모델명은 설정에서 선택 (기존 /grading이 쓰던 키 그대로 공유)
 const API_MODELS = [
-  { id: 'claude-opus-4-5',         label: 'Opus 4.5 (추천, 정확)' },
-  { id: 'claude-sonnet-4-5',       label: 'Sonnet 4.5 (빠름, 저렴)' },
+  { id: 'claude-opus-5-5',         label: 'Opus 5.5 (추천, 가장 정확)' },
+  { id: 'claude-sonnet-5-5',       label: 'Sonnet 5.5 (빠름)' },
+  { id: 'claude-haiku-5-5',        label: 'Haiku 5.5 (가장 저렴)' },
+  { id: 'claude-opus-4-5',         label: 'Opus 4.5 (구버전)' },
+  { id: 'claude-sonnet-4-5',       label: 'Sonnet 4.5 (구버전)' },
   { id: 'claude-3-5-sonnet-latest',label: 'Claude 3.5 Sonnet' },
   { id: 'claude-3-5-haiku-latest', label: 'Haiku 3.5 (가장 저렴)' },
 ];
@@ -905,7 +908,7 @@ const LS_MODEL = 'kkj_api_model';
 function getApiModel() {
   const saved = localStorage.getItem(LS_MODEL);
   if (saved) return saved;
-  return 'claude-opus-4-5';
+  return 'claude-opus-5-5';
 }
 
 // ── 전역 상태 ──
