@@ -14,7 +14,8 @@ if (location.search.includes('debug=1') || localStorage.getItem('kkj_debug') ===
   localStorage.setItem('kkj_debug', '1');
 }
 </script>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest-v2.json">
+<link rel="apple-touch-icon" href="/icon-v2-192.png">
 <meta name="theme-color" content="#1DB954">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -303,6 +304,7 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
   <!-- 탭 -->
   <div class="tabs">
     <button class="tab active" data-tab="classes" onclick="switchTab('classes')">반·학생</button>
+    <button class="tab" data-tab="keys" onclick="switchTab('keys')">정답표</button>
     <button class="tab" data-tab="books" onclick="switchTab('books')">교재</button>
     <button class="tab" data-tab="reports" onclick="switchTab('reports')">리포트</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">설정</button>
@@ -336,6 +338,27 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
       <div class="cb">
         <div id="studentList"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 탭 콘텐츠: 정답표 -->
+  <div id="tabKeys" style="display:none">
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct">정답표</div>
+          <div class="cd">한 번 등록하면 채점할 때 선택만</div>
+        </div>
+        <button class="btn btn-sm btn-g lock-req" onclick="openKeyModal()" disabled>+ 정답표</button>
+      </div>
+      <div class="cb">
+        <div id="keyList"></div>
+      </div>
+    </div>
+    <div class="sp"></div>
+    <div style="font-size:11px;color:var(--t2);line-height:1.6;padding:0 4px">
+      💡 정답 PDF나 사진을 올리면 AI가 정답만 뽑아 텍스트로 저장해요.
+      원본은 저장하지 않아서 가볍고, 채점할 때마다 다시 올릴 필요가 없습니다.
     </div>
   </div>
 
@@ -449,8 +472,25 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
         </div>
         <div class="sp"></div>
         <div style="font-size:11px;color:var(--t2);line-height:1.5">
-          기존 automarking 앱(/grading)에서 쓰시는 학원 코드와 동일하게 입력하세요.<br>
-          PC의 /grading 홈 화면 상단에 표시된 "KKJ-XXXXXX" 그대로 복사.
+          PC와 폰에 <strong>같은 코드</strong>를 넣어야 자료가 공유됩니다.<br>
+          기존 /grading 홈 화면 상단의 "KKJ-XXXXXX" 그대로 쓰시면 돼요.
+        </div>
+
+        <div class="sp"></div>
+        <div class="sep"></div>
+        <div class="sp"></div>
+
+        <label>기기 간 동기화</label>
+        <div class="row" style="margin-top:4px">
+          <button class="btn btn-g" onclick="fullSync(true)">
+            <span style="font-size:16px">🔄</span> 지금 동기화
+          </button>
+        </div>
+        <div id="syncStatus" style="font-size:11px;color:var(--t2);margin-top:7px;text-align:center"></div>
+        <div style="font-size:11px;color:var(--t2);margin-top:8px;line-height:1.6">
+          반·학생·정답표·교재·채점기록이 올라갑니다.<br>
+          교재 <strong>표지 사진</strong>은 용량이 커서 올리지 않습니다 (기기에만 남아요).<br>
+          자료를 바꾸면 자동으로 올라가고, 앱을 열 때 자동으로 받아옵니다.
         </div>
       </div>
     </div>
@@ -603,41 +643,23 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
       <div class="sep"></div>
       <div class="sp"></div>
 
-      <label>정답지 (선택 — 있으면 더 정확)</label>
+      <label>정답표</label>
       <div class="row" style="margin-top:4px">
-        <select id="pickAnswerType" onchange="onAnswerTypeChange()" style="flex:1">
-          <option value="none">정답지 없음 (AI가 추론)</option>
-          <option value="photo">정답지 사진 촬영</option>
-          <option value="pdf">정답지 PDF 업로드 ⭐</option>
-          <option value="text">정답지 텍스트 입력</option>
+        <select id="pickAnswerKey" onchange="onAnswerKeyChange()" style="flex:1">
+          <option value="__none">정답표 없이 채점 (AI가 추론)</option>
         </select>
       </div>
-      <div id="answerPhotoArea" style="display:none;margin-top:10px">
-        <!-- 2개 경로 분리 -->
-        <input type="file" id="answerPhotoInputCamera" accept="image/*" multiple capture="environment" style="display:none" onchange="onPhotoSelect(event, 'key')">
-        <input type="file" id="answerPhotoInputGallery" accept="image/*" multiple style="display:none" onchange="onPhotoSelect(event, 'key')">
-        <div class="row">
-          <button class="btn btn-o" onclick="document.getElementById('answerPhotoInputCamera').click()">
-            <span style="font-size:18px">📄</span> 정답지 촬영
-          </button>
-          <button class="btn btn-o" onclick="document.getElementById('answerPhotoInputGallery').click()">
-            <span style="font-size:18px">🖼</span> 갤러리에서 선택
-          </button>
-        </div>
-        <div class="photo-grid" id="keyPhotoGrid"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn btn-o btn-sm" style="width:auto;flex:0 0 auto" onclick="openKeyFromGrading()">+ 새 정답표</button>
+        <div style="flex:1"></div>
       </div>
-      <div id="answerPdfArea" style="display:none;margin-top:10px">
-        <input type="file" id="answerPdfInput" accept="application/pdf,.pdf" style="display:none" onchange="onKeyPdfSelect(event)">
-        <button class="btn btn-o" onclick="document.getElementById('answerPdfInput').click()">
-          <span style="font-size:18px">📑</span> 정답 PDF 파일 선택
-        </button>
-        <div id="keyPdfInfo" style="margin-top:8px;font-size:12px;color:var(--t2)"></div>
-        <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">
-          💡 학원 자체 제작 워크북 정답 PDF, 교재 뒷면 정답지 스캔본 등 (최대 ~30MB)
-        </div>
-      </div>
+      <div id="keyPreviewArea" style="display:none;margin-top:10px"></div>
       <div id="answerTextArea" style="display:none;margin-top:10px">
-        <textarea id="answerText" placeholder="예:&#10;1. ③&#10;2. had been waiting&#10;3. the other" rows="5"></textarea>
+        <textarea id="answerText" rows="6" placeholder="이번만 쓸 정답을 적으세요 (저장되지 않음)&#10;&#10;예)&#10;1 ③   2 ①   3 ⑤&#10;13 had been waiting&#10;14 the other" style="font-family:var(--m);font-size:12px"></textarea>
+      </div>
+      <div id="noKeyWarn" style="margin-top:10px;padding:9px 12px;background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.25);border-radius:var(--r);font-size:11px;color:var(--warn);line-height:1.5">
+        ⚠️ 정답표 없이 채점하면 AI가 직접 문제를 풀어 채점합니다. 맞은 답을 틀렸다고 할 수 있으니,
+        가능하면 정답표를 등록해 쓰세요.
       </div>
     </div>
   </div>
@@ -739,6 +761,66 @@ label{display:block;font-size:10px;font-weight:700;color:var(--t2);
   </div>
 </div>
 
+<!-- ══ MODAL: 정답표 추가/편집 ══ -->
+<div class="modal" id="modalKey">
+  <div class="modal-card" style="max-width:560px">
+    <div class="modal-top">
+      <div class="modal-title" id="modalKeyTitle">+ 정답표</div>
+      <button class="icon-btn" onclick="closeModal('modalKey')">✕</button>
+    </div>
+
+    <label>정답표 이름</label>
+    <input type="text" id="keyName" placeholder="예: 하빵 고1 11강 P2">
+
+    <div class="sp"></div>
+    <div class="sep"></div>
+    <div class="sp"></div>
+
+    <label>정답 원본에서 불러오기 (선택)</label>
+    <input type="file" id="keySrcPdf" accept="application/pdf,.pdf" style="display:none" onchange="onKeySrcPdf(event)">
+    <input type="file" id="keySrcImg" accept="image/*" multiple style="display:none" onchange="onKeySrcImg(event)">
+    <div class="row" style="margin-top:4px">
+      <button class="btn btn-o" onclick="document.getElementById('keySrcPdf').click()">
+        <span style="font-size:16px">📑</span> PDF
+      </button>
+      <button class="btn btn-o" onclick="document.getElementById('keySrcImg').click()">
+        <span style="font-size:16px">🖼</span> 사진
+      </button>
+    </div>
+    <div id="keySrcInfo" style="margin-top:8px"></div>
+
+    <div id="keyExtractArea" style="display:none;margin-top:10px">
+      <div style="padding:9px 12px;background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.25);border-radius:var(--r);font-size:11px;color:var(--warn);line-height:1.5;margin-bottom:8px">
+        ⚠️ 정답 자료에 지문이 여러 개면 <strong>어느 지문인지 꼭 적어주세요.</strong>
+        안 적으면 AI가 여러 지문의 정답을 섞습니다.
+      </div>
+      <input type="text" id="keyHint" placeholder="예: 4과 본문2 / 11강 P2 / 3강 10번 지문 1" style="margin-bottom:8px">
+      <button class="btn btn-g" onclick="runKeyExtract()" id="btnKeyExtract">
+        <span style="font-size:16px">✨</span> AI로 정답 추출
+      </button>
+    </div>
+
+    <div class="sp"></div>
+    <div class="sep"></div>
+    <div class="sp"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <label style="margin:0">정답 내용</label>
+      <span id="keyLenBadge" class="badge">0자</span>
+    </div>
+    <textarea id="keyContent" rows="10" placeholder="AI 추출 결과가 여기 들어옵니다.&#10;직접 입력하거나 수정해도 됩니다.&#10;&#10;예)&#10;BLANK  02-1 differently  02-2 is  02-3 that&#10;QUESTION  1번문장 evident/clear&#10;T or N  T T N T N N&#10;SUMMARY  (A) distinct  (B) predictable"
+      oninput="updateKeyLen()" style="font-family:var(--m);font-size:12px;line-height:1.6"></textarea>
+    <div style="font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5">
+      ⚠️ AI 추출 결과는 반드시 확인하세요. 정답표가 틀리면 채점이 전부 틀어집니다.
+    </div>
+
+    <div class="row mt">
+      <button class="btn btn-o" onclick="closeModal('modalKey')">취소</button>
+      <button class="btn btn-g" onclick="saveKey()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: 교재 추가 ══ -->
 <div class="modal" id="modalBook">
   <div class="modal-card">
@@ -802,8 +884,11 @@ const LS = {
   classes:     LS_PREFIX + 'classes',
   students:    LS_PREFIX + 'students',
   books:       LS_PREFIX + 'books',
+  answerKeys:  LS_PREFIX + 'answerKeys',
   history:     LS_PREFIX + 'history',
   patterns:    LS_PREFIX + 'patterns',
+  deleted:     LS_PREFIX + 'deleted',
+  syncAt:      LS_PREFIX + 'syncAt',
 };
 
 // Claude API — Vision
@@ -842,10 +927,8 @@ let state = {
     bookId: null,
     page: '',
     photos: [],             // {id, dataUrl, name, size}
-    keyPhotos: [],          // 정답지 사진
-    keyPdf: null,           // {name, size, base64}
-    answerType: 'none',     // 'none' | 'photo' | 'pdf' | 'text'
-    answerText: '',
+    answerKeyId: '__none',  // 등록된 정답표 id | '__none' | '__once'
+    answerText: '',         // '__once'일 때만 사용 (저장 안 됨)
   },
   currentResult: null,
 };
@@ -877,6 +960,191 @@ function showToast(msg, kind='') {
 }
 
 // ── Screen 전환 ──
+// ══════════════════════════════════════════════════════════════
+// 클라우드 동기화 — 학원 코드 기준으로 PC·폰이 같은 데이터를 봄
+//  · 텍스트 데이터만 올림 (교재 표지 이미지는 기기에만 남음)
+//  · 항목 단위 병합: 같은 id면 updatedAt 늦은 쪽이 이김
+//  · 삭제는 tombstone(삭제 목록)으로 전파
+//  · 실패해도 로컬은 그대로 동작
+// ══════════════════════════════════════════════════════════════
+const SYNC_URL = '/api/v2sync';
+const SYNC_KINDS = ['classes', 'students', 'books', 'answerKeys'];
+let syncTimer = null;
+let syncing = false;
+
+function getDeleted() {
+  const d = getLS(LS.deleted, {});
+  SYNC_KINDS.forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+  return d;
+}
+
+function markDeleted(kind, ids) {
+  if (!ids || !ids.length) return;
+  const d = getDeleted();
+  d[kind] = Array.from(new Set([...(d[kind] || []), ...ids]));
+  setLS(LS.deleted, d);
+}
+
+function getAcademyCode() {
+  try { return (localStorage.getItem(LS.academyCode) || '').trim(); }
+  catch (e) { return ''; }
+}
+
+// 올릴 데이터 묶음 — 무거운 필드는 뺀다
+function buildSyncPayload() {
+  const books = getBooks().map(b => {
+    const { cover, ...rest } = b;   // 표지 이미지는 올리지 않음
+    return rest;
+  });
+  const history = getLS(LS.history, []).slice(0, 300);
+  return {
+    classes:    getClasses(),
+    students:   getStudents(),
+    books,
+    answerKeys: getKeys(),
+    history,
+    deleted:    getDeleted(),
+  };
+}
+
+function itemTime(x) {
+  return Number(x && (x.updatedAt || x.createdAt || x.savedAt)) || 0;
+}
+
+// 같은 id는 더 최근 것으로, 삭제 목록에 있으면 제외
+function mergeList(local, remote, deletedIds) {
+  const gone = new Set(deletedIds || []);
+  const map = new Map();
+  (remote || []).forEach(it => { if (it && it.id) map.set(it.id, it); });
+  (local || []).forEach(it => {
+    if (!it || !it.id) return;
+    const prev = map.get(it.id);
+    if (!prev || itemTime(it) >= itemTime(prev)) map.set(it.id, it);
+  });
+  return Array.from(map.values()).filter(it => !gone.has(it.id));
+}
+
+// 서버에서 받은 묶음을 로컬에 병합
+function applyRemote(remote) {
+  if (!remote || typeof remote !== 'object') return false;
+
+  // 삭제 목록부터 합친다 (양쪽 합집합)
+  const localDel  = getDeleted();
+  const remoteDel = remote.deleted || {};
+  const mergedDel = {};
+  SYNC_KINDS.forEach(k => {
+    mergedDel[k] = Array.from(new Set([...(localDel[k] || []), ...(remoteDel[k] || [])]));
+  });
+  setLS(LS.deleted, mergedDel);
+
+  setClasses(mergeList(getClasses(), remote.classes, mergedDel.classes));
+  setStudents(mergeList(getStudents(), remote.students, mergedDel.students));
+  setKeys(mergeList(getKeys(), remote.answerKeys, mergedDel.answerKeys));
+
+  // 교재는 표지가 로컬에만 있으므로, 병합 후 로컬 표지를 되살린다
+  const coverMap = new Map(getBooks().map(b => [b.id, b.cover]));
+  const mergedBooks = mergeList(getBooks(), remote.books, mergedDel.books)
+    .map(b => (b.cover ? b : { ...b, cover: coverMap.get(b.id) || null }));
+  setBooks(mergedBooks);
+
+  // 채점 기록은 id 기준 합치고 최신순 300개
+  const mergedHist = mergeList(getLS(LS.history, []), remote.history, [])
+    .sort((a, b) => String(b.savedAt || '').localeCompare(String(a.savedAt || '')))
+    .slice(0, 300);
+  setLS(LS.history, mergedHist);
+
+  return true;
+}
+
+async function syncCall(action, data) {
+  const code = getAcademyCode();
+  if (!code) throw new Error('학원 코드가 없습니다');
+  const res = await fetch(SYNC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, code, data }),
+  });
+  let json;
+  try { json = await res.json(); }
+  catch (_) { throw new Error(`서버 응답을 읽지 못했습니다 (${res.status})`); }
+  if (!res.ok || !json.ok) throw new Error(json.error || `${res.status}`);
+  return json;
+}
+
+// 변경이 생기면 잠깐 모았다가 한 번만 올린다
+function queueSync() {
+  if (!getAcademyCode()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { pushSync(false); }, 1500);
+}
+
+async function pushSync(loud) {
+  if (syncing || !getAcademyCode()) return;
+  syncing = true;
+  setSyncStatus('올리는 중…');
+  try {
+    const r = await syncCall('push', buildSyncPayload());
+    setLS(LS.syncAt, Date.now());
+    setSyncStatus('');
+    if (loud) showToast(`✓ 올렸습니다 (${Math.round((r.bytes||0)/1024)}KB)`, 'ok');
+  } catch (e) {
+    console.warn('[sync push]', e);
+    setSyncStatus('올리기 실패');
+    if (loud) showToast('✗ 올리기 실패: ' + e.message, 'err');
+  } finally {
+    syncing = false;
+  }
+}
+
+// 받아서 병합하고, 합친 결과를 다시 올린다
+async function fullSync(loud) {
+  if (syncing) return;
+  const code = getAcademyCode();
+  if (!code) {
+    if (loud) showToast('먼저 설정에서 학원 코드를 입력해주세요', 'err');
+    return;
+  }
+  syncing = true;
+  setSyncStatus('동기화 중…');
+  try {
+    const got = await syncCall('pull');
+    if (got.data) applyRemote(got.data);
+    const r = await syncCall('push', buildSyncPayload());
+    setLS(LS.syncAt, Date.now());
+    setSyncStatus('');
+
+    if (state.screen === 'Admin') renderAdmin();
+    if (state.screen === 'New')   refreshGradingPickers();
+    if (state.screen === 'Home')  { updateHomeStats(); renderTodayHistory(); }
+
+    if (loud) {
+      const n = getKeys().length;
+      showToast(`✓ 동기화 완료 (정답표 ${n}개, ${Math.round((r.bytes||0)/1024)}KB)`, 'ok');
+    }
+  } catch (e) {
+    console.warn('[sync full]', e);
+    setSyncStatus('동기화 실패');
+    if (loud) showToast('✗ 동기화 실패: ' + e.message, 'err');
+  } finally {
+    syncing = false;
+  }
+}
+
+function setSyncStatus(msg) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (msg) {
+    el.textContent = msg;
+    el.style.color = msg.includes('실패') ? 'var(--err)' : 'var(--t2)';
+    return;
+  }
+  const t = getLS(LS.syncAt, 0);
+  el.style.color = 'var(--t2)';
+  el.textContent = t
+    ? `마지막 동기화 ${new Date(t).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}`
+    : '아직 동기화한 적 없음';
+}
+
 function showScreen(name) {
   state.prevScreen = state.screen;
   state.screen = name;
@@ -931,7 +1199,7 @@ function applyLockState() {
 function switchTab(tab) {
   state.adminTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['Classes','Books','Reports','Settings'].forEach(name => {
+  ['Classes','Keys','Books','Reports','Settings'].forEach(name => {
     const el = document.getElementById('tab' + name);
     if (el) el.style.display = (name.toLowerCase() === tab) ? '' : 'none';
   });
@@ -941,6 +1209,7 @@ function switchTab(tab) {
 function renderAdmin() {
   applyLockState();
   if (state.adminTab === 'classes') { renderClasses(); renderStudents(); }
+  else if (state.adminTab === 'keys') { renderKeys(); }
   else if (state.adminTab === 'books') { renderBooks(); }
   else if (state.adminTab === 'reports') { renderReports(); }
   else if (state.adminTab === 'settings') { renderSettings(); }
@@ -997,12 +1266,13 @@ function saveClass() {
   if (!name) { showToast('반 이름을 입력해주세요', 'err'); return; }
   let list = getClasses();
   if (state.editing.classId) {
-    list = list.map(c => c.id === state.editing.classId ? {...c, name, desc} : c);
+    list = list.map(c => c.id === state.editing.classId ? {...c, name, desc, updatedAt: Date.now()} : c);
   } else {
     if (list.some(c => c.name === name)) { showToast('같은 이름의 반이 이미 있어요', 'err'); return; }
-    list.push({ id: uid(), name, desc, createdAt: Date.now() });
+    list.push({ id: uid(), name, desc, createdAt: Date.now(), updatedAt: Date.now() });
   }
   setClasses(list);
+  queueSync();
   closeModal('modalClass');
   renderClasses();
   renderStudents();
@@ -1015,9 +1285,13 @@ function deleteClass(id) {
   const students = getStudents().filter(s => s.classId === id);
   if (students.length && !confirm(`"${c.name}" 반에 학생 ${students.length}명이 있어요. 모두 삭제할까요?`)) return;
   if (!students.length && !confirm(`"${c.name}" 반을 삭제할까요?`)) return;
+  const goneStudents = getStudents().filter(s => s.classId === id).map(s => s.id);
   setClasses(getClasses().filter(x => x.id !== id));
   setStudents(getStudents().filter(s => s.classId !== id));
+  markDeleted('classes', [id]);
+  markDeleted('students', goneStudents);
   renderClasses(); renderStudents();
+  queueSync();
   showToast('삭제됨');
 }
 
@@ -1103,11 +1377,12 @@ function saveStudent() {
   if (!name) { showToast('학생 이름을 입력해주세요', 'err'); return; }
   let list = getStudents();
   if (state.editing.studentId) {
-    list = list.map(s => s.id === state.editing.studentId ? {...s, classId, name} : s);
+    list = list.map(s => s.id === state.editing.studentId ? {...s, classId, name, updatedAt: Date.now()} : s);
   } else {
-    list.push({ id: uid(), classId, name, createdAt: Date.now() });
+    list.push({ id: uid(), classId, name, createdAt: Date.now(), updatedAt: Date.now() });
   }
   setStudents(list);
+  queueSync();
   closeModal('modalStudent');
   renderStudents();
   // 새 채점 중이면 드롭다운 갱신
@@ -1120,7 +1395,335 @@ function deleteStudent(id) {
   if (!s) return;
   if (!confirm(`"${s.name}" 학생을 삭제할까요? (채점 기록은 유지됩니다)`)) return;
   setStudents(getStudents().filter(x => x.id !== id));
+  markDeleted('students', [id]);
   renderStudents();
+  queueSync();
+  showToast('삭제됨');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 정답표 관리 — PDF/사진을 AI가 텍스트로 변환해 저장
+// 원본(PDF·이미지)은 저장하지 않는다. 텍스트만 남긴다.
+// ══════════════════════════════════════════════════════════════
+function getKeys() { return getLS(LS.answerKeys, []); }
+function setKeys(arr) { setLS(LS.answerKeys, arr); }
+
+// 모달 작업 중 임시 보관 (저장되지 않음)
+let keyDraft = { editingId: null, pdf: null, images: [] };
+
+function renderKeys() {
+  const list = getKeys();
+  const el = document.getElementById('keyList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ic">🗂</div>등록된 정답표가 없어요<br>
+      <span style="font-size:11px">수정 활성화 후 [+ 정답표]를 눌러주세요</span></div>`;
+    return;
+  }
+  el.innerHTML = '<div class="lst">' + list.map(k => {
+    const srcLabel = k.source === 'pdf' ? 'PDF' : (k.source === 'photo' ? '사진' : '직접입력');
+    const len = (k.content || '').length;
+    const d = k.createdAt ? new Date(k.createdAt).toLocaleDateString('ko-KR') : '';
+    return `<div class="lst-row">
+      <div class="lst-main">
+        <div class="lst-name">${esc(k.name)}</div>
+        <div class="lst-sub">${srcLabel} · ${len.toLocaleString()}자 · ${esc(d)}</div>
+      </div>
+      <button class="btn btn-sm btn-o" onclick="viewKey('${k.id}')">보기</button>
+      <button class="btn btn-sm btn-o lock-req" onclick="editKey('${k.id}')" ${state.editLocked?'disabled':''}>수정</button>
+      <button class="btn btn-sm btn-r lock-req" onclick="deleteKey('${k.id}')" ${state.editLocked?'disabled':''}>×</button>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function openKeyModal() {
+  keyDraft = { editingId: null, pdf: null, images: [] };
+  document.getElementById('modalKeyTitle').textContent = '+ 정답표';
+  document.getElementById('keyName').value = '';
+  document.getElementById('keyHint').value = '';
+  document.getElementById('keyContent').value = '';
+  document.getElementById('keySrcInfo').innerHTML = '';
+  document.getElementById('keyExtractArea').style.display = 'none';
+  updateKeyLen();
+  document.getElementById('modalKey').classList.add('show');
+}
+
+function editKey(id) {
+  const k = getKeys().find(x => x.id === id);
+  if (!k) return;
+  keyDraft = { editingId: id, pdf: null, images: [] };
+  document.getElementById('modalKeyTitle').textContent = '정답표 수정';
+  document.getElementById('keyName').value = k.name || '';
+  document.getElementById('keyHint').value = '';
+  document.getElementById('keyContent').value = k.content || '';
+  document.getElementById('keySrcInfo').innerHTML = '';
+  document.getElementById('keyExtractArea').style.display = 'none';
+  updateKeyLen();
+  document.getElementById('modalKey').classList.add('show');
+}
+
+function viewKey(id) {
+  const k = getKeys().find(x => x.id === id);
+  if (!k) return;
+  // 보기는 수정 모달 재사용 (잠금 상태면 저장 버튼만 막힘)
+  editKey(id);
+}
+
+function updateKeyLen() {
+  const v = document.getElementById('keyContent').value || '';
+  document.getElementById('keyLenBadge').textContent = `${v.length.toLocaleString()}자`;
+}
+
+function onKeySrcPdf(ev) {
+  const file = ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  if (file.size > 32 * 1024 * 1024) { showToast('PDF는 32MB 이하만 가능해요', 'err'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    keyDraft.pdf = { name: file.name, size: file.size, base64: reader.result.split(',')[1] };
+    keyDraft.images = [];
+    renderKeySrcInfo();
+  };
+  reader.readAsDataURL(file);
+}
+
+function onKeySrcImg(ev) {
+  const files = Array.from(ev.target.files || []);
+  ev.target.value = '';
+  if (!files.length) return;
+  if (files.length > 6) { showToast('사진은 6장까지만 가능해요', 'err'); return; }
+  const out = [];
+  let done = 0;
+  files.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      out[i] = { name: file.name, dataUrl: reader.result };
+      if (++done === files.length) {
+        keyDraft.images = out.filter(Boolean);
+        keyDraft.pdf = null;
+        renderKeySrcInfo();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderKeySrcInfo() {
+  const el = document.getElementById('keySrcInfo');
+  const area = document.getElementById('keyExtractArea');
+  if (keyDraft.pdf) {
+    const kb = Math.round(keyDraft.pdf.size / 1024);
+    el.innerHTML = `<div style="padding:9px 12px;background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.3);border-radius:var(--r);display:flex;align-items:center;gap:8px">
+      <span style="font-size:18px">📑</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--g);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(keyDraft.pdf.name)}</div>
+        <div style="font-size:10px;color:var(--t2)">${kb.toLocaleString()} KB</div>
+      </div>
+      <button class="icon-btn" style="width:26px;height:26px;font-size:11px" onclick="clearKeySrc()">✕</button>
+    </div>`;
+    area.style.display = '';
+  } else if (keyDraft.images.length) {
+    el.innerHTML = `<div style="padding:9px 12px;background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.3);border-radius:var(--r);display:flex;align-items:center;gap:8px">
+      <span style="font-size:18px">🖼</span>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--g)">사진 ${keyDraft.images.length}장</div>
+      <button class="icon-btn" style="width:26px;height:26px;font-size:11px" onclick="clearKeySrc()">✕</button>
+    </div>`;
+    area.style.display = '';
+  } else {
+    el.innerHTML = '';
+    area.style.display = 'none';
+  }
+}
+
+function clearKeySrc() {
+  keyDraft.pdf = null;
+  keyDraft.images = [];
+  renderKeySrcInfo();
+}
+
+// ── AI로 정답 추출 ──
+async function runKeyExtract() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showToast('먼저 설정에서 API 키를 입력해주세요', 'err');
+    return;
+  }
+  if (!keyDraft.pdf && !keyDraft.images.length) {
+    showToast('PDF나 사진을 먼저 올려주세요', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('btnKeyExtract');
+  const old = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span style="font-size:16px">⏳</span> 추출 중...';
+
+  try {
+    const hint = document.getElementById('keyHint').value.trim();
+    const prompt = buildKeyExtractPrompt(hint);
+    const content = [{ type: 'text', text: prompt }];
+
+    keyDraft.images.forEach((im, i) => {
+      const [mt, b64] = parseDataUrl(im.dataUrl);
+      content.push({ type: 'text', text: `[정답지 사진 ${i+1}/${keyDraft.images.length}]` });
+      content.push({ type: 'image', source: { type: 'base64', media_type: mt, data: b64 } });
+    });
+    if (keyDraft.pdf) {
+      content.push({ type: 'text', text: `[정답 PDF: ${keyDraft.pdf.name}]` });
+      content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: keyDraft.pdf.base64 } });
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+    if (keyDraft.pdf) headers['anthropic-beta'] = 'pdfs-2024-09-25';
+
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model: getApiModel(), max_tokens: 8000, messages: [{ role: 'user', content }] }),
+    });
+
+    if (!res.ok) {
+      let msg = `${res.status} ${res.statusText}`;
+      try { const e = await res.json(); if (e.error?.message) msg += `: ${e.error.message}`; } catch(_) {}
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    const text = (data.content?.[0]?.text || '').trim();
+    if (!text) throw new Error('AI가 빈 응답을 보냈어요');
+
+    document.getElementById('keyContent').value = text;
+    updateKeyLen();
+
+    // 이름이 비어 있으면 힌트로 초안 제안
+    const nameEl = document.getElementById('keyName');
+    if (!nameEl.value.trim() && hint) nameEl.value = hint;
+
+    showToast('✓ 정답 추출 완료 — 내용을 확인해주세요', 'ok');
+  } catch (err) {
+    console.error('[keyExtract]', err);
+    showToast('✗ 추출 실패: ' + (err.message || '네트워크 오류'), 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = old;
+  }
+}
+
+function buildKeyExtractPrompt(hint) {
+  const scope = hint
+    ? `
+【 ⚠️ 추출 범위 — 가장 먼저 확인 】
+이 자료에는 지문·단원이 여러 개 들어 있을 수 있습니다.
+**"${hint}" 에 해당하는 부분만** 추출하세요. 나머지는 전부 무시합니다.
+
+범위를 찾는 법:
+- 페이지 머리말·꼬리말에 적힌 단원/지문 표시를 확인하세요
+  (예: "4과 본문2", "11강 P2", "3강 10번 지문 1")
+- 해당 부분이 여러 페이지에 걸쳐 있으면 이어서 읽으세요
+  (보통 한 지문이 2페이지: 앞면은 빈칸·문제, 뒷면은 주제·T/N)
+- "${hint}"를 못 찾겠으면, 추측하지 말고 맨 윗줄에
+  "※ 범위를 찾지 못했습니다. 자료에 있는 단원: ..." 이라고 적고 목록을 알려주세요`
+    : `
+【 ⚠️ 추출 범위 】
+범위가 지정되지 않았습니다. 자료에 지문이 여러 개면 **지문별로 소제목을 달아 구분**하세요.
+(예: "===== 본문2 =====", "===== 본문3 =====")`;
+
+  return `당신은 영어 교재의 정답지를 읽고 **정답만** 정리하는 조교입니다.
+${scope}
+
+【 정답을 찾는 순서 】
+1순위: "ANSWER KEY" / "정답" / "정답 모음" 같은 **정답 요약 블록**
+       → 있으면 이걸 기준으로 삼으세요. 가장 정확합니다.
+2순위: 페이지 구석의 **작은 요약 줄**
+       → 예: "주제-⑤ / T&N-① T ② T ③ N ④ N ⑤ T ⑥ N"
+       → SUBJECT·TRUE or NOT 정답은 이게 가장 확실합니다. 꼭 찾아보세요.
+3순위: 본문에서 **강조된 부분** (빨간색·볼드·밑줄·형광펜)
+       → 선택지 [ A / B ] 중 강조된 쪽이 정답
+       → 빈칸 뒤 밑줄 친 단어가 정답
+
+위 세 가지를 **모두 확인**하고, 서로 어긋나면 1순위 → 2순위 → 3순위로 따르세요.
+
+【 ⚠️ 원문자 번호 주의 — 섞으면 채점이 전부 틀어집니다 】
+같은 ①②③ 기호가 섹션마다 **다른 뜻**으로 쓰입니다:
+- BLANK PART의 ①②③   → 그 섹션의 빈칸 번호
+- QUESTION PART의 ①②③ → 그 섹션의 문제 번호
+- TRUE or NOT의 ①②③  → T/N 문항 번호
+절대 섞지 말고, **반드시 섹션별로 묶어서** 정리하세요.
+
+【 정리 규칙 】
+- 교재에 인쇄된 **실제 번호**를 그대로 씁니다 (05, 02-1, 6번문장, ① 등)
+- 섹션명을 소제목으로 유지합니다
+  (BLANK PART / QUESTION PART / SUBJECT / TRUE or NOT / SUMMARY 등)
+- 복수 정답은 슬래시로: differently / different
+- 선택지를 고르는 문제는 **번호와 내용을 함께**: "⑤ How AI-based neural implants…"
+- 해설·설명·한글 해석은 **넣지 마세요.** 정답만 필요합니다.
+- 읽을 수 없는 항목은 "(판독 불가)"라고 적습니다. **추측하지 마세요.**
+
+【 출력 형식 】
+사람이 읽기 좋은 **일반 텍스트**. JSON 아닙니다.
+한 줄에 한 문항, 섹션은 빈 줄로 구분.
+
+예시:
+BLANK PART
+05  how / fascinating
+06  ①promise  ②applications / offering
+07  treat
+08  ③electrically / targeted / ④restore / normal
+
+QUESTION PART
+6번문장   ① potential
+8번문장   ③ with electricity   ④ recover
+11번문장  ⑦ 주격관계대명사 + 불완전   ⑧ man-made, synthetic
+
+SUBJECT
+⑤
+
+TRUE or NOT
+① T  ② T  ③ N  ④ N  ⑤ T  ⑥ N
+
+다른 설명 없이 정답 목록만 출력하세요.`;
+}
+
+function saveKey() {
+  const name = document.getElementById('keyName').value.trim();
+  const content = document.getElementById('keyContent').value.trim();
+  if (!name) { showToast('정답표 이름을 입력해주세요', 'err'); return; }
+  if (!content) { showToast('정답 내용이 비어 있어요', 'err'); return; }
+
+  let list = getKeys();
+  const source = keyDraft.pdf ? 'pdf' : (keyDraft.images.length ? 'photo' : 'text');
+
+  if (keyDraft.editingId) {
+    list = list.map(k => k.id === keyDraft.editingId
+      ? { ...k, name, content, updatedAt: Date.now() }
+      : k);
+  } else {
+    if (list.some(k => k.name === name)) {
+      if (!confirm(`"${name}" 이름의 정답표가 이미 있어요. 새로 하나 더 만들까요?`)) return;
+    }
+    list.unshift({ id: uid(), name, content, source, createdAt: Date.now(), updatedAt: Date.now() });
+  }
+  setKeys(list);
+  queueSync();
+  closeModal('modalKey');
+  renderKeys();
+  if (state.screen === 'New') refreshGradingPickers();
+  showToast('✓ 정답표 저장됨', 'ok');
+}
+
+function deleteKey(id) {
+  const k = getKeys().find(x => x.id === id);
+  if (!k) return;
+  if (!confirm(`"${k.name}" 정답표를 삭제할까요?`)) return;
+  setKeys(getKeys().filter(x => x.id !== id));
+  markDeleted('answerKeys', [id]);
+  renderKeys();
+  queueSync();
   showToast('삭제됨');
 }
 
@@ -1190,8 +1793,10 @@ function saveBook() {
     title, grade, publisher,
     cover: bookCoverData,
     createdAt: Date.now(),
+    updatedAt: Date.now(),
   });
   setBooks(list);
+  queueSync();
   closeModal('modalBook');
   renderBooks();
   if (state.screen === 'New') refreshGradingPickers();
@@ -1203,7 +1808,9 @@ function deleteBook(id) {
   if (!b) return;
   if (!confirm(`"${b.title}" 교재를 삭제할까요?`)) return;
   setBooks(getBooks().filter(x => x.id !== id));
+  markDeleted('books', [id]);
   renderBooks();
+  queueSync();
   showToast('삭제됨');
 }
 
@@ -1218,6 +1825,7 @@ function renderSettings() {
     if (code) { codeBadge.textContent = '✓ 설정됨'; codeBadge.className = 'badge g'; }
     else { codeBadge.textContent = '미설정'; codeBadge.className = 'badge o'; }
   }
+  setSyncStatus('');
   // 모델 셀렉트
   const selM = document.getElementById('apiModelSelect');
   if (selM) {
@@ -1274,7 +1882,8 @@ function saveAcademyCode() {
   if (!v) { showToast('학원 코드를 입력해주세요', 'err'); return; }
   localStorage.setItem(LS.academyCode, v);
   renderSettings();
-  showToast('✓ 학원 코드 저장됨', 'ok');
+  showToast('✓ 학원 코드 저장됨 — 동기화합니다', 'ok');
+  fullSync(true);
 }
 
 function renderReports() {
@@ -1301,18 +1910,30 @@ function resetGrading() {
   state.grading = {
     classId: null, studentId: null, mode: null,
     bookId: null, page: '',
-    photos: [], keyPhotos: [], keyPdf: null,
-    answerType: 'none', answerText: '',
+    photos: [],
+    answerKeyId: '__none', answerText: '',
   };
   document.getElementById('photoGrid').innerHTML = '';
-  document.getElementById('keyPhotoGrid').innerHTML = '';
   document.getElementById('photoCount').textContent = '0 / 8';
   document.getElementById('cardBook').style.display = 'none';
   document.getElementById('cardPhoto').style.display = 'none';
   document.getElementById('btnGrade').disabled = true;
   document.querySelectorAll('.mode').forEach(m => m.classList.remove('active'));
-  const kpi = document.getElementById('keyPdfInfo');
-  if (kpi) kpi.innerHTML = '';
+  const at = document.getElementById('answerText');
+  if (at) at.value = '';
+}
+
+// 채점 화면에서 바로 정답표 만들기
+function openKeyFromGrading() {
+  openKeyModal();
+  // 교재/페이지를 힌트 초안으로
+  const book = getBooks().find(b => b.id === document.getElementById('pickBook').value);
+  const page = document.getElementById('pickPage').value.trim();
+  const draft = [book?.title, page].filter(Boolean).join(' ');
+  if (draft) {
+    document.getElementById('keyName').value = draft;
+    document.getElementById('keyHint').value = page || '';
+  }
 }
 
 function refreshGradingPickers() {
@@ -1326,6 +1947,28 @@ function refreshGradingPickers() {
   const selB = document.getElementById('pickBook');
   selB.innerHTML = '<option value="">교재 선택 (선택사항)</option>' + books.map(b => `<option value="${b.id}">${esc(b.title)} ${b.grade?'· '+esc(b.grade):''}</option>`).join('');
   if (state.grading.bookId) selB.value = state.grading.bookId;
+
+  // 정답표 드롭다운
+  const keys = getKeys();
+  const selK = document.getElementById('pickAnswerKey');
+  if (selK) {
+    const prev = state.grading.answerKeyId || '__none';
+    let html = '';
+    if (keys.length) {
+      html += '<optgroup label="등록된 정답표">' +
+        keys.map(k => `<option value="${k.id}">${esc(k.name)}</option>`).join('') +
+        '</optgroup>';
+    }
+    html += '<optgroup label="그 외">' +
+      '<option value="__none">정답표 없이 채점 (AI가 추론)</option>' +
+      '<option value="__once">이번만 직접 입력</option>' +
+      '</optgroup>';
+    selK.innerHTML = html;
+    // 등록된 게 있으면 가장 최근 것을 기본 선택
+    selK.value = keys.some(k => k.id === prev) ? prev
+               : (prev === '__once' ? '__once' : (keys.length ? keys[0].id : '__none'));
+    onAnswerKeyChange();
+  }
 }
 
 function onPickClass() {
@@ -1359,57 +2002,44 @@ function pickMode(mode) {
   updateStepIndicator();
 }
 
-function onAnswerTypeChange() {
-  const v = document.getElementById('pickAnswerType').value;
-  state.grading.answerType = v;
-  document.getElementById('answerPhotoArea').style.display = (v === 'photo') ? '' : 'none';
-  document.getElementById('answerPdfArea').style.display   = (v === 'pdf')   ? '' : 'none';
-  document.getElementById('answerTextArea').style.display  = (v === 'text')  ? '' : 'none';
-}
+function onAnswerKeyChange() {
+  const v = document.getElementById('pickAnswerKey').value;
+  state.grading.answerKeyId = v;
 
-function onKeyPdfSelect(ev) {
-  const file = ev.target.files[0];
-  if (!file) return;
-  if (file.size > 32 * 1024 * 1024) {
-    showToast('PDF는 32MB 이하만 가능해요', 'err');
+  const prev = document.getElementById('keyPreviewArea');
+  const txt  = document.getElementById('answerTextArea');
+  const warn = document.getElementById('noKeyWarn');
+
+  txt.style.display  = (v === '__once') ? '' : 'none';
+  warn.style.display = (v === '__none') ? '' : 'none';
+
+  if (v === '__none' || v === '__once') {
+    prev.style.display = 'none';
+    prev.innerHTML = '';
     return;
   }
-  const reader = new FileReader();
-  reader.onload = () => {
-    // reader.result = "data:application/pdf;base64,JVBERi0..."
-    const base64 = reader.result.split(',')[1];
-    state.grading.keyPdf = {
-      name: file.name,
-      size: file.size,
-      base64: base64,
-    };
-    const sizeKB = Math.round(file.size / 1024);
-    document.getElementById('keyPdfInfo').innerHTML = `
-      <div style="padding:10px 12px;background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.3);border-radius:var(--r);display:flex;align-items:center;gap:8px">
-        <span style="font-size:20px">📑</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;color:var(--g);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</div>
-          <div style="font-size:10px;color:var(--t2)">${sizeKB.toLocaleString()} KB</div>
-        </div>
-        <button class="icon-btn" style="width:28px;height:28px;font-size:12px" onclick="removeKeyPdf()">✕</button>
-      </div>`;
-    showToast('✓ 정답 PDF 업로드됨', 'ok');
-  };
-  reader.readAsDataURL(file);
-  ev.target.value = '';
-}
 
-function removeKeyPdf() {
-  state.grading.keyPdf = null;
-  document.getElementById('keyPdfInfo').innerHTML = '';
-  showToast('정답 PDF 제거됨');
+  const k = getKeys().find(x => x.id === v);
+  if (!k) { prev.style.display = 'none'; return; }
+
+  const body = (k.content || '');
+  const head = body.length > 260 ? body.slice(0, 260) + '…' : body;
+  prev.style.display = '';
+  prev.innerHTML = `
+    <div style="padding:10px 12px;background:var(--b2);border:1px solid rgba(29,185,84,.25);border-radius:var(--r)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span class="badge g">정답표</span>
+        <span style="font-size:11px;color:var(--t2)">${body.length.toLocaleString()}자</span>
+      </div>
+      <pre style="margin:0;font-family:var(--m);font-size:11px;line-height:1.5;color:var(--t1);white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:hidden">${esc(head)}</pre>
+    </div>`;
 }
 
 function onPhotoSelect(ev, kind) {
   const files = Array.from(ev.target.files || []);
   if (!files.length) return;
-  const bucket = (kind === 'key') ? 'keyPhotos' : 'photos';
-  const max = (kind === 'key') ? 4 : 8;
+  const bucket = 'photos';
+  const max = 8;
   if (state.grading[bucket].length + files.length > max) {
     showToast(`최대 ${max}장까지 올릴 수 있어요`, 'err');
     return;
@@ -1436,8 +2066,8 @@ function onPhotoSelect(ev, kind) {
 }
 
 function renderPhotoGrid(kind) {
-  const bucket = (kind === 'key') ? 'keyPhotos' : 'photos';
-  const gridId = (kind === 'key') ? 'keyPhotoGrid' : 'photoGrid';
+  const bucket = 'photos';
+  const gridId = 'photoGrid';
   const arr = state.grading[bucket];
   const grid = document.getElementById(gridId);
   grid.innerHTML = arr.map((p, i) => `
@@ -1452,7 +2082,7 @@ function renderPhotoGrid(kind) {
 }
 
 function removePhoto(kind, id) {
-  const bucket = (kind === 'key') ? 'keyPhotos' : 'photos';
+  const bucket = 'photos';
   state.grading[bucket] = state.grading[bucket].filter(p => p.id !== id);
   renderPhotoGrid(kind);
   updateStepIndicator();
@@ -1512,7 +2142,7 @@ async function runGrading() {
     // 모드별 프롬프트
     let prompt;
     if (g.mode === 'book') {
-      prompt = buildBookPrompt(student, book, g.page, g.answerType, g.answerText, g.photos.length, g.keyPhotos.length, !!g.keyPdf);
+      prompt = buildBookPrompt(student, book, g.page, resolveAnswerKey(), g.photos.length);
     } else if (g.mode === 'habbang') {
       showToast('하빵 모드는 다음 차수에서 지원됩니다', '');
       document.getElementById('resultBody').innerHTML = `<div class="empty"><div class="empty-ic">🚧</div>하빵 모드는 다음 차수에서 지원됩니다<br><span style="font-size:11px">현재는 "일반 교재 채점"만 실제 AI 연동됨</span></div>`;
@@ -1525,7 +2155,7 @@ async function runGrading() {
       return;
     }
 
-    const result = await callClaudeAPI(apiKey, prompt, g.photos, g.keyPhotos, g.keyPdf);
+    const result = await callClaudeAPI(apiKey, prompt, g.photos);
     renderGradingResult(result);
   } catch (err) {
     console.error('[runGrading]', err);
@@ -1556,20 +2186,46 @@ async function runGrading() {
 }
 
 // ── 모드 A: 일반 교재 채점 프롬프트 ──
-function buildBookPrompt(student, book, page, answerType, answerText, photoCount, keyPhotoCount, hasKeyPdf) {
+// 현재 선택된 정답표의 텍스트를 돌려준다 (없으면 '')
+function resolveAnswerKey() {
+  const g = state.grading;
+  if (g.answerKeyId === '__once') return (g.answerText || '').trim();
+  if (g.answerKeyId === '__none' || !g.answerKeyId) return '';
+  const k = getKeys().find(x => x.id === g.answerKeyId);
+  return k ? (k.content || '').trim() : '';
+}
+
+function buildBookPrompt(student, book, page, answerKeyText, photoCount) {
   const bookInfo = book ? `교재: ${book.title}${book.grade ? ' ('+book.grade+')' : ''}${book.publisher ? ' · '+book.publisher : ''}` : '';
   const pageInfo = page ? `페이지: ${page}` : '';
   const header = [bookInfo, pageInfo].filter(Boolean).join('\n');
 
-  let keySection = '';
-  if (answerType === 'pdf' && hasKeyPdf) {
-    keySection = `\n【 정답지 (PDF) 】\n학생 답안지 사진 ${photoCount}장 뒤에 **정답지 PDF 1개**가 첨부되어 있습니다. PDF에서 이 학생이 푼 지문/페이지에 해당하는 정답을 찾아 대조 채점하세요.\n- PDF 전체에서 **학생 답안의 지문/번호와 일치하는 부분**만 쓰세요\n- PDF에 지문이 여러 개면, 학생이 푼 지문 번호(예: "3강 10번")를 찾아서 그 정답만 사용\n- 섹션별 정답(빈칸 채우기 / 해석 보기 / 일치 보기 등)을 각각 구분해서 채점`;
-  } else if (answerType === 'photo' && keyPhotoCount > 0) {
-    keySection = `\n【 정답지 】\n학생 답안지 사진 ${photoCount}장 뒤에 정답지 사진 ${keyPhotoCount}장이 추가로 첨부되어 있습니다. 정답지를 먼저 읽고 문항별 정답을 파악한 뒤, 학생 답과 대조해 채점하세요.`;
-  } else if (answerType === 'text' && answerText) {
-    keySection = `\n【 정답 (사용자 제공) 】\n${answerText}\n\n위 정답을 기준으로 채점하세요.`;
+  let keySection;
+  if (answerKeyText) {
+    keySection = `
+【 정답표 — 이것이 채점 기준입니다 】
+아래는 선생님이 등록한 정답표입니다. **이 정답표를 절대 기준으로 삼으세요.**
+직접 문제를 풀어 다른 답을 생각했더라도, 정답표가 우선입니다.
+
+────────────────────────
+${answerKeyText}
+────────────────────────
+
+정답표 사용 규칙:
+- 학생 답안의 문항 번호와 정답표의 번호를 맞춰서 대조하세요
+- 정답표에 "A / B"처럼 슬래시가 있으면 **둘 중 하나만 맞아도 정답**입니다
+- 정답표에 없는 문항은 채점하지 말고 결과에서 빼세요
+- 정답표에 "(판독 불가)"라고 돼 있으면 그 문항은 unc 처리
+- 학생 답이 정답표와 다르지만 명백히 같은 뜻이면 정답 (예: 대소문자, 줄임표기)`;
   } else {
-    keySection = `\n【 정답지 없음 】\n정답지가 제공되지 않았습니다. 교재 문제와 선택지를 읽고 문법·독해 지식으로 정답을 먼저 도출한 뒤, 학생 답과 대조해 채점하세요. 정답이 명확하지 않은 문항은 △(확인 필요)로 처리하세요.`;
+    keySection = `
+【 ⚠️ 정답표 없음 — 특별히 신중할 것 】
+정답표가 제공되지 않았습니다. 직접 풀어서 채점해야 합니다.
+이 상황에서는 **오판 위험이 큽니다.** 다음을 지키세요:
+- 각 선택지를 하나씩 검토해 왜 맞고 틀리는지 따진 뒤 정답을 확정
+- 정답이 둘 이상 가능해 보이면 → 반드시 unc
+- 교재 출제의도를 확신할 수 없으면 → 반드시 unc
+- 조금이라도 애매하면 err가 아니라 unc로 보내세요`;
   }
 
   return `당신은 한국 영어학원 선생님의 채점 조교입니다. 학생이 영어 교재를 푼 답안지 사진을 보고 채점합니다.
@@ -1667,7 +2323,7 @@ ${keySection}
 }
 
 // ── Claude API 호출 ──
-async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos, keyPdf) {
+async function callClaudeAPI(apiKey, prompt, answerPhotos) {
   // 이미지/PDF base64 처리
   const content = [{ type: 'text', text: prompt }];
 
@@ -1682,36 +2338,14 @@ async function callClaudeAPI(apiKey, prompt, answerPhotos, keyPhotos, keyPdf) {
     });
   }
 
-  // 정답지 사진 (있으면) 뒤에
-  for (let i = 0; i < keyPhotos.length; i++) {
-    const p = keyPhotos[i];
-    const [mediaType, base64] = parseDataUrl(p.dataUrl);
-    content.push({ type: 'text', text: `[정답지 ${i+1}/${keyPhotos.length}]` });
-    content.push({
-      type: 'image',
-      source: { type: 'base64', media_type: mediaType, data: base64 },
-    });
-  }
+  // 정답은 프롬프트 안에 텍스트로 들어간다 (PDF·이미지 전송 없음)
 
-  // 정답지 PDF (있으면) — Claude document 블록
-  if (keyPdf && keyPdf.base64) {
-    content.push({ type: 'text', text: `[정답지 PDF: ${keyPdf.name}]` });
-    content.push({
-      type: 'document',
-      source: { type: 'base64', media_type: 'application/pdf', data: keyPdf.base64 },
-    });
-  }
-
-  // PDF 포함 시 beta 헤더 (하위 호환)
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
     'anthropic-version': '2023-06-01',
     'anthropic-dangerous-direct-browser-access': 'true',
   };
-  if (keyPdf && keyPdf.base64) {
-    headers['anthropic-beta'] = 'pdfs-2024-09-25';
-  }
 
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -1965,6 +2599,9 @@ function saveResult() {
     bookTitle: book?.title || '',
     page: g.page,
     mode: g.mode,
+    answerKeyId: g.answerKeyId,
+    answerKeyName: (getKeys().find(k => k.id === g.answerKeyId) || {}).name
+                   || (g.answerKeyId === '__once' ? '직접 입력' : '정답표 없음'),
     result: state.currentResult,
   };
   const history = getLS(LS.history, []);
@@ -1972,6 +2609,7 @@ function saveResult() {
   // 최근 500개만 유지
   if (history.length > 500) history.length = 500;
   setLS(LS.history, history);
+  queueSync();
   showToast('✓ 저장되었습니다', 'ok');
   setTimeout(goHome, 800);
 }
@@ -2027,6 +2665,16 @@ function init() {
   updateHomeStats();
   renderTodayHistory();
   console.log(`[KKJ v2] ${APP_VERSION} initialized`);
+
+  // 학원 코드가 있으면 조용히 받아와 병합
+  if (getAcademyCode()) {
+    setTimeout(() => fullSync(false), 400);
+  }
+
+  // 앱으로 돌아올 때도 한 번 (폰에서 PC 작업분 받기)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && getAcademyCode()) fullSync(false);
+  });
 }
 
 // 모달 밖 클릭 시 닫기
