@@ -38,13 +38,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'POST only' });
   }
 
-  if (!KV_URL || !KV_TOKEN) {
-    return res.status(500).json({
-      ok: false,
-      error: 'KV 환경변수가 없습니다. Vercel → Settings → Environment Variables 에서 KV_REST_API_URL / KV_REST_API_TOKEN 을 확인하세요.',
-    });
-  }
-
   let body;
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
@@ -53,6 +46,18 @@ export default async function handler(req, res) {
   }
 
   const { action, code, data } = body;
+
+  // 진단: 환경변수가 없을 때 쓰는 기능이라 환경변수·학원코드 검사보다 먼저 처리
+  if (action === 'diag') {
+    return res.status(200).json({ ok: true, diag: await diagnose() });
+  }
+
+  if (!KV_URL || !KV_TOKEN) {
+    return res.status(500).json({
+      ok: false,
+      error: 'KV 환경변수가 없습니다. Vercel → Settings → Environment Variables 에서 KV_REST_API_URL / KV_REST_API_TOKEN 을 확인하세요.',
+    });
+  }
 
   if (!code || !/^[A-Za-z0-9_-]{3,40}$/.test(code)) {
     return res.status(400).json({ ok: false, error: '학원 코드가 올바르지 않습니다' });
@@ -95,4 +100,51 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
+}
+
+// ── 진단 ──────────────────────────────────────────────
+// URL은 앞 30자만 공개. 단, redis://default:비밀번호@host 형식은
+// 앞 30자 안에 비밀번호가 들어가므로 user:pass 부분을 *** 로 가린 뒤 자른다.
+function maskUrl(v) {
+  let s = String(v);
+  try {
+    const u = new URL(s);
+    if (u.username || u.password) {
+      s = `${u.protocol}//***@${u.host}${u.pathname === '/' ? '' : u.pathname}`;
+    }
+  } catch (_) {
+    const at = s.lastIndexOf('@');
+    if (at !== -1) s = '***' + s.slice(at);
+  }
+  return s.slice(0, 30);
+}
+
+async function diagnose() {
+  const urls = {};
+  for (const name of ['KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL', 'KV_URL', 'REDIS_URL']) {
+    const v = process.env[name];
+    urls[name] = v ? { set: true, head: maskUrl(v) } : { set: false };
+  }
+
+  // 토큰은 값 노출 금지 — 존재 여부와 길이만
+  const tokens = {};
+  for (const name of ['KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN']) {
+    const v = process.env[name];
+    tokens[name] = { set: !!v, length: v ? v.length : 0 };
+  }
+
+  let ping;
+  if (!KV_URL || !KV_TOKEN) {
+    ping = { ok: false, error: 'REST URL 또는 TOKEN 없음 — PING 생략' };
+  } else {
+    try {
+      const r = await kv(['PING']);
+      ping = { ok: true, result: r && r.result };
+    } catch (e) {
+      // kv()의 에러 메시지에는 응답 본문만 들어가고 토큰은 들어가지 않는다
+      ping = { ok: false, error: String((e && e.message) || e) };
+    }
+  }
+
+  return { urls, tokens, ping };
 }
