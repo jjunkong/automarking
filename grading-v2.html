@@ -1587,7 +1587,7 @@ async function runKeyExtract() {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model: getApiModel(), max_tokens: 8000, messages: [{ role: 'user', content }] }),
+      body: JSON.stringify({ model: getApiModel(), max_tokens: 16000, messages: [{ role: 'user', content }] }),
     });
 
     if (!res.ok) {
@@ -1597,8 +1597,15 @@ async function runKeyExtract() {
     }
 
     const data = await res.json();
-    const text = (data.content?.[0]?.text || '').trim();
-    if (!text) throw new Error('AI가 빈 응답을 보냈어요');
+    // 진단용: 응답 전체를 콘솔과 window에 남김
+    console.log('[keyExtract] response', data);
+    window.__lastKeyExtract = data;
+
+    // thinking 등 다른 블록이 앞에 올 수 있으므로 첫 text 블록을 찾는다
+    const textBlock = Array.isArray(data.content) ? data.content.find(b => b && b.type === 'text') : null;
+    const text = (textBlock?.text || '').trim();
+    const truncated = data.stop_reason === 'max_tokens';
+    if (!text) throw new Error(truncated ? '응답이 잘렸습니다 (내용 없음)' : 'AI가 빈 응답을 보냈어요');
 
     document.getElementById('keyContent').value = text;
     updateKeyLen();
@@ -1607,7 +1614,12 @@ async function runKeyExtract() {
     const nameEl = document.getElementById('keyName');
     if (!nameEl.value.trim() && hint) nameEl.value = hint;
 
-    showToast('✓ 정답 추출 완료 — 내용을 확인해주세요', 'ok');
+    if (truncated) {
+      // 잘린 정답표를 그대로 저장하면 뒷부분 채점이 전부 틀어지므로 성공으로 표시하지 않는다
+      showToast('⚠ 응답이 잘렸습니다 — 뒷부분이 빠졌을 수 있어요. 범위를 좁혀 다시 추출해주세요', 'err');
+    } else {
+      showToast('✓ 정답 추출 완료 — 내용을 확인해주세요', 'ok');
+    }
   } catch (err) {
     console.error('[keyExtract]', err);
     showToast('✗ 추출 실패: ' + (err.message || '네트워크 오류'), 'err');
