@@ -1601,10 +1601,7 @@ async function runKeyExtract() {
     console.log('[keyExtract] response', data);
     window.__lastKeyExtract = data;
 
-    // thinking 등 다른 블록이 앞에 올 수 있으므로 첫 text 블록을 찾는다
-    const textBlock = Array.isArray(data.content) ? data.content.find(b => b && b.type === 'text') : null;
-    const text = (textBlock?.text || '').trim();
-    const truncated = data.stop_reason === 'max_tokens';
+    const { text, truncated } = pickResponseText(data);
     if (!text) throw new Error(truncated ? '응답이 잘렸습니다 (내용 없음)' : 'AI가 빈 응답을 보냈어요');
 
     document.getElementById('keyContent').value = text;
@@ -1678,6 +1675,14 @@ ${scope}
 - 선택지를 고르는 문제는 **번호와 내용을 함께**: "⑤ How AI-based neural implants…"
 - 해설·설명·한글 해석은 **넣지 마세요.** 정답만 필요합니다.
 - 읽을 수 없는 항목은 "(판독 불가)"라고 적습니다. **추측하지 마세요.**
+
+【 무시할 것 】
+- 만화, 삽화, 사진, 캐릭터 그림
+- 순서도, 흐름도, 도식, 마인드맵 같은 그림 자료
+- 학습 안내, 공부법 설명, 페이지 장식
+정답과 무관한 것은 한 글자도 출력하지 마세요.
+정답 기호·정답 단어·정답 문장만 뽑으세요.
+(단, 문항 번호·섹션 소제목·범위 안내 문구는 위 규칙대로 유지합니다)
 
 【 출력 형식 】
 사람이 읽기 좋은 **일반 텍스트**. JSON 아닙니다.
@@ -2382,12 +2387,30 @@ async function callClaudeAPI(apiKey, prompt, answerPhotos) {
   }
 
   const data = await res.json();
-  const text = data.content?.[0]?.text || '';
+  const { text, truncated } = pickResponseText(data);
   console.log('[AI 응답 원문 — 전체]\n', text);
   // 전역에 저장해서 에러 시 진단 가능
+  // __lastAIResponse는 채점 실패 화면이 문자열로 읽으므로(.slice) 텍스트 그대로 유지,
+  // 응답 객체 전체는 __lastAIResponseData에 따로 둔다
   window.__lastAIResponse = text;
+  window.__lastAIResponseData = data;
+
+  // 잘린 응답은 일부 문항이 빠져 점수가 틀어지므로 결과로 쓰지 않는다 (오판이 미판정보다 나쁘다)
+  if (truncated) {
+    throw new Error('응답이 잘렸습니다 — 결과 일부가 빠졌을 수 있어 채점을 중단했어요. 사진 수를 줄여 다시 시도해주세요.');
+  }
 
   return parseAIResponse(text);
+}
+
+// API 응답에서 첫 text 블록과 잘림 여부를 뽑는다.
+// thinking 등 다른 블록이 앞에 올 수 있으므로 content[0]을 그대로 쓰지 않는다.
+function pickResponseText(data) {
+  const block = Array.isArray(data?.content) ? data.content.find(b => b && b.type === 'text') : null;
+  return {
+    text: (block?.text || '').trim(),
+    truncated: data?.stop_reason === 'max_tokens',
+  };
 }
 
 function parseDataUrl(dataUrl) {
